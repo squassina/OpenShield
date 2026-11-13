@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Activity,
   AlertTriangle,
@@ -6,6 +7,7 @@ import {
   CheckCircle2,
   GlobeLock,
   Home,
+  Languages,
   LayoutDashboard,
   Menu,
   Network,
@@ -18,6 +20,7 @@ import {
   ShieldAlert,
   X,
 } from 'lucide-react';
+import { SUPPORTED_LANGUAGES } from './i18n';
 import { AuditLogsView } from './components/AuditLogsView';
 import { DevicesTopologyView } from './components/DevicesTopologyView';
 import { DnsPrivacyView } from './components/DnsPrivacyView';
@@ -39,18 +42,19 @@ import type {
   WorkspaceState,
 } from './types/openshield';
 
-const NAV_ITEMS: { id: NavTab; label: string; icon: typeof LayoutDashboard }[] = [
-  { id: 'overview', label: 'Visão Geral', icon: LayoutDashboard },
-  { id: 'integrations', label: 'Gateway e Integrações', icon: PlugZap },
-  { id: 'devices', label: 'Dispositivos e Topologia', icon: Network },
-  { id: 'dns', label: 'Privacidade e DNS', icon: GlobeLock },
-  { id: 'incidents', label: 'Incidentes e IA', icon: ShieldAlert },
-  { id: 'policies', label: 'Políticas e Auditoria', icon: Shield },
-  { id: 'audit', label: 'Logs de Auditoria', icon: ScrollText },
-  { id: 'settings', label: 'Configurações', icon: Settings },
+const NAV_ITEMS: { id: NavTab; labelKey: string; icon: typeof LayoutDashboard }[] = [
+  { id: 'overview', labelKey: 'nav.overview', icon: LayoutDashboard },
+  { id: 'integrations', labelKey: 'nav.integrations', icon: PlugZap },
+  { id: 'devices', labelKey: 'nav.devices', icon: Network },
+  { id: 'dns', labelKey: 'nav.dns', icon: GlobeLock },
+  { id: 'incidents', labelKey: 'nav.incidents', icon: ShieldAlert },
+  { id: 'policies', labelKey: 'nav.policies', icon: Shield },
+  { id: 'audit', labelKey: 'nav.audit', icon: ScrollText },
+  { id: 'settings', labelKey: 'nav.settings', icon: Settings },
 ];
 
 export default function App() {
+  const { t, i18n } = useTranslation();
   const [state, setState] = useState<WorkspaceState | null>(null);
   const [activeTab, setActiveTab] = useState<NavTab>('overview');
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
@@ -83,7 +87,7 @@ export default function App() {
       })
       .catch((err) => {
         if (active) {
-          setLoadError(err instanceof Error ? err.message : 'Falha ao carregar estado inicial.');
+          setLoadError(err instanceof Error ? err.message : t('header.bffLoadErrorFallback'));
         }
       });
 
@@ -101,7 +105,7 @@ export default function App() {
       active = false;
       source.close();
     };
-  }, []);
+  }, [t]);
 
   const runAction = async (
     key: string,
@@ -114,7 +118,7 @@ export default function App() {
       if (nextState) setState(nextState);
       if (successMsg) showToast('info', successMsg);
     } catch (err) {
-      showToast('error', err instanceof Error ? err.message : 'Erro ao executar operação.');
+      showToast('error', err instanceof Error ? err.message : t('toasts.operationError'));
     } finally {
       setBusyKey(null);
     }
@@ -124,23 +128,21 @@ export default function App() {
     runAction(
       'context',
       () => api.updateContext({ profile }),
-      profile === 'residential'
-        ? 'Perfil alterado para Residencial (LAN confiável).'
-        : 'Perfil alterado para Pequeno Escritório (RBAC simulado ativo).',
+      profile === 'residential' ? t('toasts.profileResidential') : t('toasts.profileBusiness'),
     );
 
   const handleRoleChange = (simulatedRole: SimulatedRole) =>
     runAction(
       'context',
       () => api.updateContext({ simulatedRole }),
-      `Papel RBAC simulado alterado para ${simulatedRole}.`,
+      t('toasts.roleChanged', { role: simulatedRole }),
     );
 
   const handleAutonomyChange = (globalAutonomy: AutonomyLevel) =>
     runAction(
       'context',
       () => api.updateContext({ globalAutonomy }),
-      `Teto global de autonomia definido em ${globalAutonomy}.`,
+      t('toasts.autonomyChanged', { level: globalAutonomy }),
     );
 
   const handleSiteChange = (activeSiteId: string) =>
@@ -150,9 +152,7 @@ export default function App() {
     runAction(
       'outage',
       () => api.toggleNodeOutage(nodeAvailable),
-      nodeAvailable
-        ? 'Node reconectado e eventos do outbox drenados com idempotência.'
-        : 'Simulação ativada: Node offline, gateway segue roteando e conector bufferiza eventos.',
+      nodeAvailable ? t('toasts.nodeReconnected') : t('toasts.nodeOutageSim'),
     );
 
   const handleKillSwitch = () => {
@@ -161,9 +161,7 @@ export default function App() {
     runAction(
       'kill-switch',
       () => api.triggerKillSwitch(next),
-      next
-        ? 'Parada de Emergência (Kill Switch) ativada: automações revertidas para L0.'
-        : 'Kill Switch liberado; sistema mantido em L0 Observar por segurança.',
+      next ? t('toasts.killSwitchOn') : t('toasts.killSwitchOff'),
     );
   };
 
@@ -174,25 +172,26 @@ export default function App() {
       const errCount = res.errors.length;
       showToast(
         errCount > 0 && okCount === 0 ? 'error' : 'info',
-        `Sincronização em lote: ${okCount} sucesso(s), ${errCount} falha(s).`,
+        t('toasts.syncBatch', { ok: okCount, err: errCount }),
       );
       return res.state;
     });
 
-  const currentTabTitle = NAV_ITEMS.find((item) => item.id === activeTab)?.label ?? 'Visão Geral';
+  const currentTabItem = NAV_ITEMS.find((item) => item.id === activeTab);
+  const currentTabTitle = currentTabItem ? t(currentTabItem.labelKey) : t('nav.overview');
 
   if (loadError) {
     return (
       <div className="min-h-screen bg-[#0B1120] text-slate-100 flex items-center justify-center p-6">
         <div className="max-w-md w-full rounded-xl border border-slate-800 bg-[#131C31] p-6 space-y-4">
-          <h1 className="text-lg font-semibold text-slate-100">Falha ao conectar ao BFF OpenShield</h1>
+          <h1 className="text-lg font-semibold text-slate-100">{t('header.bffConnectErrorTitle')}</h1>
           <p className="text-sm text-slate-400">{loadError}</p>
           <button
             type="button"
             onClick={() => window.location.reload()}
             className="px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 cursor-pointer"
           >
-            Tentar Novamente
+            {t('common.retry')}
           </button>
         </div>
       </div>
@@ -202,7 +201,7 @@ export default function App() {
   if (!state) {
     return (
       <div className="min-h-screen bg-[#0B1120] text-slate-300 flex items-center justify-center p-6">
-        <div className="text-sm font-mono">Inicializando OpenShield BFF e contratos v1...</div>
+        <div className="text-sm font-mono">{t('header.initializing')}</div>
       </div>
     );
   }
@@ -242,7 +241,7 @@ export default function App() {
                 }`}
               >
                 <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-blue-400' : 'text-slate-400'}`} />
-                <span className="truncate">{item.label}</span>
+                <span className="truncate">{t(item.labelKey)}</span>
               </button>
             );
           })}
@@ -250,7 +249,7 @@ export default function App() {
 
         <div className="p-4 border-t border-slate-800 text-xs text-slate-400 space-y-1">
           <div className="font-medium text-slate-300">
-            {isBusiness ? 'Perfil: Pequeno Escritório' : 'Perfil: Residencial'}
+            {isBusiness ? t('toolbar.sidebarProfileBusiness') : t('toolbar.sidebarProfileResidential')}
           </div>
           <div className="font-mono text-[11px] text-slate-500">
             {state.integrations.filter((i) => i.mode === 'live').length} Live ·{' '}
@@ -275,7 +274,7 @@ export default function App() {
               </span>
               <button
                 type="button"
-                aria-label="Fechar menu"
+                aria-label={t('nav.closeMenu')}
                 onClick={() => setMobileMenuOpen(false)}
                 className="p-1.5 text-slate-400 hover:text-slate-100 cursor-pointer"
               >
@@ -299,7 +298,7 @@ export default function App() {
                     }`}
                   >
                     <Icon className="w-4 h-4 shrink-0" />
-                    <span>{item.label}</span>
+                    <span>{t(item.labelKey)}</span>
                   </button>
                 );
               })}
@@ -316,7 +315,7 @@ export default function App() {
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
-              aria-label="Abrir navegação"
+              aria-label={t('nav.openMenu')}
               onClick={() => setMobileMenuOpen(true)}
               className="lg:hidden p-2 -ml-2 rounded-lg text-slate-300 hover:bg-slate-800 cursor-pointer"
             >
@@ -337,7 +336,7 @@ export default function App() {
                 type="search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar dispositivo, IP ou domínio..."
+                placeholder={t('header.searchPlaceholder')}
                 className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-800 bg-slate-950 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
               />
             </div>
@@ -357,13 +356,15 @@ export default function App() {
             >
               <OctagonAlert className="w-3.5 h-3.5" />
               <span>
-                {state.context.killSwitchActive ? 'Kill Switch Ativo (Liberar)' : 'Parada de Emergência'}
+                {state.context.killSwitchActive
+                  ? t('header.killSwitchActive')
+                  : t('header.killSwitchIdle')}
               </span>
             </button>
           </div>
         </header>
 
-        {/* Workspace Context Toolbar (Profile, RBAC, Autonomy, Node status) */}
+        {/* Workspace Context Toolbar (Profile, RBAC, Autonomy, Language, Node status) */}
         <div className="px-4 lg:px-8 py-3 border-b border-slate-800 bg-[#0B1120] flex flex-wrap items-center justify-between gap-4 text-xs">
           <div className="flex flex-wrap items-center gap-3">
             {/* Profile Switcher */}
@@ -377,7 +378,7 @@ export default function App() {
                 }`}
               >
                 <Home className="w-3.5 h-3.5" />
-                <span>Residencial</span>
+                <span>{t('toolbar.profileResidential')}</span>
               </button>
               <button
                 type="button"
@@ -388,7 +389,7 @@ export default function App() {
                 }`}
               >
                 <Building2 className="w-3.5 h-3.5" />
-                <span>Pequeno Escritório</span>
+                <span>{t('toolbar.profileBusiness')}</span>
               </button>
             </div>
 
@@ -396,20 +397,20 @@ export default function App() {
             {isBusiness && (
               <>
                 <label className="inline-flex items-center gap-2 text-slate-300">
-                  <span className="text-slate-400">Papel RBAC:</span>
+                  <span className="text-slate-400">{t('toolbar.rbacRoleLabel')}</span>
                   <select
                     value={state.context.simulatedRole}
                     onChange={(e) => handleRoleChange(e.target.value as SimulatedRole)}
                     className="px-2.5 py-1.5 rounded-lg border border-slate-700 bg-[#131C31] text-slate-100 text-xs"
                   >
-                    <option value="admin">Administrador</option>
-                    <option value="operator">Operador</option>
-                    <option value="auditor">Auditor (Somente Leitura)</option>
+                    <option value="admin">{t('toolbar.roleAdmin')}</option>
+                    <option value="operator">{t('toolbar.roleOperator')}</option>
+                    <option value="auditor">{t('toolbar.roleAuditor')}</option>
                   </select>
                 </label>
 
                 <label className="inline-flex items-center gap-2 text-slate-300">
-                  <span className="text-slate-400">Site:</span>
+                  <span className="text-slate-400">{t('toolbar.siteLabel')}</span>
                   <select
                     value={state.context.activeSiteId}
                     onChange={(e) => handleSiteChange(e.target.value)}
@@ -430,17 +431,35 @@ export default function App() {
 
           <div className="flex flex-wrap items-center gap-4">
             <label className="inline-flex items-center gap-2 text-slate-300">
-              <span className="text-slate-400">Autonomia:</span>
+              <span className="text-slate-400">{t('toolbar.autonomyLabel')}</span>
               <select
                 value={state.context.globalAutonomy}
                 disabled={state.context.killSwitchActive}
                 onChange={(e) => handleAutonomyChange(e.target.value as AutonomyLevel)}
                 className="px-2.5 py-1.5 rounded-lg border border-slate-700 bg-[#131C31] text-slate-100 text-xs disabled:opacity-50"
               >
-                <option value="L0">L0 · Observar</option>
-                <option value="L1">L1 · Baixo Impacto</option>
-                <option value="L2">L2 · Contenção Limitada</option>
-                <option value="L3">L3 · Aprovação Humana</option>
+                <option value="L0">{t('toolbar.autonomyL0')}</option>
+                <option value="L1">{t('toolbar.autonomyL1')}</option>
+                <option value="L2">{t('toolbar.autonomyL2')}</option>
+                <option value="L3">{t('toolbar.autonomyL3')}</option>
+              </select>
+            </label>
+
+            {/* i18n Language Switcher */}
+            <label className="inline-flex items-center gap-1.5 text-slate-300">
+              <Languages className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span className="sr-only">{t('toolbar.languageLabel')}</span>
+              <select
+                aria-label={t('toolbar.languageLabel')}
+                value={i18n.language}
+                onChange={(e) => void i18n.changeLanguage(e.target.value)}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-700 bg-[#131C31] text-slate-100 text-xs cursor-pointer"
+              >
+                {SUPPORTED_LANGUAGES.map((lang) => (
+                  <option key={lang.code} value={lang.code}>
+                    {lang.label}
+                  </option>
+                ))}
               </select>
             </label>
 
@@ -451,7 +470,9 @@ export default function App() {
                 }`}
               />
               <span>
-                {state.context.nodeAvailable ? 'Node Conectado' : 'Node Offline (Gateway Ativo)'}
+                {state.context.nodeAvailable
+                  ? t('toolbar.nodeConnected')
+                  : t('toolbar.nodeOffline')}
               </span>
             </div>
           </div>
@@ -463,9 +484,9 @@ export default function App() {
             <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
             <div>
               <strong className="font-semibold text-slate-100">
-                Simulação de Perfil Pequeno Escritório (RBAC):
+                {t('toolbar.businessBannerTitle')}
               </strong>{' '}
-              O modo Residencial opera sem autenticação apenas em LAN confiável. Antes de implantar o perfil Escritório em produção ou multi-site, habilite identidade, credenciais de gateway e RBAC reais no OpenShield Node.
+              {t('toolbar.businessBannerBody')}
             </div>
           </div>
         )}
@@ -508,7 +529,7 @@ export default function App() {
                 runAction(
                   `handshake-${id}`,
                   () => api.runHandshake(id),
-                  `Handshake openshield.gateway.v1 concluído para ${id}.`,
+                  t('toasts.handshakeDone', { id }),
                 )
               }
               onToggleOutage={handleToggleOutage}
@@ -517,23 +538,21 @@ export default function App() {
                   const sourceAdapter =
                     state.integrations.find((i) => i.domain === 'ids') ?? state.integrations[0];
                   if (!sourceAdapter) {
-                    throw new Error(
-                      'Adicione pelo menos um serviço na aba Configurações antes de testar a ingestão de eventos.',
-                    );
+                    throw new Error(t('toasts.needServiceBeforeIngest'));
                   }
                   const res = await api.ingestEvent({
                     sourceIntegrationId: sourceAdapter.id,
                     eventType: sourceAdapter.domain === 'dns' ? 'dns.query' : 'ids.alert',
                     severity: 'medium',
                     deviceId: state.devices[0]?.id,
-                    summary: 'Evento de teste normalizado openshield.event.v1 ingerido pelo simulador.',
+                    summary: t('toasts.sampleTestSummary'),
                     payload: { simulated: true, port: 8443 },
                   });
                   showToast(
                     'info',
                     res.status === 'buffered'
-                      ? 'Node offline: evento salvo no spool SQLite local do conector.'
-                      : `Evento openshield.event.v1 validado com proveniência "${sourceAdapter.id}".`,
+                      ? t('toasts.eventBuffered')
+                      : t('toasts.eventValidated', { id: sourceAdapter.id }),
                   );
                   return res.state;
                 })
@@ -543,9 +562,7 @@ export default function App() {
                   const sourceAdapter =
                     state.integrations.find((i) => i.domain === 'ids') ?? state.integrations[0];
                   if (!sourceAdapter) {
-                    throw new Error(
-                      'Adicione pelo menos um serviço na aba Configurações antes de testar correlação.',
-                    );
+                    throw new Error(t('toasts.needServiceBeforeCorrelate'));
                   }
                   const res = await api.ingestLanEvents([
                     {
@@ -554,8 +571,7 @@ export default function App() {
                       eventType: 'ids.alert',
                       severity: 'high',
                       deviceId: state.devices[0]?.id,
-                      summary:
-                        'Tentativa de enumeração SMB (porta 445) detectada na LAN via endpoint /api/v1/ingest/events.',
+                      summary: t('toasts.liveBatchSummary'),
                       payload: { dstPort: 445, proto: 'TCP', srcIp: state.devices[0]?.ip || '192.168.1.20' },
                     },
                   ]);
@@ -563,8 +579,8 @@ export default function App() {
                   showToast(
                     'info',
                     createdId
-                      ? `Evento ingerido e correlacionado automaticamente no incidente ${createdId}.`
-                      : 'Evento ingerido via /api/v1/ingest/events.',
+                      ? t('toasts.eventCorrelated', { id: createdId })
+                      : t('toasts.eventIngestedOk'),
                   );
                   return res.state;
                 })
@@ -575,7 +591,7 @@ export default function App() {
                     sourceIntegrationId: 'rogue-sensor-99',
                     eventType: 'ids.alert',
                     severity: 'high',
-                    summary: 'Tentativa de injeção sem integração registrada.',
+                    summary: t('toasts.badProvenanceSummary'),
                   });
                 })
               }
@@ -590,7 +606,7 @@ export default function App() {
                 runAction(
                   'manual-reg',
                   () => api.registerManualIntegration(payload),
-                  `Serviço "${payload.name}" registrado.`,
+                  t('toasts.serviceRegistered', { name: payload.name }),
                 )
               }
               onOpenSettings={() => setActiveTab('settings')}
@@ -606,21 +622,21 @@ export default function App() {
                 runAction(
                   'add-device',
                   () => api.addDevice(payload),
-                  `Dispositivo "${payload.hostname}" adicionado.`,
+                  t('toasts.deviceAdded', { hostname: payload.hostname }),
                 )
               }
               onUpdateDevice={(id, patch) =>
                 runAction(
                   `upd-dev-${id}`,
                   () => api.updateDevice(id, patch),
-                  'Dispositivo atualizado.',
+                  t('toasts.deviceUpdated'),
                 )
               }
               onRemoveDevice={(id, hostname) =>
                 runAction(
                   `rm-dev-${id}`,
                   () => api.removeDevice(id),
-                  `Dispositivo "${hostname}" removido.`,
+                  t('toasts.deviceRemoved', { hostname }),
                 )
               }
               busyKey={busyKey}
@@ -635,14 +651,14 @@ export default function App() {
                 runAction(
                   'dns-add',
                   () => api.addDnsInsight(payload),
-                  `Domínio "${payload.domain}" adicionado à inteligência DNS.`,
+                  t('toasts.dnsAdded', { domain: payload.domain }),
                 )
               }
               onUpdateDnsList={(id: string, listStatus: DnsInsight['listStatus']) =>
                 runAction(
                   `dns-${id}`,
                   () => api.updateDnsList(id, listStatus),
-                  `Lista DNS atualizada para "${listStatus}".`,
+                  t('toasts.dnsListUpdated', { status: listStatus }),
                 )
               }
               busyKey={busyKey}
@@ -659,33 +675,31 @@ export default function App() {
                   `inv-${mode === 'local' ? 'local' : 'cloud'}-${incidentId}`,
                   () => api.investigateIncident(incidentId, mode),
                   mode === 'local'
-                    ? 'Investigação local-first atualizada com base em evidências.'
-                    : 'Segunda opinião via Gemini (payload sanitizado) concluída.',
+                    ? t('toasts.investigatedLocal')
+                    : t('toasts.investigatedCloud'),
                 )
               }
               onToggleCloudOptIn={(enabled) =>
                 runAction(
                   'context',
                   () => api.updateContext({ cloudAiOptIn: enabled }),
-                  enabled
-                    ? 'Opt-in de segunda opinião em nuvem habilitado.'
-                    : 'Modo exclusivamente local-first restaurado.',
+                  enabled ? t('toasts.cloudOptInOn') : t('toasts.cloudOptInOff'),
                 )
               }
               onUpdateSensitivity={(aiSensitivity: AiSensitivityConfig) =>
                 runAction(
                   'ai-sensitivity',
                   () => api.updateContext({ aiSensitivity }),
-                  `Sensibilidade da IA ajustada (${aiSensitivity.preset} · score mínimo ${aiSensitivity.minRiskScoreAlert}).`,
+                  t('toasts.sensitivityUpdated', {
+                    preset: aiSensitivity.preset,
+                    score: aiSensitivity.minRiskScoreAlert,
+                  }),
                 )
               }
               onProposeAction={(incidentId, policyId) =>
                 runAction(`propose-${incidentId}`, async () => {
                   const res = await api.proposeAction(incidentId, policyId);
-                  showToast(
-                    'info',
-                    'Política avaliada! Verifique o status, TTL e rollback na aba Políticas e Auditoria.',
-                  );
+                  showToast('info', t('toasts.policyProposed'));
                   return res.state;
                 })
               }
@@ -693,7 +707,7 @@ export default function App() {
                 runAction(
                   `inc-status-${incidentId}`,
                   () => api.updateIncidentStatus(incidentId, status),
-                  'Status do incidente atualizado.',
+                  t('toasts.incidentStatusUpdated'),
                 )
               }
               busyKey={busyKey}
@@ -707,13 +721,17 @@ export default function App() {
                 runAction(
                   `policy-${id}`,
                   () => api.togglePolicy(id, enabled),
-                  `Política ${enabled ? 'habilitada' : 'desabilitada'}.`,
+                  t('toasts.policyToggled', {
+                    status: enabled
+                      ? t('toasts.policyToggledEnabled')
+                      : t('toasts.policyToggledDisabled'),
+                  }),
                 )
               }
               onProposeAction={(incidentId, policyId, ttlSeconds) =>
                 runAction(`propose-${incidentId}`, async () => {
                   const res = await api.proposeAction(incidentId, policyId, ttlSeconds);
-                  showToast('info', 'Avaliação determinística registrada em Execuções.');
+                  showToast('info', t('toasts.policyEvaluated'));
                   return res.state;
                 })
               }
@@ -721,14 +739,14 @@ export default function App() {
                 runAction(
                   `approve-${id}`,
                   () => api.approveExecution(id),
-                  'Ação L3 aprovada e verificada.',
+                  t('toasts.l3Approved'),
                 )
               }
               onRollbackExecution={(id) =>
                 runAction(
                   `rollback-${id}`,
                   () => api.rollbackExecution(id),
-                  'Rollback executado e verificado no adaptador.',
+                  t('toasts.rollbackDone'),
                 )
               }
               onChangeAutonomy={handleAutonomyChange}
@@ -745,7 +763,7 @@ export default function App() {
                 runAction(
                   'add-service',
                   () => api.registerManualIntegration(payload),
-                  `Serviço "${payload.name}" salvo em Serviços e Endpoints Configurados.`,
+                  t('toasts.serviceSavedInSettings', { name: payload.name }),
                 )
               }
               onSaveConfig={(id, payload) =>
@@ -753,15 +771,15 @@ export default function App() {
                   `cfg-${id}`,
                   () => api.updateIntegrationConfig(id, payload),
                   payload.clearSecret
-                    ? `Credenciais removidas do cofre do servidor para ${id}.`
-                    : `Alterações salvas para ${id}.`,
+                    ? t('toasts.credentialsCleared', { id })
+                    : t('toasts.changesSavedFor', { id }),
                 )
               }
               onRemoveIntegration={(id, name) =>
                 runAction(
                   `rm-${id}`,
                   () => api.removeIntegration(id),
-                  `Serviço "${name}" deletado.`,
+                  t('toasts.serviceDeleted', { name }),
                 )
               }
               onTestAndActivateLive={(id, liveUrl) =>
@@ -775,14 +793,14 @@ export default function App() {
                 runAction(
                   'site-add',
                   () => api.addSite(payload),
-                  `Site "${payload.name}" adicionado.`,
+                  t('toasts.siteAdded', { name: payload.name }),
                 )
               }
               onRemoveSite={(siteId, siteName) =>
                 runAction(
                   `site-rm-${siteId}`,
                   () => api.removeSite(siteId),
-                  `Site "${siteName}" removido.`,
+                  t('toasts.siteRemoved', { name: siteName }),
                 )
               }
               onExportBackup={() =>
@@ -799,28 +817,28 @@ export default function App() {
                   anchor.click();
                   document.body.removeChild(anchor);
                   URL.revokeObjectURL(url);
-                  showToast('info', 'Backup JSON sanitizado (sem credenciais) exportado.');
+                  showToast('info', t('toasts.backupExported'));
                 })
               }
               onRestoreBackup={(payload) =>
                 runAction(
                   'backup-restore',
                   () => api.restoreBackup(payload),
-                  'Configuração restaurada com segurança a partir do backup JSON.',
+                  t('toasts.backupRestored'),
                 )
               }
               onLoadDemo={() =>
                 runAction(
                   'workspace-demo',
                   () => api.loadDemoScenario(),
-                  'Cenário de demonstração Mock carregado.',
+                  t('toasts.demoLoaded'),
                 )
               }
               onResetWorkspace={() =>
                 runAction(
                   'workspace-reset',
                   () => api.resetWorkspace(),
-                  'Inventário zerado para configuração manual.',
+                  t('toasts.workspaceReset'),
                 )
               }
               onNavigateToIntegrations={() => setActiveTab('integrations')}
@@ -828,21 +846,21 @@ export default function App() {
                 runAction(
                   'notif-add',
                   () => api.addNotificationDestination(payload),
-                  `Destino de alerta "${payload.name}" salvo com sucesso.`,
+                  t('toasts.notifAdded', { name: payload.name }),
                 )
               }
               onUpdateNotification={(id, payload) =>
                 runAction(
                   `notif-upd-${id}`,
                   () => api.updateNotificationDestination(id, payload),
-                  'Configuração do destino de alerta atualizada.',
+                  t('toasts.notifUpdated'),
                 )
               }
               onRemoveNotification={(id, name) =>
                 runAction(
                   `notif-rm-${id}`,
                   () => api.removeNotificationDestination(id),
-                  `Destino de alerta "${name}" removido.`,
+                  t('toasts.notifRemoved', { name }),
                 )
               }
               onTestNotification={(id) =>
@@ -872,7 +890,7 @@ export default function App() {
           <span className="text-slate-100 leading-relaxed">{toast.message}</span>
           <button
             type="button"
-            aria-label="Dispensar aviso"
+            aria-label={t('header.dismissToast')}
             onClick={() => setToast(null)}
             className="text-slate-400 hover:text-slate-200 ml-2 cursor-pointer"
           >

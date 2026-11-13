@@ -1,5 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { Eye, GlobeLock, Plus, ShieldCheck } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { getIntlLocale } from '../i18n';
 import type { DnsInsight, WorkspaceState } from '../types/openshield';
 
 interface DnsPrivacyViewProps {
@@ -23,6 +25,8 @@ export function DnsPrivacyView({
   onUpdateDnsList,
   busyKey,
 }: DnsPrivacyViewProps) {
+  const { t, i18n } = useTranslation();
+  const locale = getIntlLocale(i18n.language);
   const [filter, setFilter] = useState<'all' | DnsInsight['classification']>('all');
   const [showAddForm, setShowAddForm] = useState(false);
   const [domainInput, setDomainInput] = useState('');
@@ -69,20 +73,20 @@ export function DnsPrivacyView({
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-50 text-balance">
-            Inteligência de Privacidade e DNS
+            {t('dns.title')}
           </h1>
           <p className="mt-1 text-sm text-slate-400 max-w-2xl">
-            Visibilidade de telemetria, rastreadores e domínios suspeitos via Pi-hole, AdGuard Home e Technitium DNS sem interceptação TLS ({dnsAdapters.length} servidor(es) DNS · {liveDnsCount} em API Real).
+            {t('dns.subtitle', { total: dnsAdapters.length, live: liveDnsCount })}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
           <div className="inline-flex items-center gap-1 p-1 rounded-lg bg-[#131C31] border border-slate-800">
             {[
-              { id: 'all', label: 'Todos' },
-              { id: 'tracker', label: 'Rastreadores' },
-              { id: 'suspicious', label: 'Suspeitos' },
-              { id: 'benign', label: 'Normais' },
+              { id: 'all', label: t('dns.filterAll') },
+              { id: 'tracker', label: t('dns.filterTracker') },
+              { id: 'suspicious', label: t('dns.filterSuspicious') },
+              { id: 'benign', label: t('dns.filterBenign') },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -103,7 +107,7 @@ export function DnsPrivacyView({
             className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>{showAddForm ? 'Fechar Formulário' : 'Adicionar Domínio'}</span>
+            <span>{showAddForm ? t('dns.closeForm') : t('dns.addDomain')}</span>
           </button>
         </div>
       </div>
@@ -115,21 +119,17 @@ export function DnsPrivacyView({
           className="rounded-xl border border-slate-700 bg-[#131C31] p-5 space-y-4"
         >
           <div className="border-b border-slate-800 pb-3">
-            <h2 className="text-sm font-semibold text-slate-100">
-              Cadastrar Domínio para Monitoramento ou Bloqueio DNS
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Quando bloqueado ou permitido, a regra é sincronizada com todos os servidores DNS em API Real (Pi-hole, AdGuard Home, Technitium).
-            </p>
+            <h2 className="text-sm font-semibold text-slate-100">{t('dns.formTitle')}</h2>
+            <p className="text-xs text-slate-400 mt-0.5">{t('dns.formSubtitle')}</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3.5">
             <label className="block space-y-1 text-xs lg:col-span-2">
-              <span className="text-slate-300 font-medium">Domínio</span>
+              <span className="text-slate-300 font-medium">{t('dns.domainLabel')}</span>
               <input
                 type="text"
                 required
-                placeholder="ex.: metrics.fabricante-iot.com"
+                placeholder={t('dns.domainPlaceholder')}
                 value={domainInput}
                 onChange={(e) => setDomainInput(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
@@ -137,7 +137,7 @@ export function DnsPrivacyView({
             </label>
 
             <label className="block space-y-1 text-xs">
-              <span className="text-slate-300 font-medium">Classificação</span>
+              <span className="text-slate-300 font-medium">{t('dns.classificationLabel')}</span>
               <select
                 value={classification}
                 onChange={(e) => {
@@ -149,31 +149,31 @@ export function DnsPrivacyView({
                 }}
                 className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
               >
-                <option value="tracker">Rastreador / Telemetria</option>
-                <option value="suspicious">Suspeito / DGA</option>
-                <option value="benign">Normal / Legítimo</option>
+                <option value="tracker">{t('dns.classTracker')}</option>
+                <option value="suspicious">{t('dns.classSuspicious')}</option>
+                <option value="benign">{t('dns.classBenign')}</option>
               </select>
             </label>
 
             <label className="block space-y-1 text-xs">
-              <span className="text-slate-300 font-medium">Estado Inicial</span>
+              <span className="text-slate-300 font-medium">{t('dns.initialStateLabel')}</span>
               <select
                 value={listStatus}
                 onChange={(e) => setListStatus(e.target.value as DnsInsight['listStatus'])}
                 className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
               >
-                <option value="blocked">Bloqueado</option>
-                <option value="monitored">Monitorado</option>
-                <option value="allowed">Permitido</option>
+                <option value="blocked">{t('common.blocked')}</option>
+                <option value="monitored">{t('common.monitored')}</option>
+                <option value="allowed">{t('common.allowed')}</option>
               </select>
             </label>
 
             <label className="block space-y-1 text-xs">
-              <span className="text-slate-300 font-medium">Dispositivo (opcional)</span>
+              <span className="text-slate-300 font-medium">{t('dns.deviceOptionalLabel')}</span>
               <input
                 type="text"
                 list="openshield-device-hosts"
-                placeholder="ex.: smart-tv-sala"
+                placeholder={t('dns.devicePlaceholder')}
                 value={deviceHostname}
                 onChange={(e) => setDeviceHostname(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
@@ -192,14 +192,14 @@ export function DnsPrivacyView({
               onClick={() => setShowAddForm(false)}
               className="px-3.5 py-2 text-xs font-medium rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 whitespace-nowrap shrink-0 cursor-pointer"
             >
-              Cancelar
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
               disabled={busyKey === 'dns-add'}
               className="px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
             >
-              Salvar Domínio
+              {t('dns.saveDomain')}
             </button>
           </div>
         </form>
@@ -209,41 +209,35 @@ export function DnsPrivacyView({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="rounded-xl border border-slate-800 bg-[#131C31] p-5">
           <div className="flex items-center justify-between text-xs text-slate-400">
-            <span>Consultas Analisadas</span>
+            <span>{t('dns.kpiQueriesTitle')}</span>
             <Eye className="w-4 h-4 text-slate-400" />
           </div>
           <div className="mt-2 text-xl font-semibold text-slate-50 tabular-nums">
-            {totalQueries.toLocaleString('pt-BR')}
+            {totalQueries.toLocaleString(locale)}
           </div>
-          <p className="mt-1 text-xs text-slate-400">
-            Telemetria apenas de metadados DNS (sem inspeção HTTPS)
-          </p>
+          <p className="mt-1 text-xs text-slate-400">{t('dns.kpiQueriesSub')}</p>
         </div>
 
         <div className="rounded-xl border border-slate-800 bg-[#131C31] p-5">
           <div className="flex items-center justify-between text-xs text-slate-400">
-            <span>Bloqueios de Privacidade</span>
+            <span>{t('dns.kpiBlocksTitle')}</span>
             <GlobeLock className="w-4 h-4 text-blue-400" />
           </div>
           <div className="mt-2 text-xl font-semibold text-slate-50 tabular-nums">
-            {totalBlocked.toLocaleString('pt-BR')} ({blockRate}%)
+            {totalBlocked.toLocaleString(locale)} ({blockRate}%)
           </div>
-          <p className="mt-1 text-xs text-slate-400">
-            Domínios bloqueados em listas gerenciadas pelos adaptadores
-          </p>
+          <p className="mt-1 text-xs text-slate-400">{t('dns.kpiBlocksSub')}</p>
         </div>
 
         <div className="rounded-xl border border-slate-800 bg-[#131C31] p-5">
           <div className="flex items-center justify-between text-xs text-slate-400">
-            <span>Domínios Suspeitos / DGA</span>
+            <span>{t('dns.kpiSuspiciousTitle')}</span>
             <ShieldCheck className="w-4 h-4 text-amber-400" />
           </div>
           <div className="mt-2 text-xl font-semibold text-slate-50 tabular-nums">
             {state.dnsInsights.filter((d) => d.classification === 'suspicious').length}
           </div>
-          <p className="mt-1 text-xs text-slate-400">
-            Sinalizados para revisão ou bloqueio reversível
-          </p>
+          <p className="mt-1 text-xs text-slate-400">{t('dns.kpiSuspiciousSub')}</p>
         </div>
       </div>
 
@@ -253,23 +247,21 @@ export function DnsPrivacyView({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-800 text-xs font-medium text-slate-400 bg-slate-900/50">
-                <th className="py-3 px-4">Domínio / Categoria</th>
-                <th className="py-3 px-4">Dispositivo Principal</th>
-                <th className="py-3 px-4 text-right">Consultas</th>
-                <th className="py-3 px-4 text-right">Bloqueadas</th>
-                <th className="py-3 px-4">Estado na Lista</th>
-                <th className="py-3 px-4 text-right">Ação no Resolvedor</th>
+                <th className="py-3 px-4">{t('dns.colDomainCat')}</th>
+                <th className="py-3 px-4">{t('dns.colMainDevice')}</th>
+                <th className="py-3 px-4 text-right">{t('dns.colQueries')}</th>
+                <th className="py-3 px-4 text-right">{t('dns.colBlocked')}</th>
+                <th className="py-3 px-4">{t('dns.colListStatus')}</th>
+                <th className="py-3 px-4 text-right">{t('dns.colResolverAction')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/80 text-xs">
               {filteredInsights.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-10 text-center space-y-3">
-                    <div className="text-slate-300 font-medium">
-                      Nenhum domínio encontrado para o filtro selecionado.
-                    </div>
+                    <div className="text-slate-300 font-medium">{t('dns.emptyTable')}</div>
                     <p className="text-slate-400 text-xs max-w-md mx-auto">
-                      Sincronize seus servidores Pi-hole / AdGuard Home / Technitium ou adicione um domínio manualmente para monitorar ou bloquear.
+                      {t('dns.emptyTableHint')}
                     </p>
                     <button
                       type="button"
@@ -277,7 +269,7 @@ export function DnsPrivacyView({
                       className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 whitespace-nowrap shrink-0 cursor-pointer"
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      <span>Adicionar Primeiro Domínio</span>
+                      <span>{t('dns.addFirstDomain')}</span>
                     </button>
                   </td>
                 </tr>
@@ -292,17 +284,17 @@ export function DnsPrivacyView({
                       <td className="px-4 py-2.5">
                         <div className="font-mono text-slate-100">{item.domain}</div>
                         <div className="text-[11px] text-slate-400 mt-0.5">
-                          {item.category}
+                          {t(`dns.categories.${item.category}`, { defaultValue: item.category })}
                         </div>
                       </td>
                       <td className="px-4 py-2.5 font-mono text-slate-300">
                         {item.deviceHostname}
                       </td>
                       <td className="px-4 py-2.5 text-right font-mono text-slate-300 tabular-nums">
-                        {item.queriesCount.toLocaleString('pt-BR')}
+                        {item.queriesCount.toLocaleString(locale)}
                       </td>
                       <td className="px-4 py-2.5 text-right font-mono text-slate-300 tabular-nums">
-                        {item.blockedCount.toLocaleString('pt-BR')}
+                        {item.blockedCount.toLocaleString(locale)}
                       </td>
                       <td className="px-4 py-2.5">
                         <span
@@ -315,10 +307,10 @@ export function DnsPrivacyView({
                           }
                         >
                           {item.listStatus === 'blocked'
-                            ? 'Bloqueado'
+                            ? t('common.blocked')
                             : item.listStatus === 'allowed'
-                              ? 'Permitido'
-                              : 'Monitorado'}
+                              ? t('common.allowed')
+                              : t('common.monitored')}
                         </span>
                       </td>
                       <td className="px-4 py-2.5 text-right">
@@ -329,7 +321,7 @@ export function DnsPrivacyView({
                             onClick={() => onUpdateDnsList(item.id, 'blocked')}
                             className="px-2.5 py-1 rounded border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 disabled:opacity-40 whitespace-nowrap shrink-0 cursor-pointer"
                           >
-                            Bloquear
+                            {t('dns.actionBlock')}
                           </button>
                           <button
                             type="button"
@@ -337,7 +329,7 @@ export function DnsPrivacyView({
                             onClick={() => onUpdateDnsList(item.id, 'allowed')}
                             className="px-2.5 py-1 rounded border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 disabled:opacity-40 whitespace-nowrap shrink-0 cursor-pointer"
                           >
-                            Permitir
+                            {t('dns.actionAllow')}
                           </button>
                           <button
                             type="button"
@@ -345,7 +337,7 @@ export function DnsPrivacyView({
                             onClick={() => onUpdateDnsList(item.id, 'monitored')}
                             className="px-2.5 py-1 rounded border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 disabled:opacity-40 whitespace-nowrap shrink-0 cursor-pointer"
                           >
-                            Monitorar
+                            {t('dns.actionMonitor')}
                           </button>
                         </div>
                       </td>

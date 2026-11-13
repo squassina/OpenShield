@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   CheckCircle2,
   Cloud,
@@ -15,16 +16,15 @@ import type {
   SensitivityPreset,
   WorkspaceState,
 } from '../types/openshield';
+import { getIntlLocale } from '../i18n';
 import { AiUsageCard } from './AiUsageCard';
 
 const SENSITIVITY_PRESETS: Record<
   Exclude<SensitivityPreset, 'customizado'>,
-  AiSensitivityConfig & { label: string; hint: string }
+  AiSensitivityConfig
 > = {
   conservador: {
     preset: 'conservador',
-    label: 'Conservador',
-    hint: 'Menor ruído · apenas alto impacto (score >= 70)',
     minRiskScoreAlert: 70,
     dnsBurstThresholdPerMin: 250,
     latencySpikeFactor: 3.5,
@@ -32,8 +32,6 @@ const SENSITIVITY_PRESETS: Record<
   },
   balanceado: {
     preset: 'balanceado',
-    label: 'Balanceado',
-    hint: 'Equilíbrio padrão para residência e escritório',
     minRiskScoreAlert: 50,
     dnsBurstThresholdPerMin: 120,
     latencySpikeFactor: 2.5,
@@ -41,8 +39,6 @@ const SENSITIVITY_PRESETS: Record<
   },
   agressivo: {
     preset: 'agressivo',
-    label: 'Agressivo',
-    hint: 'Vigilância máxima · captura anomalias leves e rajadas DNS',
     minRiskScoreAlert: 30,
     dnsBurstThresholdPerMin: 50,
     latencySpikeFactor: 1.8,
@@ -81,6 +77,8 @@ export function IncidentsAiView({
   onUpdateStatus,
   busyKey,
 }: IncidentsAiViewProps) {
+  const { t, i18n } = useTranslation();
+  const locale = getIntlLocale(i18n.language);
   const activeIncident =
     state.incidents.find((i) => i.id === selectedIncidentId) ?? state.incidents[0] ?? null;
 
@@ -131,18 +129,36 @@ export function IncidentsAiView({
   const aggressivityMeta =
     sensitivityDraft.minRiskScoreAlert <= 35 || sensitivityDraft.flagLowSeverityEvents
       ? {
-          label: 'Vigilância Agressiva',
+          label: t('incidents.modeAggressive'),
           textClass: 'text-amber-300',
         }
       : sensitivityDraft.minRiskScoreAlert >= 70
         ? {
-            label: 'Monitoramento Conservador',
+            label: t('incidents.modeConservative'),
             textClass: 'text-emerald-400',
           }
         : {
-            label: 'Monitoramento Balanceado',
+            label: t('incidents.modeBalanced'),
             textClass: 'text-sky-400',
           };
+
+  const presetMeta: Record<
+    Exclude<SensitivityPreset, 'customizado'>,
+    { label: string; hint: string }
+  > = {
+    conservador: {
+      label: t('incidents.presetConservative'),
+      hint: t('incidents.presetConservativeHint'),
+    },
+    balanceado: {
+      label: t('incidents.presetBalanced'),
+      hint: t('incidents.presetBalancedHint'),
+    },
+    agressivo: {
+      label: t('incidents.presetAggressive'),
+      hint: t('incidents.presetAggressiveHint'),
+    },
+  };
 
   const relatedEvents = activeIncident
     ? state.events.filter((e) => activeIncident.eventIds.includes(e.eventId))
@@ -151,31 +167,40 @@ export function IncidentsAiView({
     ? state.policies.find((p) => p.id === activeIncident.recommendedPolicyId)
     : undefined;
   const inv = activeIncident?.investigation;
+  const confidenceLabel = inv
+    ? inv.confidence === 'alta'
+      ? t('incidents.confidenceHigh')
+      : inv.confidence === 'média'
+        ? t('incidents.confidenceMedium')
+        : inv.confidence === 'baixa'
+          ? t('incidents.confidenceLow')
+          : inv.confidence
+    : '';
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-slate-50 text-balance">
-          Incidentes e Investigação por IA Híbrida
+          {t('incidents.title')}
         </h1>
         <p className="mt-1 text-sm text-slate-400 max-w-2xl">
-          Correlação baseada em evidências com IA local-first por padrão e segunda opinião opcional em nuvem após sanitização estrita.
+          {t('incidents.subtitle')}
         </p>
       </div>
 
       {/* AI Anomaly Sensitivity Thresholds Card */}
       <section
-        aria-label="Limiares de Sensibilidade da IA"
+        aria-label={t('incidents.sensitivityTitle')}
         className="rounded-xl border border-slate-800 bg-[#131C31] p-5 space-y-4"
       >
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between border-b border-slate-800 pb-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-base font-semibold text-slate-100">
               <SlidersHorizontal className="w-4 h-4 text-sky-400 shrink-0" />
-              <h2>Limiares de Sensibilidade da IA</h2>
+              <h2>{t('incidents.sensitivityTitle')}</h2>
             </div>
             <p className="text-xs text-slate-400">
-              Ajuste em tempo real a agressividade da correlação e detecção de anomalias em eventos de rede, DNS e latência.
+              {t('incidents.sensitivitySubtitle')}
             </p>
           </div>
 
@@ -188,14 +213,14 @@ export function IncidentsAiView({
                   type="button"
                   disabled={isSavingSensitivity}
                   onClick={() => applyPreset(presetKey)}
-                  title={SENSITIVITY_PRESETS[presetKey].hint}
+                  title={presetMeta[presetKey].hint}
                   className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50 ${
                     active
                       ? 'bg-blue-600 text-white'
                       : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900'
                   }`}
                 >
-                  {SENSITIVITY_PRESETS[presetKey].label}
+                  {presetMeta[presetKey].label}
                 </button>
               );
             })}
@@ -205,7 +230,7 @@ export function IncidentsAiView({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <label className="rounded-lg border border-slate-800 bg-slate-950/60 p-3.5 space-y-2 block">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-medium text-slate-200">Limiar Mínimo de Risco</span>
+              <span className="font-medium text-slate-200">{t('incidents.minRiskLabel')}</span>
               <span className="font-mono font-semibold text-sky-400 tabular-nums">
                 {sensitivityDraft.minRiskScoreAlert}/100
               </span>
@@ -226,16 +251,18 @@ export function IncidentsAiView({
               className="w-full accent-blue-500 cursor-pointer"
             />
             <div className="flex justify-between text-[11px] text-slate-500">
-              <span>25 (mais alertas)</span>
-              <span>90 (somente críticos)</span>
+              <span>{t('incidents.minRiskLow')}</span>
+              <span>{t('incidents.minRiskHigh')}</span>
             </div>
           </label>
 
           <label className="rounded-lg border border-slate-800 bg-slate-950/60 p-3.5 space-y-2 block">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-medium text-slate-200">Rajada DNS Suspeita</span>
+              <span className="font-medium text-slate-200">{t('incidents.dnsBurstLabel')}</span>
               <span className="font-mono font-semibold text-sky-400 tabular-nums">
-                {sensitivityDraft.dnsBurstThresholdPerMin} req/min
+                {t('incidents.dnsBurstValue', {
+                  count: sensitivityDraft.dnsBurstThresholdPerMin,
+                })}
               </span>
             </div>
             <input
@@ -254,16 +281,18 @@ export function IncidentsAiView({
               className="w-full accent-blue-500 cursor-pointer"
             />
             <div className="flex justify-between text-[11px] text-slate-500">
-              <span>20/min (rigoroso)</span>
-              <span>400/min (tolerante)</span>
+              <span>{t('incidents.dnsBurstLow')}</span>
+              <span>{t('incidents.dnsBurstHigh')}</span>
             </div>
           </label>
 
           <label className="rounded-lg border border-slate-800 bg-slate-950/60 p-3.5 space-y-2 block">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-medium text-slate-200">Pico de Latência Anômala</span>
+              <span className="font-medium text-slate-200">{t('incidents.latencySpikeLabel')}</span>
               <span className="font-mono font-semibold text-sky-400 tabular-nums">
-                {sensitivityDraft.latencySpikeFactor.toFixed(1)}x base
+                {t('incidents.latencySpikeValue', {
+                  factor: sensitivityDraft.latencySpikeFactor.toFixed(1),
+                })}
               </span>
             </div>
             <input
@@ -282,8 +311,8 @@ export function IncidentsAiView({
               className="w-full accent-blue-500 cursor-pointer"
             />
             <div className="flex justify-between text-[11px] text-slate-500">
-              <span>1.5x (sensível)</span>
-              <span>5.0x (alto desvio)</span>
+              <span>{t('incidents.latencySpikeLow')}</span>
+              <span>{t('incidents.latencySpikeHigh')}</span>
             </div>
           </label>
         </div>
@@ -303,7 +332,9 @@ export function IncidentsAiView({
               className="rounded border-slate-600 bg-slate-950 text-blue-500 focus:ring-blue-500"
             />
             <span>
-              Incluir eventos de severidade baixa (<span className="font-mono text-slate-200">low</span>) na correlação em tempo real
+              {t('incidents.includeLowPrefix')}
+              <span className="font-mono text-slate-200">low</span>
+              {t('incidents.includeLowSuffix')}
             </span>
           </label>
 
@@ -322,12 +353,12 @@ export function IncidentsAiView({
                 onClick={() => onUpdateSensitivity(sensitivityDraft)}
                 className="px-3.5 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
               >
-                {isSavingSensitivity ? 'Aplicando...' : 'Aplicar em Tempo Real'}
+                {isSavingSensitivity ? t('incidents.applying') : t('incidents.applyRealTime')}
               </button>
             ) : (
               <span className="inline-flex items-center gap-1 text-emerald-400 font-medium whitespace-nowrap">
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Ativo no motor</span>
+                <span>{t('incidents.activeInEngine')}</span>
               </span>
             )}
           </div>
@@ -338,14 +369,14 @@ export function IncidentsAiView({
 
       {!activeIncident || !inv ? (
         <div className="rounded-xl border border-slate-800 bg-[#131C31] p-10 text-center text-sm text-slate-400">
-          Nenhum incidente correlacionado no momento. Novos eventos recebidos respeitarão os limiares configurados acima.
+          {t('incidents.emptyIncidents')}
         </div>
       ) : (
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         {/* Left Queue (4 cols) */}
         <section className="xl:col-span-4 rounded-xl border border-slate-800 bg-[#131C31] divide-y divide-slate-800">
           <div className="px-4 py-3.5 text-xs font-semibold text-slate-300">
-            Fila de Incidentes ({state.incidents.length})
+            {t('incidents.queueTitle', { count: state.incidents.length })}
           </div>
           {state.incidents.map((inc) => {
             const isSelected = inc.id === activeIncident.id;
@@ -366,7 +397,10 @@ export function IncidentsAiView({
                         : 'text-amber-400 font-medium'
                     }
                   >
-                    {inc.severity === 'high' ? 'Risco Alto' : 'Risco Médio'} · {inc.riskScore}/100
+                    {inc.severity === 'high' || inc.severity === 'critical'
+                      ? t('incidents.riskHigh')
+                      : t('incidents.riskMedium')}{' '}
+                    · {inc.riskScore}/100
                   </span>
                   <span className="text-slate-400 font-mono">{inc.deviceHostname}</span>
                 </div>
@@ -375,20 +409,22 @@ export function IncidentsAiView({
                 </div>
                 <div className="mt-1.5 text-xs text-slate-400">
                   <span>
-                    Estado:{' '}
+                    {t('incidents.stateLabel')}{' '}
                     {inc.status === 'contained'
-                      ? 'Contido (TTL)'
+                      ? t('incidents.statusContained')
                       : inc.status === 'false_positive'
-                        ? 'Falso Positivo'
+                        ? t('incidents.statusFalsePositive')
                         : inc.status === 'resolved'
-                          ? 'Resolvido'
+                          ? t('incidents.statusResolved')
                           : inc.status === 'investigating'
-                            ? 'Em Investigação'
-                            : 'Aberto'}
+                            ? t('incidents.statusInvestigating')
+                            : t('incidents.statusOpen')}
                   </span>
                   <span className="mx-1.5 text-slate-600">·</span>
                   <span className={inc.dataSource === 'live' ? 'text-blue-400' : 'text-slate-400'}>
-                    {inc.dataSource === 'live' ? 'Origem: Real' : 'Origem: Simulado'}
+                    {inc.dataSource === 'live'
+                      ? t('incidents.sourceReal')
+                      : t('incidents.sourceSimulated')}
                   </span>
                 </div>
               </button>
@@ -407,10 +443,10 @@ export function IncidentsAiView({
                   <span>·</span>
                   <span>{activeIncident.deviceHostname}</span>
                   <span>·</span>
-                  <span>Score {activeIncident.riskScore}/100</span>
+                  <span>{t('common.score')} {activeIncident.riskScore}/100</span>
                   <span>·</span>
                   <span className={activeIncident.dataSource === 'live' ? 'text-blue-400' : ''}>
-                    {activeIncident.dataSource === 'live' ? 'Real' : 'Simulado'}
+                    {activeIncident.dataSource === 'live' ? t('common.real') : t('common.simulated')}
                   </span>
                 </div>
                 <h2 className="text-lg font-semibold text-slate-100 mt-1">
@@ -427,7 +463,7 @@ export function IncidentsAiView({
                   onClick={() => onUpdateStatus(activeIncident.id, 'false_positive')}
                   className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 whitespace-nowrap cursor-pointer"
                 >
-                  Marcar Falso Positivo
+                  {t('incidents.markFalsePositive')}
                 </button>
               </div>
             </div>
@@ -435,7 +471,7 @@ export function IncidentsAiView({
             {/* Timeline & Provenance */}
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-slate-100">
-                Linha do Tempo de Evidências (Proveniência Preservada)
+                {t('incidents.timelineTitle')}
               </h3>
               <div className="divide-y divide-slate-800/80 border border-slate-800 rounded-lg bg-slate-950/50">
                 {activeIncident.timeline.map((step) => {
@@ -444,7 +480,7 @@ export function IncidentsAiView({
                     <div key={step.eventId} className="p-3.5 text-xs space-y-2">
                       <div className="flex flex-wrap items-center justify-between gap-2 text-slate-400 font-mono tabular-nums">
                         <span>
-                          {new Date(step.timestamp).toLocaleTimeString('pt-BR')} · fonte:{' '}
+                          {new Date(step.timestamp).toLocaleTimeString(locale)} · {t('incidents.sourcePrefix')}{' '}
                           <strong className="text-slate-200">{step.sourceIntegrationId}</strong>
                         </span>
                         <span>{step.eventId}</span>
@@ -453,7 +489,7 @@ export function IncidentsAiView({
                       {fullEvent && (
                         <details className="text-slate-400">
                           <summary className="cursor-pointer text-blue-400 hover:text-blue-300 select-none">
-                            Inspecionar envelope openshield.event.v1
+                            {t('incidents.inspectEnvelope')}
                           </summary>
                           <pre className="mt-2 p-3 rounded bg-slate-950 border border-slate-800 font-mono text-[11px] text-slate-300 overflow-x-auto">
                             {JSON.stringify(fullEvent, null, 2)}
@@ -479,10 +515,12 @@ export function IncidentsAiView({
                   )}
                   <span>{inv.modelVersion}</span>
                   <span>·</span>
-                  <span>Confiança: {inv.confidence}</span>
+                  <span>
+                    {t('incidents.confidenceLabel')} {confidenceLabel}
+                  </span>
                 </div>
                 <h3 className="text-base font-semibold text-slate-100 mt-1">
-                  Análise e Explicação Fundamentada
+                  {t('incidents.analysisTitle')}
                 </h3>
               </div>
 
@@ -494,7 +532,7 @@ export function IncidentsAiView({
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 whitespace-nowrap cursor-pointer disabled:opacity-50"
                 >
                   <Cpu className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Investigar Local-First</span>
+                  <span>{t('incidents.investigateLocal')}</span>
                 </button>
 
                 <button
@@ -506,8 +544,8 @@ export function IncidentsAiView({
                   <Cloud className="w-3.5 h-3.5" />
                   <span>
                     {busyKey === `inv-cloud-${activeIncident.id}`
-                      ? 'Sanitizando e Consultando...'
-                      : 'Segunda Opinião Nuvem'}
+                      ? t('incidents.investigatingCloud')
+                      : t('incidents.investigateCloud')}
                   </span>
                 </button>
               </div>
@@ -517,9 +555,7 @@ export function IncidentsAiView({
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-2.5 px-3.5 rounded-lg border border-slate-800 bg-slate-950/60 text-xs">
               <div className="flex items-center gap-2 text-slate-300">
                 <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                <span>
-                  Gateway de Privacidade: envio à nuvem fica desabilitado até opt-in explícito e remove IPs internos, MACs e segredos.
-                </span>
+                <span>{t('incidents.privacyGateNote')}</span>
               </div>
               <button
                 type="button"
@@ -530,14 +566,16 @@ export function IncidentsAiView({
                     : 'bg-slate-800 text-slate-300 border border-slate-700'
                 }`}
               >
-                {state.context.cloudAiOptIn ? 'Nuvem Opt-In: Ativado' : 'Ativar Nuvem Opt-In'}
+                {state.context.cloudAiOptIn
+                  ? t('incidents.cloudOptInOn')
+                  : t('incidents.cloudOptInOff')}
               </button>
             </div>
 
             {/* Distinct Facts vs Hypotheses vs Recommendations */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
               <div className="space-y-2">
-                <div className="font-semibold text-slate-200">1. Fatos Observados</div>
+                <div className="font-semibold text-slate-200">{t('incidents.sectionFacts')}</div>
                 <ul className="space-y-1.5 text-slate-300 list-disc pl-4">
                   {inv.observedFacts.map((fact, idx) => (
                     <li key={idx}>{fact}</li>
@@ -545,7 +583,9 @@ export function IncidentsAiView({
                 </ul>
               </div>
               <div className="space-y-2">
-                <div className="font-semibold text-slate-200">2. Hipóteses Inferidas</div>
+                <div className="font-semibold text-slate-200">
+                  {t('incidents.sectionHypotheses')}
+                </div>
                 <ul className="space-y-1.5 text-slate-300 list-disc pl-4">
                   {inv.inferredHypotheses.map((hyp, idx) => (
                     <li key={idx}>{hyp}</li>
@@ -553,7 +593,9 @@ export function IncidentsAiView({
                 </ul>
               </div>
               <div className="space-y-2">
-                <div className="font-semibold text-slate-200">3. Recomendações</div>
+                <div className="font-semibold text-slate-200">
+                  {t('incidents.sectionRecommendations')}
+                </div>
                 <ul className="space-y-1.5 text-slate-300 list-disc pl-4">
                   {inv.recommendedSteps.map((step, idx) => (
                     <li key={idx}>{step}</li>
@@ -570,7 +612,7 @@ export function IncidentsAiView({
               {inv.sanitizedPayloadPreview && (
                 <details>
                   <summary className="cursor-pointer text-blue-400 hover:text-blue-300 select-none">
-                    Visualizar payload minimizado e sanitizado (auditoria de privacidade)
+                    {t('incidents.inspectSanitizedPayload')}
                   </summary>
                   <pre className="mt-2 p-3 rounded bg-slate-950 border border-slate-800 font-mono text-[11px] text-slate-300 overflow-x-auto">
                     {inv.sanitizedPayloadPreview}
@@ -585,13 +627,20 @@ export function IncidentsAiView({
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-xs text-slate-400">
                 <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-                <span>Motor de Políticas Determinístico · Teto atual: {state.context.globalAutonomy}</span>
+                <span>
+                  {t('incidents.policyEngineMeta', { level: state.context.globalAutonomy })}
+                </span>
               </div>
               <div className="text-sm font-semibold text-slate-100">
-                {recommendedPolicy ? recommendedPolicy.name : 'Avaliar política de contenção'}
+                {recommendedPolicy
+                  ? recommendedPolicy.name
+                  : t('incidents.evaluatePolicyFallback')}
               </div>
               <p className="text-xs text-slate-400">
-                IA apenas recomenda; a execução respeita a política e o teto {state.context.globalAutonomy} com TTL de {ttlNote}.
+                {t('incidents.policyEngineHint', {
+                  level: state.context.globalAutonomy,
+                  ttl: ttlNote,
+                })}
               </p>
             </div>
 
@@ -604,8 +653,8 @@ export function IncidentsAiView({
               className="px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
             >
               {state.context.globalAutonomy === 'L0'
-                ? 'Simular Resposta (Dry-Run L0)'
-                : `Executar via Política (${state.context.globalAutonomy})`}
+                ? t('incidents.simulateL0')
+                : t('incidents.executeViaPolicy', { level: state.context.globalAutonomy })}
             </button>
           </div>
         </section>

@@ -19,6 +19,8 @@ import {
   Video,
   X,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { getIntlLocale } from '../i18n';
 import type { DnsInsight, NetworkDevice, WorkspaceState } from '../types/openshield';
 
 interface DevicesTopologyViewProps {
@@ -165,31 +167,6 @@ function getTopDomainsForDevice(
     .slice(0, limit);
 }
 
-function renderListStatusIndicator(status: DnsInsight['listStatus']) {
-  if (status === 'blocked') {
-    return (
-      <span className="inline-flex items-center gap-1 text-red-400 font-medium whitespace-nowrap">
-        <Ban className="w-3 h-3 shrink-0" />
-        <span>Bloqueado</span>
-      </span>
-    );
-  }
-  if (status === 'allowed') {
-    return (
-      <span className="inline-flex items-center gap-1 text-emerald-400 font-medium whitespace-nowrap">
-        <CheckCircle2 className="w-3 h-3 shrink-0" />
-        <span>Permitido</span>
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-1 text-amber-300 font-medium whitespace-nowrap">
-      <Eye className="w-3 h-3 shrink-0" />
-      <span>Monitorado</span>
-    </span>
-  );
-}
-
 export function DevicesTopologyView({
   state,
   searchQuery,
@@ -198,6 +175,9 @@ export function DevicesTopologyView({
   onRemoveDevice,
   busyKey,
 }: DevicesTopologyViewProps) {
+  const { t, i18n } = useTranslation();
+  const locale = getIntlLocale(i18n.language);
+
   const [viewMode, setViewMode] = useState<'topology' | 'flow'>('topology');
   const [segmentFilter, setSegmentFilter] = useState<'all' | NetworkDevice['segment']>('all');
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
@@ -225,6 +205,39 @@ export function DevicesTopologyView({
     siteId: string;
     deviceType: NetworkDevice['deviceType'];
   } | null>(null);
+
+  const renderListStatusIndicator = (status: DnsInsight['listStatus']) => {
+    if (status === 'blocked') {
+      return (
+        <span className="inline-flex items-center gap-1 text-red-400 font-medium whitespace-nowrap">
+          <Ban className="w-3 h-3 shrink-0" />
+          <span>{t('common.blocked')}</span>
+        </span>
+      );
+    }
+    if (status === 'allowed') {
+      return (
+        <span className="inline-flex items-center gap-1 text-emerald-400 font-medium whitespace-nowrap">
+          <CheckCircle2 className="w-3 h-3 shrink-0" />
+          <span>{t('common.allowed')}</span>
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 text-amber-300 font-medium whitespace-nowrap">
+        <Eye className="w-3 h-3 shrink-0" />
+        <span>{t('common.monitored')}</span>
+      </span>
+    );
+  };
+
+  const translateSegment = (seg: NetworkDevice['segment']) =>
+    t(`devices.segments.${seg}`, { defaultValue: seg });
+
+  const translateDomainCategory = (cat: AggregatedDomainFlow['category']) => {
+    if (cat === 'Evento de Rede') return t('devices.networkEventCategory');
+    return t(`dns.categories.${cat}`, { defaultValue: cat });
+  };
 
   const selectedDevice = useMemo(
     () => state.devices.find((d) => d.id === selectedDeviceId) ?? null,
@@ -314,11 +327,9 @@ export function DevicesTopologyView({
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-50 text-balance">
-            Dispositivos e Topologia de Rede
+            {t('devices.title')}
           </h1>
-          <p className="mt-1 text-sm text-slate-400 max-w-2xl">
-            Inventário dinâmico — adicione, edite ou remova dispositivos conforme sua rede ou sincronize automaticamente via OpenWrt.
-          </p>
+          <p className="mt-1 text-sm text-slate-400 max-w-2xl">{t('devices.subtitle')}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
@@ -326,7 +337,7 @@ export function DevicesTopologyView({
           <div
             className="inline-flex items-center gap-1 p-1 rounded-lg bg-[#131C31] border border-slate-800"
             role="tablist"
-            aria-label="Modo de visualização"
+            aria-label={t('devices.viewModeAria')}
           >
             <button
               type="button"
@@ -340,7 +351,7 @@ export function DevicesTopologyView({
               }`}
             >
               <Network className="w-3.5 h-3.5" />
-              <span>Topologia</span>
+              <span>{t('devices.tabTopology')}</span>
             </button>
             <button
               type="button"
@@ -354,7 +365,7 @@ export function DevicesTopologyView({
               }`}
             >
               <GitBranch className="w-3.5 h-3.5" />
-              <span>Fluxo de Rede</span>
+              <span>{t('devices.tabFlow')}</span>
             </button>
           </div>
 
@@ -366,7 +377,7 @@ export function DevicesTopologyView({
                 segmentFilter === 'all' ? 'bg-slate-800 text-slate-100' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Todos
+              {t('common.all')}
             </button>
             {SEGMENTS.map((seg) => (
               <button
@@ -377,7 +388,7 @@ export function DevicesTopologyView({
                   segmentFilter === seg ? 'bg-slate-800 text-slate-100' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                {seg}
+                {translateSegment(seg)}
               </button>
             ))}
           </div>
@@ -391,7 +402,7 @@ export function DevicesTopologyView({
             className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>{showAddForm ? 'Fechar Formulário' : 'Adicionar Dispositivo'}</span>
+            <span>{showAddForm ? t('devices.closeForm') : t('devices.addDevice')}</span>
           </button>
         </div>
       </div>
@@ -403,21 +414,17 @@ export function DevicesTopologyView({
           className="rounded-xl border border-slate-700 bg-[#131C31] p-5 space-y-4"
         >
           <div className="border-b border-slate-800 pb-3">
-            <h2 className="text-sm font-semibold text-slate-100">
-              Novo Dispositivo na Rede
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Cadastre roteadores, servidores Pi-hole, estações de trabalho ou dispositivos IoT monitorados pelo OpenShield.
-            </p>
+            <h2 className="text-sm font-semibold text-slate-100">{t('devices.newDeviceTitle')}</h2>
+            <p className="text-xs text-slate-400 mt-0.5">{t('devices.newDeviceSubtitle')}</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3.5">
             <label className="block space-y-1 text-xs">
-              <span className="text-slate-300 font-medium">Hostname</span>
+              <span className="text-slate-300 font-medium">{t('devices.hostname')}</span>
               <input
                 type="text"
                 required
-                placeholder="ex: pihole-rack-01"
+                placeholder={t('devices.hostnamePlaceholder')}
                 value={hostname}
                 onChange={(e) => setHostname(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
@@ -425,11 +432,11 @@ export function DevicesTopologyView({
             </label>
 
             <label className="block space-y-1 text-xs">
-              <span className="text-slate-300 font-medium">Endereço IP</span>
+              <span className="text-slate-300 font-medium">{t('devices.ipAddress')}</span>
               <input
                 type="text"
                 required
-                placeholder="ex: 192.168.1.12"
+                placeholder={t('devices.ipPlaceholder')}
                 value={ip}
                 onChange={(e) => setIp(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs focus:outline-none focus:border-blue-500"
@@ -437,10 +444,10 @@ export function DevicesTopologyView({
             </label>
 
             <label className="block space-y-1 text-xs">
-              <span className="text-slate-300 font-medium">Endereço MAC (opcional)</span>
+              <span className="text-slate-300 font-medium">{t('devices.macOptional')}</span>
               <input
                 type="text"
-                placeholder="ex: DC:A6:32:10:20:30"
+                placeholder={t('devices.macPlaceholder')}
                 value={mac}
                 onChange={(e) => setMac(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs focus:outline-none focus:border-blue-500"
@@ -448,22 +455,22 @@ export function DevicesTopologyView({
             </label>
 
             <label className="block space-y-1 text-xs">
-              <span className="text-slate-300 font-medium">Tipo</span>
+              <span className="text-slate-300 font-medium">{t('devices.type')}</span>
               <select
                 value={deviceType}
                 onChange={(e) => setDeviceType(e.target.value as NetworkDevice['deviceType'])}
                 className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
               >
-                <option value="router">Roteador / Gateway</option>
-                <option value="server">Servidor / Pi-hole / NAS</option>
-                <option value="workstation">Estação / Notebook</option>
-                <option value="mobile">Celular / Tablet</option>
-                <option value="iot">IoT / Câmera / Smart TV</option>
+                <option value="router">{t('devices.typeRouter')}</option>
+                <option value="server">{t('devices.typeServer')}</option>
+                <option value="workstation">{t('devices.typeWorkstation')}</option>
+                <option value="mobile">{t('devices.typeMobile')}</option>
+                <option value="iot">{t('devices.typeIot')}</option>
               </select>
             </label>
 
             <label className="block space-y-1 text-xs">
-              <span className="text-slate-300 font-medium">Segmento</span>
+              <span className="text-slate-300 font-medium">{t('devices.segment')}</span>
               <select
                 value={segment}
                 onChange={(e) => setSegment(e.target.value as NetworkDevice['segment'])}
@@ -471,14 +478,14 @@ export function DevicesTopologyView({
               >
                 {SEGMENTS.map((seg) => (
                   <option key={seg} value={seg}>
-                    {seg}
+                    {translateSegment(seg)}
                   </option>
                 ))}
               </select>
             </label>
 
             <label className="block space-y-1 text-xs">
-              <span className="text-slate-300 font-medium">Rede / Site</span>
+              <span className="text-slate-300 font-medium">{t('devices.networkSite')}</span>
               <select
                 value={siteId}
                 onChange={(e) => setSiteId(e.target.value)}
@@ -493,7 +500,7 @@ export function DevicesTopologyView({
             </label>
 
             <label className="block space-y-1 text-xs">
-              <span className="text-slate-300 font-medium">Interface OpenWrt</span>
+              <span className="text-slate-300 font-medium">{t('devices.openwrtInterface')}</span>
               <input
                 type="text"
                 value={interfaceName}
@@ -503,10 +510,10 @@ export function DevicesTopologyView({
             </label>
 
             <label className="block space-y-1 text-xs">
-              <span className="text-slate-300 font-medium">Fabricante / Descrição (opcional)</span>
+              <span className="text-slate-300 font-medium">{t('devices.vendorOptional')}</span>
               <input
                 type="text"
-                placeholder="ex: Raspberry Pi, Synology"
+                placeholder={t('devices.vendorPlaceholder')}
                 value={vendor}
                 onChange={(e) => setVendor(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
@@ -520,7 +527,7 @@ export function DevicesTopologyView({
               onClick={() => setShowAddForm(false)}
               className="px-4 py-2 text-xs font-medium rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 cursor-pointer"
             >
-              Cancelar
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -528,7 +535,7 @@ export function DevicesTopologyView({
               className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 cursor-pointer disabled:opacity-50"
             >
               <Save className="w-3.5 h-3.5" />
-              <span>Salvar Dispositivo</span>
+              <span>{t('devices.saveDevice')}</span>
             </button>
           </div>
         </form>
@@ -539,10 +546,10 @@ export function DevicesTopologyView({
         <section className="rounded-xl border border-slate-800 bg-[#131C31] p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-slate-100">
-              Mapa Lógico de Segmentação (Gateway-First)
+              {t('devices.logicalMapTitle')}
             </h2>
             <span className="text-xs text-slate-400 tabular-nums">
-              {scopedDevices.length} dispositivo(s) visível(is)
+              {t('devices.visibleDevicesCount', { count: scopedDevices.length })}
             </span>
           </div>
 
@@ -555,12 +562,14 @@ export function DevicesTopologyView({
                   className="rounded-lg border border-slate-800/90 bg-slate-950/60 p-4 space-y-3"
                 >
                   <div className="flex items-center justify-between text-xs border-b border-slate-800 pb-2">
-                    <span className="font-semibold text-slate-200">{seg}</span>
-                    <span className="text-slate-400 tabular-nums">{items.length} ativos</span>
+                    <span className="font-semibold text-slate-200">{translateSegment(seg)}</span>
+                    <span className="text-slate-400 tabular-nums">
+                      {t('devices.activeCount', { count: items.length })}
+                    </span>
                   </div>
                   {items.length === 0 ? (
                     <p className="text-xs text-slate-500 py-2">
-                      Nenhum dispositivo neste segmento.
+                      {t('devices.noDevicesInSegment')}
                     </p>
                   ) : (
                     <div className="space-y-2">
@@ -591,7 +600,7 @@ export function DevicesTopologyView({
                                   : 'text-emerald-400'
                             }`}
                           >
-                            Risco {dev.riskScore}
+                            {t('common.risk')} {dev.riskScore}
                           </span>
                         </button>
                       ))}
@@ -608,14 +617,12 @@ export function DevicesTopologyView({
             <div>
               <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
                 <GitBranch className="w-4 h-4 text-blue-400 shrink-0" />
-                <span>Fluxo de Rede e Destinos DNS por Dispositivo</span>
+                <span>{t('devices.flowTitle')}</span>
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Clique em qualquer dispositivo no fluxo abaixo para visualizar o caminho de tráfego e os Top 5 domínios mais acessados conforme os dados agregados.
-              </p>
+              <p className="text-xs text-slate-400 mt-0.5">{t('devices.flowSubtitle')}</p>
             </div>
             <span className="text-xs text-slate-400 tabular-nums">
-              {state.dnsInsights.length} domínio(s) agregados no estado
+              {t('devices.aggregatedDomainsCount', { count: state.dnsInsights.length })}
             </span>
           </div>
 
@@ -628,24 +635,32 @@ export function DevicesTopologyView({
                   <Router className="w-4 h-4 text-blue-400 shrink-0" />
                   <div>
                     <div className="text-xs font-semibold text-slate-100">
-                      Perímetro Gateway & Resolvedores DNS
+                      {t('devices.gatewayPerimeterTitle')}
                     </div>
                     <div className="text-[11px] text-slate-400 font-mono">
-                      {state.integrations.filter((i) => i.domain === 'dns').length} DNS ativo(s) ·{' '}
-                      {scopedDevices.reduce((sum, d) => sum + d.dnsQueries24h, 0).toLocaleString('pt-BR')} consultas 24h
+                      {t('devices.gatewayPerimeterMeta', {
+                        dnsCount: state.integrations.filter((i) => i.domain === 'dns').length,
+                        queries: scopedDevices
+                          .reduce((sum, d) => sum + d.dnsQueries24h, 0)
+                          .toLocaleString(locale),
+                      })}
                     </div>
                   </div>
                 </div>
                 <span className="inline-flex items-center gap-1.5 text-xs text-emerald-400 font-medium whitespace-nowrap">
                   <Activity className="w-3.5 h-3.5" />
-                  <span>{state.context.gatewayForwardingActive ? 'Encaminhando' : 'Pausado'}</span>
+                  <span>
+                    {state.context.gatewayForwardingActive
+                      ? t('devices.forwarding')
+                      : t('common.paused')}
+                  </span>
                 </span>
               </div>
 
               {/* Segments & Device Flow Nodes */}
               {scopedDevices.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-slate-800 bg-[#0B1120]/60 p-8 text-center text-xs text-slate-400">
-                  Nenhum dispositivo disponível neste filtro para exibir o fluxo de rede.
+                  {t('devices.noDevicesFlowFilter')}
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -660,10 +675,14 @@ export function DevicesTopologyView({
                         <div className="flex items-center justify-between text-xs border-b border-slate-800/80 pb-2">
                           <span className="font-semibold text-slate-200 flex items-center gap-1.5">
                             <ArrowRight className="w-3.5 h-3.5 text-blue-400" />
-                            <span>{seg}</span>
+                            <span>{translateSegment(seg)}</span>
                           </span>
                           <span className="text-[11px] text-slate-400 tabular-nums">
-                            {segDevices.reduce((s, d) => s + d.dnsQueries24h, 0).toLocaleString('pt-BR')} reqs DNS
+                            {t('devices.dnsReqsShort', {
+                              count: segDevices
+                                .reduce((s, d) => s + d.dnsQueries24h, 0)
+                                .toLocaleString(locale),
+                            })}
                           </span>
                         </div>
 
@@ -703,17 +722,19 @@ export function DevicesTopologyView({
                                           : 'text-emerald-400'
                                     }`}
                                   >
-                                    Risco {dev.riskScore}
+                                    {t('common.risk')} {dev.riskScore}
                                   </span>
                                 </div>
 
                                 <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800/70 tabular-nums">
                                   <span>
-                                    {dev.dnsQueries24h.toLocaleString('pt-BR')} consultas ·{' '}
-                                    {dev.blockedQueries24h.toLocaleString('pt-BR')} bloq.
+                                    {t('devices.queriesBlockedShort', {
+                                      queries: dev.dnsQueries24h.toLocaleString(locale),
+                                      blocked: dev.blockedQueries24h.toLocaleString(locale),
+                                    })}
                                   </span>
                                   <span className="text-blue-300 font-medium">
-                                    {domainCount} domínio(s)
+                                    {t('devices.domainsCount', { count: domainCount })}
                                   </span>
                                 </div>
                               </button>
@@ -734,10 +755,10 @@ export function DevicesTopologyView({
                   <div className="py-12 text-center space-y-2">
                     <Globe className="w-7 h-7 text-slate-600 mx-auto" />
                     <div className="text-xs font-semibold text-slate-200">
-                      Selecione um dispositivo no fluxo
+                      {t('devices.selectFlowPromptTitle')}
                     </div>
                     <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
-                      Clique em qualquer dispositivo à esquerda (ou na tabela abaixo) para inspecionar o fluxo de saída e os Top 5 domínios mais acessados por ele.
+                      {t('devices.selectFlowPromptBody')}
                     </p>
                   </div>
                 ) : (
@@ -750,7 +771,8 @@ export function DevicesTopologyView({
                             {activeFlowDevice.hostname}
                           </div>
                           <div className="text-[11px] font-mono text-slate-400 tabular-nums">
-                            {activeFlowDevice.ip} → {activeFlowDevice.interfaceName} ({activeFlowDevice.segment})
+                            {activeFlowDevice.ip} → {activeFlowDevice.interfaceName} (
+                            {translateSegment(activeFlowDevice.segment)})
                           </div>
                         </div>
                       </div>
@@ -760,30 +782,30 @@ export function DevicesTopologyView({
                         onClick={() => openDrawer(activeFlowDevice)}
                         className="text-xs text-blue-400 hover:text-blue-300 font-medium whitespace-nowrap shrink-0 cursor-pointer"
                       >
-                        Editar / Eventos
+                        {t('devices.editEvents')}
                       </button>
                     </div>
 
                     <div className="grid grid-cols-3 gap-2 text-center">
                       <div className="rounded-lg border border-slate-800 bg-[#131C31]/70 p-2.5">
                         <div className="text-[10px] uppercase tracking-wider text-slate-400">
-                          Consultas 24h
+                          {t('devices.queries24h')}
                         </div>
                         <div className="text-sm font-bold text-slate-100 font-mono tabular-nums mt-0.5">
-                          {activeFlowDevice.dnsQueries24h.toLocaleString('pt-BR')}
+                          {activeFlowDevice.dnsQueries24h.toLocaleString(locale)}
                         </div>
                       </div>
                       <div className="rounded-lg border border-slate-800 bg-[#131C31]/70 p-2.5">
                         <div className="text-[10px] uppercase tracking-wider text-slate-400">
-                          Bloqueios
+                          {t('devices.blocks')}
                         </div>
                         <div className="text-sm font-bold text-amber-300 font-mono tabular-nums mt-0.5">
-                          {activeFlowDevice.blockedQueries24h.toLocaleString('pt-BR')}
+                          {activeFlowDevice.blockedQueries24h.toLocaleString(locale)}
                         </div>
                       </div>
                       <div className="rounded-lg border border-slate-800 bg-[#131C31]/70 p-2.5">
                         <div className="text-[10px] uppercase tracking-wider text-slate-400">
-                          Score Risco
+                          {t('devices.riskScore')}
                         </div>
                         <div
                           className={`text-sm font-bold font-mono tabular-nums mt-0.5 ${
@@ -803,18 +825,18 @@ export function DevicesTopologyView({
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-semibold text-slate-100 flex items-center gap-1.5">
                           <Globe className="w-3.5 h-3.5 text-blue-400" />
-                          <span>Top 5 Domínios Mais Acessados</span>
+                          <span>{t('devices.top5Title')}</span>
                         </span>
                         <span className="text-[11px] text-slate-400">
-                          Dados agregados no state
+                          {t('devices.stateAggregatedNote')}
                         </span>
                       </div>
 
                       {flowTopDomains.length === 0 ? (
                         <div className="rounded-lg border border-dashed border-slate-800 p-5 text-center text-xs text-slate-400 space-y-1">
-                          <div>Nenhum domínio DNS agregado ainda para este dispositivo.</div>
+                          <div>{t('devices.noDomainsDevice')}</div>
                           <p className="text-[11px] text-slate-500">
-                            Sincronize seu servidor DNS (Pi-hole / AdGuard) ou adicione domínios em Privacidade e DNS para vê-los ranqueados aqui.
+                            {t('devices.noDomainsDeviceHint')}
                           </p>
                         </div>
                       ) : (
@@ -840,7 +862,7 @@ export function DevicesTopologyView({
                                     </span>
                                   </div>
                                   <span className="font-mono text-xs font-semibold text-slate-200 tabular-nums whitespace-nowrap shrink-0">
-                                    {dom.queriesCount.toLocaleString('pt-BR')} reqs
+                                    {t('devices.reqsCount', { count: dom.queriesCount.toLocaleString(locale) })}
                                   </span>
                                 </div>
 
@@ -858,11 +880,11 @@ export function DevicesTopologyView({
                                 </div>
 
                                 <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
-                                  <span>{dom.category}</span>
+                                  <span>{translateDomainCategory(dom.category)}</span>
                                   <div className="flex items-center gap-3 tabular-nums">
                                     {dom.blockedCount > 0 && (
                                       <span className="font-mono text-red-300">
-                                        {dom.blockedCount.toLocaleString('pt-BR')} bloq.
+                                        {t('devices.blockedShortCount', { count: dom.blockedCount.toLocaleString(locale) })}
                                       </span>
                                     )}
                                     {renderListStatusIndicator(dom.listStatus)}
@@ -888,26 +910,26 @@ export function DevicesTopologyView({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-800 text-xs font-medium text-slate-400 bg-slate-900/50">
-                <th className="py-3 px-4">Dispositivo</th>
-                <th className="py-3 px-4">IP / Interface</th>
-                <th className="py-3 px-4">Segmento</th>
-                <th className="py-3 px-4 text-right">Consultas DNS (24h)</th>
-                <th className="py-3 px-4 text-right">Bloqueios</th>
-                <th className="py-3 px-4 text-right">Risco</th>
-                <th className="py-3 px-4 text-right">Ações</th>
+                <th className="py-3 px-4">{t('devices.colDevice')}</th>
+                <th className="py-3 px-4">{t('devices.colIpInterface')}</th>
+                <th className="py-3 px-4">{t('devices.colSegment')}</th>
+                <th className="py-3 px-4 text-right">{t('devices.colQueries24h')}</th>
+                <th className="py-3 px-4 text-right">{t('devices.colBlocks')}</th>
+                <th className="py-3 px-4 text-right">{t('devices.colRisk')}</th>
+                <th className="py-3 px-4 text-right">{t('devices.colActions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/80 text-xs">
               {scopedDevices.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-10 text-center text-slate-400 space-y-2">
-                    <div>Nenhum dispositivo configurado ou descoberto no momento.</div>
+                    <div>{t('devices.emptyTable')}</div>
                     <button
                       type="button"
                       onClick={() => setShowAddForm(true)}
                       className="text-blue-400 hover:text-blue-300 font-medium cursor-pointer"
                     >
-                      + Adicionar primeiro dispositivo
+                      {t('devices.addFirstDevice')}
                     </button>
                   </td>
                 </tr>
@@ -929,12 +951,12 @@ export function DevicesTopologyView({
                     <td className="px-4 py-2 font-mono text-slate-300 tabular-nums">
                       {dev.ip} · {dev.interfaceName}
                     </td>
-                    <td className="px-4 py-2 text-slate-300">{dev.segment}</td>
+                    <td className="px-4 py-2 text-slate-300">{translateSegment(dev.segment)}</td>
                     <td className="px-4 py-2 text-right font-mono text-slate-300 tabular-nums">
-                      {dev.dnsQueries24h.toLocaleString('pt-BR')}
+                      {dev.dnsQueries24h.toLocaleString(locale)}
                     </td>
                     <td className="px-4 py-2 text-right font-mono text-slate-300 tabular-nums">
-                      {dev.blockedQueries24h.toLocaleString('pt-BR')}
+                      {dev.blockedQueries24h.toLocaleString(locale)}
                     </td>
                     <td className="px-4 py-2 text-right font-mono tabular-nums">
                       <span
@@ -959,14 +981,14 @@ export function DevicesTopologyView({
                           }}
                           className="text-slate-300 hover:text-blue-300 font-medium whitespace-nowrap cursor-pointer"
                         >
-                          Ver Fluxo
+                          {t('devices.viewFlow')}
                         </button>
                         <button
                           type="button"
                           onClick={() => openDrawer(dev)}
                           className="text-blue-400 hover:text-blue-300 font-medium whitespace-nowrap cursor-pointer"
                         >
-                          Editar / Inspecionar
+                          {t('devices.editInspect')}
                         </button>
                         <button
                           type="button"
@@ -974,7 +996,7 @@ export function DevicesTopologyView({
                           onClick={() => onRemoveDevice(dev.id, dev.hostname)}
                           className="text-red-400 hover:text-red-300 font-medium whitespace-nowrap cursor-pointer disabled:opacity-50"
                         >
-                          Remover
+                          {t('common.remove')}
                         </button>
                       </div>
                     </td>
@@ -1007,7 +1029,7 @@ export function DevicesTopologyView({
               </div>
               <button
                 type="button"
-                aria-label="Fechar gaveta do dispositivo"
+                aria-label={t('devices.closeDrawerAria')}
                 onClick={() => setSelectedDeviceId(null)}
                 className="p-2 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 cursor-pointer"
               >
@@ -1019,7 +1041,7 @@ export function DevicesTopologyView({
               <form onSubmit={handleSaveDeviceEdit} className="space-y-3 text-xs">
                 <div className="grid grid-cols-2 gap-3">
                   <label className="block space-y-1">
-                    <span className="text-slate-400">Hostname</span>
+                    <span className="text-slate-400">{t('devices.hostname')}</span>
                     <input
                       type="text"
                       required
@@ -1031,7 +1053,7 @@ export function DevicesTopologyView({
                     />
                   </label>
                   <label className="block space-y-1">
-                    <span className="text-slate-400">Endereço IP</span>
+                    <span className="text-slate-400">{t('devices.ipAddress')}</span>
                     <input
                       type="text"
                       required
@@ -1054,7 +1076,7 @@ export function DevicesTopologyView({
                     />
                   </label>
                   <label className="block space-y-1">
-                    <span className="text-slate-400">Interface</span>
+                    <span className="text-slate-400">{t('devices.drawerInterface')}</span>
                     <input
                       type="text"
                       value={editingDevice.interfaceName}
@@ -1065,7 +1087,7 @@ export function DevicesTopologyView({
                     />
                   </label>
                   <label className="block space-y-1">
-                    <span className="text-slate-400">Segmento</span>
+                    <span className="text-slate-400">{t('devices.segment')}</span>
                     <select
                       value={editingDevice.segment}
                       onChange={(e) =>
@@ -1078,13 +1100,13 @@ export function DevicesTopologyView({
                     >
                       {SEGMENTS.map((seg) => (
                         <option key={seg} value={seg}>
-                          {seg}
+                          {translateSegment(seg)}
                         </option>
                       ))}
                     </select>
                   </label>
                   <label className="block space-y-1">
-                    <span className="text-slate-400">Tipo</span>
+                    <span className="text-slate-400">{t('devices.type')}</span>
                     <select
                       value={editingDevice.deviceType}
                       onChange={(e) =>
@@ -1095,17 +1117,17 @@ export function DevicesTopologyView({
                       }
                       className="w-full px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-950 text-slate-100"
                     >
-                      <option value="router">Roteador</option>
-                      <option value="server">Servidor</option>
-                      <option value="workstation">Estação</option>
-                      <option value="mobile">Mobile</option>
-                      <option value="iot">IoT</option>
+                      <option value="router">{t('devices.drawerTypeRouter')}</option>
+                      <option value="server">{t('devices.drawerTypeServer')}</option>
+                      <option value="workstation">{t('devices.drawerTypeWorkstation')}</option>
+                      <option value="mobile">{t('devices.drawerTypeMobile')}</option>
+                      <option value="iot">{t('devices.drawerTypeIot')}</option>
                     </select>
                   </label>
                 </div>
 
                 <label className="block space-y-1">
-                  <span className="text-slate-400">Fabricante / Nota</span>
+                  <span className="text-slate-400">{t('devices.vendorNote')}</span>
                   <input
                     type="text"
                     value={editingDevice.vendor}
@@ -1127,7 +1149,7 @@ export function DevicesTopologyView({
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-900/60 text-red-300 hover:bg-red-950/50 cursor-pointer disabled:opacity-50"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                    <span>Remover Dispositivo</span>
+                    <span>{t('devices.removeDevice')}</span>
                   </button>
 
                   <button
@@ -1136,7 +1158,7 @@ export function DevicesTopologyView({
                     className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 cursor-pointer disabled:opacity-50"
                   >
                     <Save className="w-3.5 h-3.5" />
-                    <span>Salvar Alterações</span>
+                    <span>{t('common.saveChanges')}</span>
                   </button>
                 </div>
               </form>
@@ -1145,12 +1167,10 @@ export function DevicesTopologyView({
             <div className="space-y-3 border-t border-slate-800 pt-4">
               <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
                 <Globe className="w-4 h-4 text-blue-400" />
-                <span>Top 5 Domínios Mais Acessados</span>
+                <span>{t('devices.top5Title')}</span>
               </h3>
               {selectedDrawerTopDomains.length === 0 ? (
-                <p className="text-xs text-slate-400">
-                  Nenhum domínio agregado para este dispositivo em Privacidade DNS ou eventos.
-                </p>
+                <p className="text-xs text-slate-400">{t('devices.drawerNoDomains')}</p>
               ) : (
                 <div className="space-y-2">
                   {selectedDrawerTopDomains.map((dom, idx) => (
@@ -1166,7 +1186,7 @@ export function DevicesTopologyView({
                       </div>
                       <div className="flex items-center gap-3 shrink-0 tabular-nums">
                         <span className="font-mono text-slate-300">
-                          {dom.queriesCount.toLocaleString('pt-BR')} reqs
+                          {t('devices.reqsCount', { count: dom.queriesCount.toLocaleString(locale) })}
                         </span>
                         {renderListStatusIndicator(dom.listStatus)}
                       </div>
@@ -1179,12 +1199,10 @@ export function DevicesTopologyView({
             <div className="space-y-3 border-t border-slate-800 pt-4">
               <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
                 <ShieldAlert className="w-4 h-4 text-blue-400" />
-                <span>Eventos Correlacionados (openshield.event.v1)</span>
+                <span>{t('devices.correlatedEvents')}</span>
               </h3>
               {relatedEvents.length === 0 ? (
-                <p className="text-xs text-slate-400">
-                  Nenhum evento recente associado diretamente a este ativo.
-                </p>
+                <p className="text-xs text-slate-400">{t('devices.noRelatedEvents')}</p>
               ) : (
                 <div className="space-y-3">
                   {relatedEvents.map((ev) => (
@@ -1194,7 +1212,9 @@ export function DevicesTopologyView({
                     >
                       <div className="flex items-center justify-between text-slate-400 font-mono">
                         <span>{ev.eventType}</span>
-                        <span>fonte: {ev.sourceIntegrationId}</span>
+                        <span>
+                          {t('devices.sourceLabel')} {ev.sourceIntegrationId}
+                        </span>
                       </div>
                       <p className="text-slate-200">{ev.summary}</p>
                       <pre className="text-[11px] font-mono text-slate-400 bg-slate-950 p-2.5 rounded overflow-x-auto">

@@ -10,6 +10,8 @@ import {
   Server,
   ShieldAlert,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { getIntlLocale } from '../i18n';
 import type { IntegrationAdapter, NetworkDevice, WorkspaceState } from '../types/openshield';
 import type { NavTab } from './OverviewView';
 
@@ -64,37 +66,49 @@ function truncateLabel(text: string, maxLen: number): string {
   return `${text.slice(0, maxLen - 1)}…`;
 }
 
-function getClientStatus(dev: NetworkDevice): { status: NodeStatusKind; label: string } {
-  if (dev.status === 'isolated') return { status: 'offline', label: 'Isolado' };
-  if (dev.status === 'attention' || dev.riskScore >= 60) {
-    return { status: 'degraded', label: `Atenção · Risco ${dev.riskScore}` };
-  }
-  return { status: 'online', label: `Nominal · Risco ${dev.riskScore}` };
-}
-
-function getAdapterStatus(adapter: IntegrationAdapter): { status: NodeStatusKind; label: string } {
-  if (adapter.status === 'connected') {
-    return {
-      status: 'online',
-      label:
-        typeof adapter.lastLatencyMs === 'number'
-          ? `Online · ${adapter.lastLatencyMs} ms`
-          : 'Online',
-    };
-  }
-  if (adapter.status === 'stale') {
-    return { status: 'degraded', label: 'Degradado / Stale' };
-  }
-  return { status: 'offline', label: 'Offline / Indisponível' };
-}
-
 function cubicPath(x1: number, y1: number, x2: number, y2: number): string {
   const dx = Math.abs(x2 - x1) * 0.48;
   return `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
 }
 
 export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapProps) {
+  const { t, i18n } = useTranslation();
+  const locale = getIntlLocale(i18n.language);
   const [selectedId, setSelectedId] = useState<string>('openshield-node');
+
+  const getClientStatus = (dev: NetworkDevice): { status: NodeStatusKind; label: string } => {
+    if (dev.status === 'isolated') {
+      return { status: 'offline', label: t('topologyMap.clientIsolated') };
+    }
+    if (dev.status === 'attention' || dev.riskScore >= 60) {
+      return {
+        status: 'degraded',
+        label: t('topologyMap.clientAttention', { score: dev.riskScore }),
+      };
+    }
+    return {
+      status: 'online',
+      label: t('topologyMap.clientNominal', { score: dev.riskScore }),
+    };
+  };
+
+  const getAdapterStatus = (
+    adapter: IntegrationAdapter,
+  ): { status: NodeStatusKind; label: string } => {
+    if (adapter.status === 'connected') {
+      return {
+        status: 'online',
+        label:
+          typeof adapter.lastLatencyMs === 'number'
+            ? `${t('common.online')} · ${adapter.lastLatencyMs} ms`
+            : t('common.online'),
+      };
+    }
+    if (adapter.status === 'stale') {
+      return { status: 'degraded', label: t('topologyMap.adapterStale') };
+    }
+    return { status: 'offline', label: t('topologyMap.adapterOffline') };
+  };
 
   const isBusiness = state.context.profile === 'business';
   const scopedClients = useMemo(
@@ -127,33 +141,34 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
 
   const gatewayStatus: { status: NodeStatusKind; label: string } = useMemo(() => {
     if (!state.context.gatewayForwardingActive) {
-      return { status: 'offline', label: 'Encaminhamento Interrompido' };
+      return { status: 'offline', label: t('topologyMap.gwStopped') };
     }
     if (gatewayAdapter) {
       return getAdapterStatus(gatewayAdapter);
     }
-    return { status: 'online', label: 'Plano LAN Ativo' };
-  }, [state.context.gatewayForwardingActive, gatewayAdapter]);
+    return { status: 'online', label: t('topologyMap.gwActiveLan') };
+  }, [state.context.gatewayForwardingActive, gatewayAdapter, i18n.language]);
 
   const coreNodeStatus: { status: NodeStatusKind; label: string } = useMemo(() => {
     if (!state.context.nodeAvailable) {
       return {
         status: 'degraded',
-        label: `Offline · ${state.metrics.outboxPendingTotal} no spool`,
+        label: t('topologyMap.nodeOfflineSpool', { count: state.metrics.outboxPendingTotal }),
       };
     }
     if (state.context.killSwitchActive) {
-      return { status: 'degraded', label: 'Kill Switch Ativo (L0)' };
+      return { status: 'degraded', label: t('topologyMap.nodeKillSwitch') };
     }
     return {
       status: 'online',
-      label: `Online · Autonomia ${state.context.globalAutonomy}`,
+      label: t('topologyMap.nodeOnlineAutonomy', { level: state.context.globalAutonomy }),
     };
   }, [
     state.context.nodeAvailable,
     state.context.killSwitchActive,
     state.context.globalAutonomy,
     state.metrics.outboxPendingTotal,
+    i18n.language,
   ]);
 
   const gwToNodeStatus: NodeStatusKind =
@@ -207,31 +222,37 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
     map.set('openshield-node', {
       id: 'openshield-node',
       kind: 'node',
-      title: 'OpenShield Node (Core / BFF)',
-      subtitle: `Protocolo openshield.event.v1 · Autonomia ${state.context.globalAutonomy}`,
+      title: t('topologyMap.infoNodeTitle'),
+      subtitle: t('topologyMap.infoNodeSub', { level: state.context.globalAutonomy }),
       status: coreNodeStatus.status,
       statusLabel: coreNodeStatus.label,
       detail: state.context.nodeAvailable
-        ? `${state.incidents.length} incidente(s) correlacionados · ${state.integrations.length} serviço(s) integrados.`
-        : `Node simulado como offline. Conector preservando eventos no outbox SQLite (${state.metrics.outboxPendingTotal} pendentes).`,
+        ? t('topologyMap.infoNodeDetailOnline', {
+            incidents: state.incidents.length,
+            integrations: state.integrations.length,
+          })
+        : t('topologyMap.infoNodeDetailOffline', { pending: state.metrics.outboxPendingTotal }),
       targetTab: 'incidents',
-      targetTabLabel: 'Ver Incidentes e IA',
+      targetTabLabel: t('topologyMap.infoNodeCta'),
     });
 
     map.set('openwrt-gateway', {
       id: 'openwrt-gateway',
       kind: 'gateway',
-      title: gatewayAdapter?.name ?? 'Gateway OpenWrt (LAN)',
+      title: gatewayAdapter?.name ?? t('topologyMap.infoGwTitle'),
       subtitle: gatewayAdapter
-        ? `${gatewayAdapter.mode.toUpperCase()} · ${gatewayAdapter.liveEndpointUrl || 'Simulador local'}`
-        : 'Plano de encaminhamento L2/L3 na LAN',
+        ? `${gatewayAdapter.mode.toUpperCase()} · ${gatewayAdapter.liveEndpointUrl || t('topologyMap.infoGwLocalSim')}`
+        : t('topologyMap.infoGwL2L3'),
       status: gatewayStatus.status,
       statusLabel: gatewayStatus.label,
       detail: gatewayAdapter?.boardInfo
-        ? `${gatewayAdapter.boardInfo.model} · Interfaces: ${gatewayAdapter.boardInfo.interfaces.join(', ')}`
-        : 'Atua fora do caminho crítico de pacotes para manter roteamento contínuo mesmo se o Node reiniciar.',
+        ? t('topologyMap.infoGwInterfaces', {
+            model: gatewayAdapter.boardInfo.model,
+            interfaces: gatewayAdapter.boardInfo.interfaces.join(', '),
+          })
+        : t('topologyMap.infoGwFallbackDetail'),
       targetTab: 'integrations',
-      targetTabLabel: 'Abrir Gateway e Integrações',
+      targetTabLabel: t('topologyMap.infoGwCta'),
     });
 
     for (const dev of scopedClients) {
@@ -240,12 +261,16 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
         id: dev.id,
         kind: 'client',
         title: dev.hostname,
-        subtitle: `${dev.ip} · ${dev.interfaceName} · ${dev.segment}`,
+        subtitle: `${dev.ip} · ${dev.interfaceName} · ${t(`devices.segments.${dev.segment}`, { defaultValue: dev.segment })}`,
         status: st.status,
         statusLabel: st.label,
-        detail: `${dev.dnsQueries24h.toLocaleString('pt-BR')} consultas DNS (24h) · ${dev.blockedQueries24h.toLocaleString('pt-BR')} bloqueios · Fabricante: ${dev.vendor}`,
+        detail: t('topologyMap.infoClientDetail', {
+          queries: dev.dnsQueries24h.toLocaleString(locale),
+          blocked: dev.blockedQueries24h.toLocaleString(locale),
+          vendor: dev.vendor,
+        }),
         targetTab: 'devices',
-        targetTabLabel: 'Ver Topologia e Fluxo',
+        targetTabLabel: t('topologyMap.infoClientCta'),
       });
     }
 
@@ -255,15 +280,15 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
         id: svc.id,
         kind: 'service',
         title: svc.name,
-        subtitle: `${svc.kind} · Modo ${svc.mode === 'live' ? 'API Real' : 'Simulador Mock'}`,
+        subtitle: t('topologyMap.infoSvcSub', {
+          kind: svc.kind,
+          mode: svc.mode === 'live' ? t('common.liveApi') : t('common.mockSim'),
+        }),
         status: st.status,
         statusLabel: st.label,
-        detail:
-          svc.liveEndpointUrl ||
-          svc.lastLiveCheckMessage ||
-          svc.description,
+        detail: svc.liveEndpointUrl || svc.lastLiveCheckMessage || svc.description,
         targetTab: 'settings',
-        targetTabLabel: 'Editar em Configurações',
+        targetTabLabel: t('topologyMap.infoSvcCta'),
       });
     }
 
@@ -279,6 +304,8 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
     gatewayStatus,
     scopedClients,
     otherServices,
+    i18n.language,
+    locale,
   ]);
 
   const selectedInfo =
@@ -286,7 +313,7 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
 
   return (
     <section
-      aria-label="Mapa de Topologia da Rede"
+      aria-label={t('topologyMap.ariaLabel')}
       className="rounded-xl border border-slate-800 bg-[#131C31] overflow-hidden"
     >
       {/* Header */}
@@ -294,26 +321,24 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
         <div>
           <h2 className="text-base font-semibold text-slate-100 flex items-center gap-2">
             <Network className="w-4 h-4 text-blue-400 shrink-0" />
-            <span>Topologia Visual de Conexões</span>
+            <span>{t('topologyMap.title')}</span>
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Estado em tempo real entre Clientes da Rede, Gateway OpenWrt, OpenShield Node e Serviços Configurados (clique em qualquer nó para inspecionar).
-          </p>
+          <p className="text-xs text-slate-400 mt-0.5">{t('topologyMap.subtitle')}</p>
         </div>
 
         {/* Legend */}
         <div className="flex flex-wrap items-center gap-4 text-[11px] text-slate-300 shrink-0">
           <span className="inline-flex items-center gap-1.5">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Online / Nominal</span>
+            <span>{t('topologyMap.legendOnline')}</span>
           </span>
           <span className="inline-flex items-center gap-1.5">
             <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-            <span>Degradado / Atenção</span>
+            <span>{t('topologyMap.legendDegraded')}</span>
           </span>
           <span className="inline-flex items-center gap-1.5">
             <ShieldAlert className="w-3.5 h-3.5 text-red-400" />
-            <span>Offline / Isolado</span>
+            <span>{t('topologyMap.legendOffline')}</span>
           </span>
         </div>
       </div>
@@ -323,21 +348,21 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
         <svg
           viewBox={`0 0 1000 ${svgHeight}`}
           role="img"
-          aria-label="Mapa visual de topologia conectando clientes da rede, gateway OpenWrt, OpenShield Node e serviços configurados"
+          aria-label={t('topologyMap.svgAria')}
           className="w-full min-w-[760px] h-auto select-none"
         >
           {/* Tier Column Headers */}
           <text x="122" y="22" textAnchor="middle" fill="#94a3b8" fontSize="11" fontWeight="600">
-            CLIENTES DA REDE ({totalScopedClientsCount})
+            {t('topologyMap.colClients', { count: totalScopedClientsCount })}
           </text>
           <text x="379" y="22" textAnchor="middle" fill="#94a3b8" fontSize="11" fontWeight="600">
-            GATEWAY OPENWRT
+            {t('topologyMap.colGateway')}
           </text>
           <text x="621" y="22" textAnchor="middle" fill="#94a3b8" fontSize="11" fontWeight="600">
-            OPENSHIELD NODE
+            {t('topologyMap.colNode')}
           </text>
           <text x="878" y="22" textAnchor="middle" fill="#94a3b8" fontSize="11" fontWeight="600">
-            SERVIÇOS CONFIGURADOS ({totalOtherServicesCount})
+            {t('topologyMap.colServices', { count: totalOtherServicesCount })}
           </text>
 
           {/* Edges: Clients -> Gateway OpenWrt */}
@@ -395,7 +420,7 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
             fontSize="10"
             fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
           >
-            {state.context.nodeAvailable ? 'rpcd / v1' : 'spool SQLite'}
+            {state.context.nodeAvailable ? 'rpcd / v1' : t('topologyMap.spoolLabel')}
           </text>
 
           {/* Edges: OpenShield Node -> Configured Services */}
@@ -430,10 +455,7 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
 
           {/* Client Nodes (Left Column) */}
           {clientPositions.length === 0 ? (
-            <g
-              className="cursor-pointer"
-              onClick={() => onNavigate('devices')}
-            >
+            <g className="cursor-pointer" onClick={() => onNavigate('devices')}>
               <rect
                 x={24}
                 y={centerY - 26}
@@ -444,11 +466,18 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
                 stroke="#334155"
                 strokeDasharray="4 4"
               />
-              <text x={122} y={centerY - 4} textAnchor="middle" fill="#cbd5e1" fontSize="11" fontWeight="600">
-                Nenhum cliente ainda
+              <text
+                x={122}
+                y={centerY - 4}
+                textAnchor="middle"
+                fill="#cbd5e1"
+                fontSize="11"
+                fontWeight="600"
+              >
+                {t('topologyMap.noClientsYet')}
               </text>
               <text x={122} y={centerY + 13} textAnchor="middle" fill="#60a5fa" fontSize="10">
-                + Adicionar Dispositivos
+                {t('topologyMap.addDevicesCta')}
               </text>
             </g>
           ) : (
@@ -456,6 +485,7 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
               const st = getClientStatus(dev);
               const colors = STATUS_STYLE[st.status];
               const isSelected = selectedId === dev.id;
+              const segLabel = t(`devices.segments.${dev.segment}`, { defaultValue: dev.segment });
               return (
                 <g
                   key={dev.id}
@@ -490,7 +520,7 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
                     fontSize="10"
                     fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
                   >
-                    {dev.ip} · {truncateLabel(dev.segment, 12)}
+                    {dev.ip} · {truncateLabel(segLabel, 12)}
                   </text>
                 </g>
               );
@@ -507,15 +537,14 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
               className="cursor-pointer"
               onClick={() => onNavigate('devices')}
             >
-              +{totalScopedClientsCount - clientPositions.length} cliente(s) em Dispositivos →
+              {t('topologyMap.moreClients', {
+                count: totalScopedClientsCount - clientPositions.length,
+              })}
             </text>
           )}
 
           {/* Gateway OpenWrt Node */}
-          <g
-            className="cursor-pointer"
-            onClick={() => setSelectedId('openwrt-gateway')}
-          >
+          <g className="cursor-pointer" onClick={() => setSelectedId('openwrt-gateway')}>
             <rect
               x={gwBox.x}
               y={gwBox.y}
@@ -543,17 +572,12 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
               fontSize="12"
               fontWeight="700"
             >
-              {truncateLabel(gatewayAdapter?.name ?? 'Gateway OpenWrt', 17)}
+              {truncateLabel(gatewayAdapter?.name ?? t('topologyMap.gwDefaultTitle'), 17)}
             </text>
-            <text
-              x={gwBox.x + 14}
-              y={gwBox.y + 44}
-              fill="#94a3b8"
-              fontSize="10"
-            >
+            <text x={gwBox.x + 14} y={gwBox.y + 44} fill="#94a3b8" fontSize="10">
               {gatewayAdapter?.boardInfo?.model
                 ? truncateLabel(gatewayAdapter.boardInfo.model, 24)
-                : 'Plano de dados LAN'}
+                : t('topologyMap.gwDataPlane')}
             </text>
             <text
               x={gwBox.x + 14}
@@ -567,10 +591,7 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
           </g>
 
           {/* OpenShield Core Node */}
-          <g
-            className="cursor-pointer"
-            onClick={() => setSelectedId('openshield-node')}
-          >
+          <g className="cursor-pointer" onClick={() => setSelectedId('openshield-node')}>
             <rect
               x={nodeBox.x}
               y={nodeBox.y}
@@ -598,15 +619,10 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
               fontSize="12"
               fontWeight="700"
             >
-              OpenShield Node
+              {t('topologyMap.nodeTitle')}
             </text>
-            <text
-              x={nodeBox.x + 14}
-              y={nodeBox.y + 44}
-              fill="#94a3b8"
-              fontSize="10"
-            >
-              BFF · Correlação & IA
+            <text x={nodeBox.x + 14} y={nodeBox.y + 44} fill="#94a3b8" fontSize="10">
+              {t('topologyMap.nodeSubtitle')}
             </text>
             <text
               x={nodeBox.x + 14}
@@ -621,10 +637,7 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
 
           {/* Configured Services Nodes (Right Column) */}
           {servicePositions.length === 0 ? (
-            <g
-              className="cursor-pointer"
-              onClick={() => onNavigate('settings')}
-            >
+            <g className="cursor-pointer" onClick={() => onNavigate('settings')}>
               <rect
                 x={780}
                 y={centerY - 26}
@@ -635,11 +648,18 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
                 stroke="#334155"
                 strokeDasharray="4 4"
               />
-              <text x={878} y={centerY - 4} textAnchor="middle" fill="#cbd5e1" fontSize="11" fontWeight="600">
-                Sem serviços extras
+              <text
+                x={878}
+                y={centerY - 4}
+                textAnchor="middle"
+                fill="#cbd5e1"
+                fontSize="11"
+                fontWeight="600"
+              >
+                {t('topologyMap.noExtraServices')}
               </text>
               <text x={878} y={centerY + 13} textAnchor="middle" fill="#60a5fa" fontSize="10">
-                + Configurar Serviços
+                {t('topologyMap.configureServicesCta')}
               </text>
             </g>
           ) : (
@@ -698,7 +718,9 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
               className="cursor-pointer"
               onClick={() => onNavigate('integrations')}
             >
-              +{totalOtherServicesCount - servicePositions.length} serviço(s) em Integrações →
+              {t('topologyMap.moreServices', {
+                count: totalOtherServicesCount - servicePositions.length,
+              })}
             </text>
           )}
         </svg>

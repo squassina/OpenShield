@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   CheckCircle2,
   Clock,
@@ -9,6 +10,7 @@ import {
   RotateCcw,
   ShieldCheck,
 } from 'lucide-react';
+import { getIntlLocale } from '../i18n';
 import { api } from '../lib/api';
 import type { AutonomyLevel, WorkspaceState } from '../types/openshield';
 
@@ -22,12 +24,7 @@ interface PoliciesAuditViewProps {
   busyKey: string | null;
 }
 
-const AUTONOMY_INFO: { level: AutonomyLevel; title: string; summary: string }[] = [
-  { level: 'L0', title: 'L0 · Observar', summary: 'Coleta, correlaciona e simula sem aplicar mudanças.' },
-  { level: 'L1', title: 'L1 · Baixo Impacto', summary: 'Aplica automaticamente bloqueios DNS pré-autorizados.' },
-  { level: 'L2', title: 'L2 · Contenção Limitada', summary: 'Contém portas/destinos dentro de escopo e TTL estritos.' },
-  { level: 'L3', title: 'L3 · Aprovação Humana', summary: 'Ações amplas ou críticas exigem confirmação explícita.' },
-];
+const AUTONOMY_LEVELS: AutonomyLevel[] = ['L0', 'L1', 'L2', 'L3'];
 
 export function PoliciesAuditView({
   state,
@@ -38,6 +35,8 @@ export function PoliciesAuditView({
   onChangeAutonomy,
   busyKey,
 }: PoliciesAuditViewProps) {
+  const { t, i18n } = useTranslation();
+  const locale = getIntlLocale(i18n.language);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [auditFilter, setAuditFilter] = useState<'all' | 'success' | 'denied' | 'simulated'>('all');
   const [selectedIncidentId, setSelectedIncidentId] = useState(state.incidents[0]?.id ?? '');
@@ -104,24 +103,26 @@ export function PoliciesAuditView({
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-50 text-balance">
-            Políticas Autônomas, Rollback e Auditoria
+            {t('policies.title')}
           </h1>
           <p className="mt-1 text-sm text-slate-400 max-w-2xl">
-            Motor determinístico com níveis L0–L3, expiração automática por TTL, verificação obrigatória e registro transacional de auditoria.
+            {t('policies.subtitle')}
           </p>
         </div>
       </div>
 
       {/* Autonomy Matrix L0-L3 */}
       <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {AUTONOMY_INFO.map((item) => {
-          const isCurrent = state.context.globalAutonomy === item.level;
+        {AUTONOMY_LEVELS.map((level) => {
+          const isCurrent = state.context.globalAutonomy === level;
+          const title = t(`policies.autonomy.${level}Title`);
+          const summary = t(`policies.autonomy.${level}Summary`);
           return (
             <button
-              key={item.level}
+              key={level}
               type="button"
-              disabled={busyKey === 'context' || (state.context.killSwitchActive && item.level !== 'L0')}
-              onClick={() => onChangeAutonomy(item.level)}
+              disabled={busyKey === 'context' || (state.context.killSwitchActive && level !== 'L0')}
+              onClick={() => onChangeAutonomy(level)}
               className={`text-left rounded-xl border p-4 transition-colors cursor-pointer disabled:opacity-50 ${
                 isCurrent
                   ? 'border-blue-500 bg-blue-950/30'
@@ -129,10 +130,10 @@ export function PoliciesAuditView({
               }`}
             >
               <div className="flex items-center justify-between text-xs font-semibold">
-                <span className={isCurrent ? 'text-blue-400' : 'text-slate-200'}>{item.title}</span>
-                {isCurrent && <span className="text-blue-400">Ativo</span>}
+                <span className={isCurrent ? 'text-blue-400' : 'text-slate-200'}>{title}</span>
+                {isCurrent && <span className="text-blue-400">{t('common.active')}</span>}
               </div>
-              <p className="mt-1.5 text-xs text-slate-400 leading-relaxed">{item.summary}</p>
+              <p className="mt-1.5 text-xs text-slate-400 leading-relaxed">{summary}</p>
             </button>
           );
         })}
@@ -142,23 +143,23 @@ export function PoliciesAuditView({
       <section className="rounded-xl border border-slate-800 bg-[#131C31] p-5 space-y-4">
         <div className="flex flex-col gap-1">
           <h2 className="text-sm font-semibold text-slate-100">
-            Simulador de Execução Governada por Política (TTL & Rollback)
+            {t('policies.simulatorTitle')}
           </h2>
           <p className="text-xs text-slate-400">
-            Selecione um incidente e uma política para testar a avaliação determinística no nível de autonomia atual ({state.context.globalAutonomy}).
+            {t('policies.simulatorSubtitle', { level: state.context.globalAutonomy })}
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
           <label className="block space-y-1.5 text-xs">
-            <span className="text-slate-300 font-medium">Incidente Alvo</span>
+            <span className="text-slate-300 font-medium">{t('policies.targetIncident')}</span>
             <select
               value={selectedIncidentId}
               onChange={(e) => setSelectedIncidentId(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 text-xs"
             >
               {state.incidents.length === 0 ? (
-                <option value="">Nenhum incidente aberto</option>
+                <option value="">{t('policies.noOpenIncidents')}</option>
               ) : (
                 state.incidents.map((inc) => (
                   <option key={inc.id} value={inc.id}>
@@ -170,7 +171,7 @@ export function PoliciesAuditView({
           </label>
 
           <label className="block space-y-1.5 text-xs">
-            <span className="text-slate-300 font-medium">Política Determinística</span>
+            <span className="text-slate-300 font-medium">{t('policies.deterministicPolicy')}</span>
             <select
               value={selectedPolicyId}
               onChange={(e) => setSelectedPolicyId(e.target.value)}
@@ -185,7 +186,7 @@ export function PoliciesAuditView({
           </label>
 
           <label className="block space-y-1.5 text-xs">
-            <span className="text-slate-300 font-medium">TTL de Expiração (segundos)</span>
+            <span className="text-slate-300 font-medium">{t('policies.expirationTtl')}</span>
             <input
               type="number"
               min={30}
@@ -203,7 +204,7 @@ export function PoliciesAuditView({
             className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors whitespace-nowrap cursor-pointer disabled:opacity-50"
           >
             <Play className="w-3.5 h-3.5" />
-            <span>Avaliar e Executar</span>
+            <span>{t('policies.evaluateExecute')}</span>
           </button>
         </div>
       </section>
@@ -214,10 +215,10 @@ export function PoliciesAuditView({
         <section className="rounded-xl border border-slate-800 bg-[#131C31] overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-100">
-              Execuções, Verificação e Rollback
+              {t('policies.executionsTitle')}
             </h2>
             <span className="text-xs text-slate-400 tabular-nums">
-              {state.executions.length} registros
+              {t('policies.recordsCount', { count: state.executions.length })}
             </span>
           </div>
 
@@ -247,23 +248,23 @@ export function PoliciesAuditView({
                         }
                       >
                         {exec.status === 'verified'
-                          ? 'Verificado'
+                          ? t('policies.execVerified')
                           : exec.status === 'awaiting_approval'
-                            ? 'Aguardando Aprovação L3'
+                            ? t('policies.execAwaitingApproval')
                             : exec.status === 'dry_run'
-                              ? 'Simulação L0'
+                              ? t('policies.execDryRun')
                               : exec.status === 'expired'
-                                ? 'Expirado por TTL'
+                                ? t('policies.execExpired')
                                 : exec.status === 'rolled_back'
-                                  ? 'Revertido (Rollback)'
-                                  : 'Abortado (Kill Switch)'}
+                                  ? t('policies.execRolledBack')
+                                  : t('policies.execAborted')}
                       </span>
                     </div>
 
                     {remainingSec !== null && (exec.status === 'verified' || exec.status === 'active') && (
                       <span className="inline-flex items-center gap-1 font-mono text-amber-300 tabular-nums">
                         <Clock className="w-3.5 h-3.5" />
-                        <span>Expira em {remainingSec}s</span>
+                        <span>{t('policies.expiresIn', { sec: remainingSec })}</span>
                       </span>
                     )}
                   </div>
@@ -280,7 +281,7 @@ export function PoliciesAuditView({
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-500 font-medium cursor-pointer disabled:opacity-50"
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Aprovar Execução L3</span>
+                        <span>{t('policies.approveL3')}</span>
                       </button>
                     )}
 
@@ -292,7 +293,7 @@ export function PoliciesAuditView({
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 font-medium cursor-pointer disabled:opacity-50"
                       >
                         <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
-                        <span>Reverter Agora (Rollback)</span>
+                        <span>{t('policies.rollbackNow')}</span>
                       </button>
                     )}
                   </div>
@@ -306,9 +307,9 @@ export function PoliciesAuditView({
         <section className="rounded-xl border border-slate-800 bg-[#131C31] overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-100">
-              Regras de Política Autorizadas
+              {t('policies.rulesTitle')}
             </h2>
-            <span className="text-xs text-slate-400">Governança Determinística</span>
+            <span className="text-xs text-slate-400">{t('policies.deterministicGov')}</span>
           </div>
 
           <div className="divide-y divide-slate-800/80">
@@ -318,13 +319,19 @@ export function PoliciesAuditView({
                   <div className="flex items-center gap-2 font-mono text-slate-400 tabular-nums">
                     <span className="text-blue-400 font-semibold">{pol.maxAutonomyLevel}</span>
                     <span>·</span>
-                    <span>TTL padrão {pol.defaultTtlSeconds}s</span>
+                    <span>{t('policies.defaultTtl', { sec: pol.defaultTtlSeconds })}</span>
                     <span>·</span>
-                    <span>{pol.rollbackSupported ? 'Rollback suportado' : 'Sem rollback'}</span>
+                    <span>
+                      {pol.rollbackSupported
+                        ? t('policies.rollbackSupported')
+                        : t('policies.noRollback')}
+                    </span>
                   </div>
                   <div className="text-sm font-medium text-slate-100">{pol.name}</div>
                   <p className="text-slate-400">{pol.description}</p>
-                  <div className="text-slate-500">Escopo máximo: {pol.maxScope}</div>
+                  <div className="text-slate-500">
+                    {t('policies.maxScope', { scope: pol.maxScope })}
+                  </div>
                 </div>
 
                 <button
@@ -337,7 +344,7 @@ export function PoliciesAuditView({
                       : 'bg-slate-900 text-slate-400 border border-slate-700'
                   }`}
                 >
-                  {pol.enabled ? 'Habilitada' : 'Desabilitada'}
+                  {pol.enabled ? t('common.enabled') : t('common.disabled')}
                 </button>
               </div>
             ))}
@@ -351,17 +358,17 @@ export function PoliciesAuditView({
           <div className="flex items-center gap-2">
             <FileText className="w-4 h-4 text-blue-400" />
             <h2 className="text-sm font-semibold text-slate-100">
-              Trilha de Auditoria Transacional (Audit Log)
+              {t('policies.auditSectionTitle')}
             </h2>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
             <div className="inline-flex items-center gap-1 p-1 rounded-lg bg-slate-950 border border-slate-800">
               {[
-                { id: 'all', label: 'Todos' },
-                { id: 'success', label: 'Sucesso' },
-                { id: 'denied', label: 'Negados' },
-                { id: 'simulated', label: 'Simulados' },
+                { id: 'all', label: t('policies.filterAll') },
+                { id: 'success', label: t('policies.filterSuccess') },
+                { id: 'denied', label: t('policies.filterDenied') },
+                { id: 'simulated', label: t('policies.filterSimulated') },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -382,7 +389,7 @@ export function PoliciesAuditView({
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
               <Download className="w-3.5 h-3.5 text-blue-400" />
-              <span>Exportar CSV</span>
+              <span>{t('policies.exportCsv')}</span>
             </button>
 
             <button
@@ -400,18 +407,18 @@ export function PoliciesAuditView({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-800 text-xs font-medium text-slate-400 bg-slate-900/50">
-                <th className="py-2.5 px-4">Horário (UTC)</th>
-                <th className="py-2.5 px-4">Evento</th>
-                <th className="py-2.5 px-4">Ator / Papel</th>
-                <th className="py-2.5 px-4">Resultado</th>
-                <th className="py-2.5 px-4">Detalhes</th>
+                <th className="py-2.5 px-4">{t('policies.colTimeUtc')}</th>
+                <th className="py-2.5 px-4">{t('policies.colEvent')}</th>
+                <th className="py-2.5 px-4">{t('policies.colActorRole')}</th>
+                <th className="py-2.5 px-4">{t('policies.colOutcome')}</th>
+                <th className="py-2.5 px-4">{t('policies.colDetails')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/80 text-xs">
               {filteredAudit.slice(0, 20).map((entry) => (
                 <tr key={entry.id} className="h-[40px] hover:bg-slate-900/40">
                   <td className="px-4 py-2 font-mono text-slate-400 tabular-nums whitespace-nowrap">
-                    {new Date(entry.timestamp).toLocaleTimeString('pt-BR')}
+                    {new Date(entry.timestamp).toLocaleTimeString(locale)}
                   </td>
                   <td className="px-4 py-2 font-mono text-slate-200 whitespace-nowrap">
                     {entry.eventType}
@@ -430,10 +437,10 @@ export function PoliciesAuditView({
                       }
                     >
                       {entry.outcome === 'denied'
-                        ? 'Negado'
+                        ? t('common.denied')
                         : entry.outcome === 'simulated'
-                          ? 'Simulado'
-                          : 'Sucesso'}
+                          ? t('common.simulated')
+                          : t('common.success')}
                     </span>
                   </td>
                   <td className="px-4 py-2 text-slate-300 max-w-xl">{entry.detail}</td>
@@ -448,10 +455,10 @@ export function PoliciesAuditView({
           <details>
             <summary className="cursor-pointer text-blue-400 hover:text-blue-300 font-medium select-none inline-flex items-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Inspecionar endpoint de métricas Prometheus (/metrics)</span>
+              <span>{t('policies.inspectPrometheus')}</span>
             </summary>
             <pre className="mt-3 p-3.5 rounded-lg bg-slate-950 border border-slate-800 font-mono text-[11px] text-slate-300 overflow-x-auto">
-              {prometheusText || 'Carregando métricas operacionais...'}
+              {prometheusText || t('policies.loadingMetrics')}
             </pre>
           </details>
         </div>
@@ -460,9 +467,7 @@ export function PoliciesAuditView({
       {state.context.killSwitchActive && (
         <div className="rounded-xl border border-red-800/60 bg-red-950/20 p-4 flex items-center gap-3 text-xs text-red-200">
           <OctagonAlert className="w-4 h-4 text-red-400 shrink-0" />
-          <span>
-            Kill Switch ativo: todas as execuções automatizadas permanecem suspensas em L0. Use o botão no topo para liberar após revisão.
-          </span>
+          <span>{t('policies.killSwitchBanner')}</span>
         </div>
       )}
     </div>

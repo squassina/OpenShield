@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   AlertCircle,
   BellRing,
@@ -14,6 +15,7 @@ import {
   Webhook,
   X,
 } from 'lucide-react';
+import { getIntlLocale } from '../i18n';
 import type {
   NotificationChannelType,
   NotificationDestination,
@@ -65,18 +67,12 @@ interface NotificationsCardProps {
   busyKey: string | null;
 }
 
-const TRIGGER_OPTIONS: { id: NotificationTriggerEvent; label: string }[] = [
-  { id: 'critical_incident', label: 'Incidentes Críticos / Altos' },
-  { id: 'kill_switch', label: 'Acionamento do Kill Switch' },
-  { id: 'endpoint_offline', label: 'Endpoints de Segurança Offline' },
-  { id: 'ai_anomaly', label: 'Anomalias Detectadas pela IA' },
+const TRIGGER_IDS: NotificationTriggerEvent[] = [
+  'critical_incident',
+  'kill_switch',
+  'endpoint_offline',
+  'ai_anomaly',
 ];
-
-const SEVERITY_LABELS: Record<NotificationSeverityThreshold, string> = {
-  critical: 'Somente Crítico',
-  high: 'Alto e Crítico',
-  medium: 'Médio, Alto e Crítico',
-};
 
 function ChannelIcon({ type }: { type: NotificationChannelType }) {
   if (type === 'email') return <Mail className="w-4 h-4 text-blue-400 shrink-0" />;
@@ -84,17 +80,11 @@ function ChannelIcon({ type }: { type: NotificationChannelType }) {
   return <Webhook className="w-4 h-4 text-emerald-400 shrink-0" />;
 }
 
-function channelLabel(type: NotificationChannelType): string {
-  if (type === 'email') return 'E-mail (SMTP)';
-  if (type === 'telegram') return 'Telegram Bot';
-  return 'Webhook HTTP';
-}
-
-function formatTime(iso?: string): string {
+function formatTime(iso: string | undefined, locale: string): string {
   if (!iso) return '—';
   const ms = Date.parse(iso);
   if (!Number.isFinite(ms)) return iso;
-  return new Intl.DateTimeFormat('pt-BR', {
+  return new Intl.DateTimeFormat(locale, {
     day: '2-digit',
     month: '2-digit',
     hour: '2-digit',
@@ -111,8 +101,25 @@ export function NotificationsCard({
   onTestNotification,
   busyKey,
 }: NotificationsCardProps) {
+  const { t, i18n } = useTranslation();
+  const locale = getIntlLocale(i18n.language);
   const destinations = state.notifications ?? [];
   const history = state.notificationHistory ?? [];
+
+  const channelLabel = (type: NotificationChannelType): string => {
+    if (type === 'email') return t('notifications.channelEmail');
+    if (type === 'telegram') return t('notifications.channelTelegram');
+    return t('notifications.channelWebhook');
+  };
+
+  const severityLabel = (sev: NotificationSeverityThreshold): string => {
+    if (sev === 'critical') return t('notifications.sevCritical');
+    if (sev === 'high') return t('notifications.sevHigh');
+    return t('notifications.sevMedium');
+  };
+
+  const triggerLabel = (triggerId: NotificationTriggerEvent): string =>
+    t(`notifications.triggers.${triggerId}`);
 
   const [channelType, setChannelType] = useState<NotificationChannelType>('webhook');
   const [name, setName] = useState('');
@@ -188,10 +195,10 @@ export function NotificationsCard({
       name:
         name.trim() ||
         (channelType === 'email'
-          ? 'Alerta SOC E-mail'
+          ? t('notifications.defaultNameEmail')
           : channelType === 'telegram'
-            ? 'Plantão Telegram'
-            : 'Webhook Segurança'),
+            ? t('notifications.defaultNameTelegram')
+            : t('notifications.defaultNameWebhook')),
       type: channelType,
       target: target.trim(),
       enabled: true,
@@ -263,17 +270,18 @@ export function NotificationsCard({
         <div>
           <h2 className="text-base font-semibold text-slate-100 flex items-center gap-2">
             <BellRing className="w-4 h-4 text-blue-400 shrink-0" />
-            <span>Notificações e Alertas</span>
+            <span>{t('notifications.title')}</span>
           </h2>
           <p className="text-xs text-slate-400 mt-0.5 max-w-3xl">
-            Defina destinos externos (E-mail SMTP, Webhook HTTP/Slack/Discord ou Telegram Bot) para receber
-            alertas críticos diretamente do servidor OpenShield, mesmo com a dashboard fechada.
+            {t('notifications.subtitle')}
           </p>
         </div>
 
         <div className="text-xs text-slate-300 tabular-nums shrink-0">
-          <span className="font-semibold text-slate-100">{activeCount}</span> ativo(s) de{' '}
-          <span className="font-semibold text-slate-100">{destinations.length}</span> destino(s)
+          {t('notifications.activeSummary', {
+            active: activeCount,
+            total: destinations.length,
+          })}
         </div>
       </div>
 
@@ -285,7 +293,7 @@ export function NotificationsCard({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
             <Plus className="w-3.5 h-3.5 text-blue-400" />
-            <span>Adicionar Destino de Alerta</span>
+            <span>{t('notifications.addDestinationTitle')}</span>
           </div>
 
           <div className="inline-flex flex-wrap items-center gap-1 p-1 rounded-lg bg-[#0B1120] border border-slate-800">
@@ -310,7 +318,7 @@ export function NotificationsCard({
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 text-xs">
           <label className="space-y-1">
-            <span className="text-slate-300 font-medium">Nome do Destino</span>
+            <span className="text-slate-300 font-medium">{t('notifications.destName')}</span>
             <input
               type="text"
               required
@@ -318,10 +326,10 @@ export function NotificationsCard({
               onChange={(e) => setName(e.target.value)}
               placeholder={
                 channelType === 'email'
-                  ? 'ex: Plantão SOC E-mail'
+                  ? t('notifications.destNameEmailPh')
                   : channelType === 'telegram'
-                    ? 'ex: Bot Segurança Casa'
-                    : 'ex: Webhook Discord / SIEM'
+                    ? t('notifications.destNameTelegramPh')
+                    : t('notifications.destNameWebhookPh')
               }
               className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 text-xs focus:outline-none focus:border-blue-500"
             />
@@ -330,20 +338,22 @@ export function NotificationsCard({
           {channelType === 'webhook' && (
             <>
               <label className="space-y-1 md:col-span-2">
-                <span className="text-slate-300 font-medium">URL do Webhook</span>
+                <span className="text-slate-300 font-medium">{t('notifications.webhookUrl')}</span>
                 <input
                   type="url"
                   required
                   value={target}
                   onChange={(e) => setTarget(e.target.value)}
-                  placeholder="https://hooks.slack.com/services/... ou https://discord.com/api/webhooks/..."
+                  placeholder="https://hooks.slack.com/services/... | https://discord.com/api/webhooks/..."
                   className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 font-mono text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
                 />
               </label>
 
               <div className="grid grid-cols-2 gap-2">
                 <label className="space-y-1">
-                  <span className="text-slate-300 font-medium">Formato</span>
+                  <span className="text-slate-300 font-medium">
+                    {t('notifications.formatLabel')}
+                  </span>
                   <select
                     value={webhookFormat}
                     onChange={(e) =>
@@ -353,14 +363,18 @@ export function NotificationsCard({
                     }
                     className="w-full px-2.5 py-2 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 text-xs focus:outline-none focus:border-blue-500"
                   >
-                    <option value="openshield_json">JSON OpenShield</option>
+                    <option value="openshield_json">
+                      {t('notifications.formatOpenShieldJson')}
+                    </option>
                     <option value="slack">Slack</option>
                     <option value="discord">Discord</option>
                   </select>
                 </label>
 
                 <label className="space-y-1">
-                  <span className="text-slate-300 font-medium">Método</span>
+                  <span className="text-slate-300 font-medium">
+                    {t('notifications.methodLabel')}
+                  </span>
                   <select
                     value={webhookMethod}
                     onChange={(e) => setWebhookMethod(e.target.value as 'POST' | 'PUT')}
@@ -374,14 +388,14 @@ export function NotificationsCard({
 
               <label className="space-y-1 md:col-span-2">
                 <span className="text-slate-300 font-medium">
-                  Bearer Token / Secret Header (opcional, write-only)
+                  {t('notifications.webhookSecretLabel')}
                 </span>
                 <input
                   type="password"
                   autoComplete="new-password"
                   value={secret}
                   onChange={(e) => setSecret(e.target.value)}
-                  placeholder="Enviado em Authorization: Bearer e X-OpenShield-Token"
+                  placeholder={t('notifications.webhookSecretPh')}
                   className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 font-mono text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
                 />
               </label>
@@ -391,32 +405,34 @@ export function NotificationsCard({
           {channelType === 'email' && (
             <>
               <label className="space-y-1">
-                <span className="text-slate-300 font-medium">E-mail Destinatário</span>
+                <span className="text-slate-300 font-medium">
+                  {t('notifications.emailRecipient')}
+                </span>
                 <input
                   type="email"
                   required
                   value={target}
                   onChange={(e) => setTarget(e.target.value)}
-                  placeholder="seguranca@suaempresa.com"
+                  placeholder="security@company.com"
                   className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 font-mono text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
                 />
               </label>
 
               <label className="space-y-1">
-                <span className="text-slate-300 font-medium">Servidor SMTP (Host)</span>
+                <span className="text-slate-300 font-medium">{t('notifications.smtpHost')}</span>
                 <input
                   type="text"
                   required
                   value={smtpHost}
                   onChange={(e) => setSmtpHost(e.target.value)}
-                  placeholder="smtp.gmail.com ou 192.168.1.10"
+                  placeholder="smtp.gmail.com / 192.168.1.10"
                   className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 font-mono text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
                 />
               </label>
 
               <div className="grid grid-cols-2 gap-2">
                 <label className="space-y-1">
-                  <span className="text-slate-300 font-medium">Porta SMTP</span>
+                  <span className="text-slate-300 font-medium">{t('notifications.smtpPort')}</span>
                   <input
                     type="number"
                     min={1}
@@ -434,42 +450,40 @@ export function NotificationsCard({
                     onChange={(e) => setSmtpSecure(e.target.checked)}
                     className="rounded border-slate-700 bg-[#0B1120] text-blue-500"
                   />
-                  <span>TLS Direto (465)</span>
+                  <span>{t('notifications.smtpTls')}</span>
                 </label>
               </div>
 
               <label className="space-y-1">
-                <span className="text-slate-300 font-medium">Remetente (From)</span>
+                <span className="text-slate-300 font-medium">{t('notifications.emailFrom')}</span>
                 <input
                   type="email"
                   value={emailFrom}
                   onChange={(e) => setEmailFrom(e.target.value)}
-                  placeholder="openshield@rede.local"
+                  placeholder="openshield@network.local"
                   className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 font-mono text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
                 />
               </label>
 
               <label className="space-y-1">
-                <span className="text-slate-300 font-medium">Usuário SMTP (opcional)</span>
+                <span className="text-slate-300 font-medium">{t('notifications.smtpUser')}</span>
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="usuário ou e-mail SMTP"
+                  placeholder={t('notifications.smtpUserPh')}
                   className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 font-mono text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
                 />
               </label>
 
               <label className="space-y-1">
-                <span className="text-slate-300 font-medium">
-                  Senha / App Password (write-only)
-                </span>
+                <span className="text-slate-300 font-medium">{t('notifications.smtpPass')}</span>
                 <input
                   type="password"
                   autoComplete="new-password"
                   value={secret}
                   onChange={(e) => setSecret(e.target.value)}
-                  placeholder="Salva no cofre SQLite local"
+                  placeholder={t('notifications.smtpPassPh')}
                   className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 font-mono text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
                 />
               </label>
@@ -479,20 +493,22 @@ export function NotificationsCard({
           {channelType === 'telegram' && (
             <>
               <label className="space-y-1">
-                <span className="text-slate-300 font-medium">Chat ID / Canal Telegram</span>
+                <span className="text-slate-300 font-medium">
+                  {t('notifications.telegramChatId')}
+                </span>
                 <input
                   type="text"
                   required
                   value={target}
                   onChange={(e) => setTarget(e.target.value)}
-                  placeholder="ex: -1001987654321 ou 551199999"
+                  placeholder="-1001987654321"
                   className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 font-mono text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
                 />
               </label>
 
               <label className="space-y-1 md:col-span-2">
                 <span className="text-slate-300 font-medium">
-                  Bot Token (@BotFather · write-only no cofre)
+                  {t('notifications.telegramBotToken')}
                 </span>
                 <input
                   type="password"
@@ -500,7 +516,7 @@ export function NotificationsCard({
                   autoComplete="new-password"
                   value={secret}
                   onChange={(e) => setSecret(e.target.value)}
-                  placeholder="ex: 7123456789:AAF..."
+                  placeholder="7123456789:AAF..."
                   className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 font-mono text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
                 />
               </label>
@@ -508,15 +524,15 @@ export function NotificationsCard({
           )}
 
           <label className="space-y-1">
-            <span className="text-slate-300 font-medium">Severidade Mínima</span>
+            <span className="text-slate-300 font-medium">{t('notifications.minSeverity')}</span>
             <select
               value={minSeverity}
               onChange={(e) => setMinSeverity(e.target.value as NotificationSeverityThreshold)}
               className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 text-xs focus:outline-none focus:border-blue-500"
             >
-              <option value="critical">Somente Crítico</option>
-              <option value="high">Alto e Crítico</option>
-              <option value="medium">Médio, Alto e Crítico</option>
+              <option value="critical">{t('notifications.sevCritical')}</option>
+              <option value="high">{t('notifications.sevHigh')}</option>
+              <option value="medium">{t('notifications.sevMedium')}</option>
             </select>
           </label>
         </div>
@@ -524,19 +540,19 @@ export function NotificationsCard({
         {/* Trigger Checkboxes + Save Button */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/80">
           <div className="flex flex-wrap items-center gap-3 text-xs">
-            <span className="text-slate-400 font-medium">Gatilhos automáticos:</span>
-            {TRIGGER_OPTIONS.map((opt) => (
+            <span className="text-slate-400 font-medium">{t('notifications.autoTriggers')}</span>
+            {TRIGGER_IDS.map((triggerId) => (
               <label
-                key={opt.id}
+                key={triggerId}
                 className="inline-flex items-center gap-1.5 text-slate-300 cursor-pointer"
               >
                 <input
                   type="checkbox"
-                  checked={triggers.includes(opt.id)}
-                  onChange={() => toggleTrigger(triggers, setTriggers, opt.id)}
+                  checked={triggers.includes(triggerId)}
+                  onChange={() => toggleTrigger(triggers, setTriggers, triggerId)}
                   className="rounded border-slate-700 bg-[#0B1120] text-blue-500"
                 />
-                <span>{opt.label}</span>
+                <span>{triggerLabel(triggerId)}</span>
               </label>
             ))}
           </div>
@@ -547,7 +563,7 @@ export function NotificationsCard({
             className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Salvar Destino</span>
+            <span>{t('notifications.saveDestination')}</span>
           </button>
         </div>
       </form>
@@ -557,11 +573,10 @@ export function NotificationsCard({
         <div className="rounded-lg border border-dashed border-slate-800 bg-[#0B1120]/60 p-6 text-center space-y-1.5">
           <BellRing className="w-6 h-6 text-slate-600 mx-auto" />
           <div className="text-xs font-medium text-slate-300">
-            Nenhum destino de notificação externa configurado
+            {t('notifications.emptyTitle')}
           </div>
           <p className="text-[11px] text-slate-500 max-w-lg mx-auto">
-            Adicione um e-mail SMTP, Webhook ou Bot Telegram acima para ser avisado imediatamente
-            sobre incidentes críticos, falhas múltiplas de endpoints ou acionamento do Kill Switch.
+            {t('notifications.emptySubtitle')}
           </p>
         </div>
       ) : (
@@ -586,12 +601,12 @@ export function NotificationsCard({
                       {dest.enabled ? (
                         <span className="inline-flex items-center gap-1 text-emerald-400 font-medium">
                           <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Ativo</span>
+                          <span>{t('common.active')}</span>
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 text-slate-500 font-medium">
                           <Pause className="w-3.5 h-3.5" />
-                          <span>Pausado</span>
+                          <span>{t('common.paused')}</span>
                         </span>
                       )}
                       {dest.hasSecret && (
@@ -599,7 +614,7 @@ export function NotificationsCard({
                           <span className="text-slate-500">·</span>
                           <span className="inline-flex items-center gap-1 text-emerald-400">
                             <ShieldCheck className="w-3.5 h-3.5" />
-                            <span>Segredo no cofre</span>
+                            <span>{t('notifications.secretInVault')}</span>
                           </span>
                         </>
                       )}
@@ -626,13 +641,13 @@ export function NotificationsCard({
                         </>
                       )}
                       <span>·</span>
-                      <span>Severidade: {SEVERITY_LABELS[dest.minSeverity]}</span>
+                      <span>
+                        {t('notifications.severityLabel')} {severityLabel(dest.minSeverity)}
+                      </span>
                       <span>·</span>
                       <span>
-                        Gatilhos:{' '}
-                        {dest.triggers
-                          .map((t) => TRIGGER_OPTIONS.find((o) => o.id === t)?.label ?? t)
-                          .join(', ')}
+                        {t('notifications.triggersLabel')}{' '}
+                        {dest.triggers.map((tr) => triggerLabel(tr)).join(', ')}
                       </span>
                     </div>
 
@@ -653,7 +668,7 @@ export function NotificationsCard({
                           {dest.lastDispatchMessage}
                         </span>
                         <span className="text-slate-500 font-mono tabular-nums">
-                          ({formatTime(dest.lastDispatchedAt)})
+                          ({formatTime(dest.lastDispatchedAt, locale)})
                         </span>
                       </div>
                     )}
@@ -671,12 +686,12 @@ export function NotificationsCard({
                       {dest.enabled ? (
                         <>
                           <Pause className="w-3.5 h-3.5 text-amber-400" />
-                          <span>Pausar</span>
+                          <span>{t('notifications.pause')}</span>
                         </>
                       ) : (
                         <>
                           <Play className="w-3.5 h-3.5 text-emerald-400" />
-                          <span>Ativar</span>
+                          <span>{t('notifications.activate')}</span>
                         </>
                       )}
                     </button>
@@ -688,7 +703,7 @@ export function NotificationsCard({
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-800/70 bg-blue-950/30 text-blue-200 hover:bg-blue-900/40 whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
                     >
                       <Send className="w-3.5 h-3.5" />
-                      <span>Testar Envio</span>
+                      <span>{t('notifications.testDispatch')}</span>
                     </button>
 
                     <button
@@ -698,7 +713,7 @@ export function NotificationsCard({
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
                     >
                       {isEditing ? <X className="w-3.5 h-3.5" /> : <Edit3 className="w-3.5 h-3.5" />}
-                      <span>{isEditing ? 'Fechar' : 'Editar'}</span>
+                      <span>{isEditing ? t('common.close') : t('common.edit')}</span>
                     </button>
 
                     <button
@@ -708,7 +723,7 @@ export function NotificationsCard({
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-900/60 text-red-300 hover:bg-red-950/40 whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                      <span>Remover</span>
+                      <span>{t('common.remove')}</span>
                     </button>
                   </div>
                 </div>
@@ -718,7 +733,9 @@ export function NotificationsCard({
                   <div className="rounded-lg border border-slate-700 bg-slate-950/80 p-4 space-y-3 text-xs">
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
                       <label className="space-y-1">
-                        <span className="text-slate-300 font-medium">Nome</span>
+                        <span className="text-slate-300 font-medium">
+                          {t('notifications.editName')}
+                        </span>
                         <input
                           type="text"
                           value={editDraft.name}
@@ -732,10 +749,10 @@ export function NotificationsCard({
                       <label className="space-y-1">
                         <span className="text-slate-300 font-medium">
                           {dest.type === 'email'
-                            ? 'E-mail Destinatário'
+                            ? t('notifications.emailRecipient')
                             : dest.type === 'telegram'
-                              ? 'Chat ID Telegram'
-                              : 'URL do Webhook'}
+                              ? t('notifications.telegramChatId')
+                              : t('notifications.webhookUrl')}
                         </span>
                         <input
                           type="text"
@@ -748,7 +765,9 @@ export function NotificationsCard({
                       </label>
 
                       <label className="space-y-1">
-                        <span className="text-slate-300 font-medium">Severidade Mínima</span>
+                        <span className="text-slate-300 font-medium">
+                          {t('notifications.minSeverity')}
+                        </span>
                         <select
                           value={editDraft.minSeverity}
                           onChange={(e) =>
@@ -759,24 +778,28 @@ export function NotificationsCard({
                           }
                           className="w-full px-3 py-1.5 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 text-xs"
                         >
-                          <option value="critical">Somente Crítico</option>
-                          <option value="high">Alto e Crítico</option>
-                          <option value="medium">Médio, Alto e Crítico</option>
+                          <option value="critical">{t('notifications.sevCritical')}</option>
+                          <option value="high">{t('notifications.sevHigh')}</option>
+                          <option value="medium">{t('notifications.sevMedium')}</option>
                         </select>
                       </label>
 
                       <label className="space-y-1">
                         <span className="text-slate-300 font-medium">
                           {dest.type === 'telegram'
-                            ? 'Substituir Bot Token'
+                            ? t('notifications.replaceBotToken')
                             : dest.type === 'email'
-                              ? 'Substituir Senha SMTP'
-                              : 'Substituir Bearer Token'}
+                              ? t('notifications.replaceSmtpPass')
+                              : t('notifications.replaceBearerToken')}
                         </span>
                         <input
                           type="password"
                           autoComplete="new-password"
-                          placeholder={dest.hasSecret ? '•••••••• (manter atual)' : 'Opcional'}
+                          placeholder={
+                            dest.hasSecret
+                              ? t('notifications.keepCurrentSecretPh')
+                              : t('notifications.optionalPh')
+                          }
                           value={editDraft.secret}
                           onChange={(e) =>
                             setEditDraft({ ...editDraft, secret: e.target.value })
@@ -788,24 +811,24 @@ export function NotificationsCard({
 
                     <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800">
                       <div className="flex flex-wrap items-center gap-3">
-                        {TRIGGER_OPTIONS.map((opt) => (
+                        {TRIGGER_IDS.map((triggerId) => (
                           <label
-                            key={opt.id}
+                            key={triggerId}
                             className="inline-flex items-center gap-1.5 text-slate-300 cursor-pointer"
                           >
                             <input
                               type="checkbox"
-                              checked={editDraft.triggers.includes(opt.id)}
+                              checked={editDraft.triggers.includes(triggerId)}
                               onChange={() =>
                                 toggleTrigger(
                                   editDraft.triggers,
                                   (next) => setEditDraft({ ...editDraft, triggers: next }),
-                                  opt.id,
+                                  triggerId,
                                 )
                               }
                               className="rounded border-slate-700 bg-[#0B1120] text-blue-500"
                             />
-                            <span>{opt.label}</span>
+                            <span>{triggerLabel(triggerId)}</span>
                           </label>
                         ))}
                       </div>
@@ -819,7 +842,7 @@ export function NotificationsCard({
                             }
                             className="px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 cursor-pointer whitespace-nowrap"
                           >
-                            Limpar Segredo
+                            {t('notifications.clearSecret')}
                           </button>
                         )}
                         <button
@@ -827,7 +850,7 @@ export function NotificationsCard({
                           onClick={() => void saveEdit(dest)}
                           className="px-3.5 py-1.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-500 cursor-pointer whitespace-nowrap"
                         >
-                          Salvar Alterações
+                          {t('common.saveChanges')}
                         </button>
                       </div>
                     </div>
@@ -843,7 +866,7 @@ export function NotificationsCard({
       {history.length > 0 && (
         <div className="rounded-lg border border-slate-800 bg-[#0B1120]/50 p-3.5 space-y-2">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-            Últimos Disparos Externos ({history.length})
+            {t('notifications.recentDispatchesTitle', { count: history.length })}
           </div>
           <div className="divide-y divide-slate-800/70 text-xs">
             {history.slice(0, 5).map((rec) => (
@@ -865,10 +888,12 @@ export function NotificationsCard({
                         : 'text-amber-300 font-medium'
                     }
                   >
-                    {rec.status === 'sent' ? 'Enviado' : 'Falha no envio'}
+                    {rec.status === 'sent'
+                      ? t('notifications.dispatchedSent')
+                      : t('notifications.dispatchedFailed')}
                   </span>
                   <span className="font-mono tabular-nums text-slate-500">
-                    {formatTime(rec.dispatchedAt)}
+                    {formatTime(rec.dispatchedAt, locale)}
                   </span>
                 </div>
               </div>
