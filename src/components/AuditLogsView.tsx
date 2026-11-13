@@ -45,6 +45,11 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   'action.rolled_back': 'Rollback de Ação',
   'kill_switch.triggered': 'Kill Switch Acionado',
   'kill_switch.reset': 'Kill Switch Liberado',
+  'notification.added': 'Destino de Alerta Adicionado',
+  'notification.updated': 'Destino de Alerta Atualizado',
+  'notification.removed': 'Destino de Alerta Removido',
+  'notification.dispatched': 'Alerta Externo Disparado',
+  'notification.tested': 'Envio de Alerta Testado',
   'context.updated': 'Estado / Contexto Atualizado',
   'gateway.connected': 'Gateway Conectado',
   'event.ingested': 'Evento Ingerido',
@@ -94,6 +99,7 @@ function getCategoryIcon(eventType: string) {
     eventType.startsWith('device.') ||
     eventType.startsWith('dns.') ||
     eventType.startsWith('site.') ||
+    eventType.startsWith('notification.') ||
     eventType.startsWith('workspace.')
   ) {
     return <SlidersHorizontal className="w-3.5 h-3.5 text-amber-400 shrink-0" />;

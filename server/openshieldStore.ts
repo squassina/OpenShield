@@ -6,10 +6,16 @@ import type {
   AutonomyLevel,
   DnsInsight,
   EnvSecretStatus,
+  EventSeverity,
   Incident,
   IntegrationAdapter,
   LatencySample,
   NetworkDevice,
+  NotificationChannelType,
+  NotificationDestination,
+  NotificationDispatchRecord,
+  NotificationSeverityThreshold,
+  NotificationTriggerEvent,
   OpenShieldEventV1,
   OperatingContext,
   OperatingProfile,
@@ -29,6 +35,7 @@ import { runLocalOllamaInvestigation } from './adapters/ollamaAdapter.ts';
 import { syncOpenWrtReadOnly, type DiscoveredDeviceHint } from './adapters/openwrtAdapter.ts';
 import { correlateEventIntoIncidents } from './correlator.ts';
 import { buildSanitizedContext, runSanitizedCloudInvestigation } from './geminiSanitizer.ts';
+import { deliverNotification, type AlertDispatchPayload } from './notifier.ts';
 import { SqlitePersistence } from './persistence.ts';
 
 const SECRET_FIELD_PATTERN = /(password|passwd|secret|token|api_key|apikey|private_key|credential)/i;
@@ -56,6 +63,8 @@ export class OpenShieldStore {
     if (saved) {
       this.state = saved;
       this.state.latencyHistory ??= [];
+      this.state.notifications ??= [];
+      this.state.notificationHistory ??= [];
       this.state.context.aiSensitivity ??= { ...DEFAULT_AI_SENSITIVITY };
       this.state.metrics.outboxPendingTotal = this.persistence.outboxCount();
       const recentAudit = this.persistence.loadRecentAudit(200);
@@ -153,6 +162,14 @@ export class OpenShieldStore {
         ...adapter,
         hasCredential: Boolean(stored?.secret) || envFallback.hasSecret,
         usernameHint: stored?.username || envFallback.usernameHint || adapter.usernameHint,
+      };
+    });
+    cloned.notifications = (cloned.notifications ?? []).map((dest) => {
+      const stored = this.persistence.getServiceCredential(`notif:${dest.id}`);
+      return {
+        ...dest,
+        hasSecret: Boolean(stored?.secret),
+        usernameHint: stored?.username || dest.usernameHint,
       };
     });
     return cloned;
@@ -914,6 +931,25 @@ export class OpenShieldStore {
     }
 
     this.recordAggregatedLatencySample();
+    const unavailableEndpoints = this.state.integrations.filter(
+      (i) => i.domain !== 'ai_runtime' && i.status === 'unavailable',
+    );
+    if (unavailableEndpoints.length > 0) {
+      const isMulti = unavailableEndpoints.length >= 2;
+      void this.dispatchAlertToDestinations(
+        {
+          trigger: 'endpoint_offline',
+          severity: isMulti ? 'critical' : 'high',
+          title: isMulti
+            ? `${unavailableEndpoints.length} endpoints de segurança offline simultaneamente`
+            : `Endpoint de segurança indisponível: ${unavailableEndpoints[0].name}`,
+          summary: `Endpoints offline detectados durante verificação de saúde: ${unavailableEndpoints.map((e) => e.name).join(', ')}.`,
+          source: 'health-monitor',
+          occurredAt: new Date().toISOString(),
+        },
+        ['endpoint_offline'],
+      );
+    }
     this.notify();
     return { results, errors, state: this.getState() };
   }
@@ -1286,6 +1322,24 @@ export class OpenShieldStore {
       outcome: 'success',
       detail: `Evento ${event.eventType} (${event.severity}, ${event.dataSource}) ingerido com proveniência "${source.id}".`,
     });
+
+    if (correlation.updatedIncident) {
+      const inc = correlation.updatedIncident;
+      const matchTriggers: NotificationTriggerEvent[] = ['critical_incident', 'ai_anomaly'];
+      void this.dispatchAlertToDestinations(
+        {
+          trigger: inc.riskScore >= 75 ? 'critical_incident' : 'ai_anomaly',
+          severity: inc.severity,
+          title: inc.title,
+          summary: `${inc.summary} (Score de risco: ${inc.riskScore}/100)`,
+          source: source.name,
+          deviceHostname: inc.deviceHostname,
+          occurredAt: event.occurredAt,
+          siteId: inc.siteId,
+        },
+        matchTriggers,
+      );
+    }
 
     this.notify();
     return {
@@ -1818,6 +1872,18 @@ export class OpenShieldStore {
         outcome: 'success',
         detail: `Parada de Emergência acionada: ${abortedCount} ação(ões) revertidas, autonomia travada em L0. Tráfego do gateway preservado.`,
       });
+
+      void this.dispatchAlertToDestinations(
+        {
+          trigger: 'kill_switch',
+          severity: 'critical',
+          title: 'Parada de Emergência (Kill Switch) Acionada',
+          summary: `Kill Switch ativado por ${this.currentActor().actor}. ${abortedCount} ação(ões) revertidas e autonomia travada em L0.`,
+          source: 'kill-switch',
+          occurredAt: new Date().toISOString(),
+        },
+        ['kill_switch'],
+      );
     } else {
       this.assertCanMutate('policy_admin');
       this.state.context.killSwitchActive = false;
@@ -1834,6 +1900,318 @@ export class OpenShieldStore {
 
     this.notify();
     return this.getState();
+  }
+
+  private meetsSeverityThreshold(
+    actual: EventSeverity,
+    min: NotificationSeverityThreshold,
+  ): boolean {
+    const rank: Record<EventSeverity, number> = {
+      info: 0,
+      low: 1,
+      medium: 2,
+      high: 3,
+      critical: 4,
+    };
+    const thresholdRank: Record<NotificationSeverityThreshold, number> = {
+      medium: 2,
+      high: 3,
+      critical: 4,
+    };
+    return rank[actual] >= thresholdRank[min];
+  }
+
+  private async dispatchAlertToDestinations(
+    payload: AlertDispatchPayload,
+    matchTriggers: NotificationTriggerEvent[],
+  ): Promise<void> {
+    const targets = (this.state.notifications ?? []).filter(
+      (dest) =>
+        dest.enabled &&
+        dest.triggers.some((t) => matchTriggers.includes(t)) &&
+        this.meetsSeverityThreshold(payload.severity, dest.minSeverity),
+    );
+    if (targets.length === 0) return;
+
+    this.state.notificationHistory ??= [];
+    for (const dest of targets) {
+      const cred = this.persistence.getServiceCredential(`notif:${dest.id}`);
+      const outcome = await deliverNotification(dest, payload, {
+        username: cred?.username || dest.usernameHint,
+        secret: cred?.secret,
+      });
+      const nowIso = new Date().toISOString();
+      dest.lastDispatchedAt = nowIso;
+      dest.lastDispatchStatus = outcome.status;
+      dest.lastDispatchMessage = outcome.message;
+
+      const record: NotificationDispatchRecord = {
+        id: `ntf-log-${crypto.randomUUID().slice(0, 8)}`,
+        destinationId: dest.id,
+        destinationName: dest.name,
+        channelType: dest.type,
+        trigger: payload.trigger,
+        severity: payload.severity,
+        title: payload.title,
+        status: outcome.status,
+        detail: outcome.message,
+        dispatchedAt: nowIso,
+      };
+      this.state.notificationHistory.unshift(record);
+      if (this.state.notificationHistory.length > 50) {
+        this.state.notificationHistory.length = 50;
+      }
+
+      this.addAudit({
+        eventType: 'notification.dispatched',
+        actor: 'openshield-notifier',
+        role: 'system',
+        targetId: dest.id,
+        outcome: outcome.status === 'sent' ? 'success' : 'denied',
+        detail: `Alerta "${payload.title}" -> ${dest.name} (${dest.type}): ${outcome.message}`,
+      });
+    }
+    this.notify();
+  }
+
+  addNotificationDestination(input: {
+    name: string;
+    type: NotificationChannelType;
+    target: string;
+    enabled?: boolean;
+    minSeverity?: NotificationSeverityThreshold;
+    triggers?: NotificationTriggerEvent[];
+    emailFrom?: string;
+    smtpHost?: string;
+    smtpPort?: number;
+    smtpSecure?: boolean;
+    webhookMethod?: 'POST' | 'PUT';
+    webhookFormat?: 'openshield_json' | 'slack' | 'discord';
+    username?: string;
+    secret?: string;
+  }): WorkspaceState {
+    this.assertCanMutate('operator');
+    const name = input.name?.trim();
+    const target = input.target?.trim();
+    if (!name || !target) {
+      throw new Error('Nome do destino e endereço/ID de destino são obrigatórios.');
+    }
+
+    if (input.type === 'email') {
+      if (!target.includes('@')) {
+        throw new Error('Informe um endereço de e-mail destinatário válido.');
+      }
+      if (!input.smtpHost?.trim()) {
+        throw new Error('Informe o servidor SMTP (host) para notificações por e-mail.');
+      }
+    } else if (input.type === 'webhook') {
+      if (!/^https?:\/\//i.test(target)) {
+        throw new Error('A URL do Webhook deve começar com http:// ou https://.');
+      }
+    } else if (input.type === 'telegram') {
+      if (!input.secret?.trim()) {
+        throw new Error('Informe o Bot Token do Telegram para salvar no cofre do servidor.');
+      }
+    }
+
+    const triggers: NotificationTriggerEvent[] =
+      Array.isArray(input.triggers) && input.triggers.length > 0
+        ? Array.from(new Set(input.triggers))
+        : ['critical_incident', 'kill_switch', 'endpoint_offline'];
+
+    const id = `notif-${input.type}-${crypto.randomUUID().slice(0, 6)}`;
+    const dest: NotificationDestination = {
+      id,
+      name,
+      type: input.type,
+      enabled: input.enabled ?? true,
+      minSeverity: input.minSeverity ?? 'high',
+      triggers,
+      target,
+      emailFrom: input.emailFrom?.trim() || undefined,
+      smtpHost: input.smtpHost?.trim() || undefined,
+      smtpPort: input.smtpPort ? Number(input.smtpPort) : undefined,
+      smtpSecure: typeof input.smtpSecure === 'boolean' ? input.smtpSecure : undefined,
+      webhookMethod: input.webhookMethod === 'PUT' ? 'PUT' : 'POST',
+      webhookFormat: input.webhookFormat ?? 'openshield_json',
+      createdAt: new Date().toISOString(),
+    };
+
+    if (input.username?.trim() || input.secret?.trim()) {
+      this.persistence.setServiceCredential(
+        `notif:${id}`,
+        (input.username ?? '').trim(),
+        input.secret ?? '',
+      );
+    }
+
+    this.state.notifications ??= [];
+    this.state.notifications.unshift(dest);
+
+    this.addAudit({
+      eventType: 'notification.added',
+      actor: this.currentActor().actor,
+      role: this.currentActor().role,
+      targetId: id,
+      outcome: 'success',
+      detail: `Destino de alerta "${name}" (${input.type} -> ${target}) configurado para severidade >= ${dest.minSeverity}.`,
+    });
+    this.notify();
+    return this.getState();
+  }
+
+  updateNotificationDestination(
+    id: string,
+    patch: {
+      name?: string;
+      enabled?: boolean;
+      minSeverity?: NotificationSeverityThreshold;
+      triggers?: NotificationTriggerEvent[];
+      target?: string;
+      emailFrom?: string;
+      smtpHost?: string;
+      smtpPort?: number;
+      smtpSecure?: boolean;
+      webhookMethod?: 'POST' | 'PUT';
+      webhookFormat?: 'openshield_json' | 'slack' | 'discord';
+      username?: string;
+      secret?: string;
+      clearSecret?: boolean;
+    },
+  ): WorkspaceState {
+    this.assertCanMutate('operator');
+    this.state.notifications ??= [];
+    const dest = this.state.notifications.find((d) => d.id === id);
+    if (!dest) {
+      throw new Error(`Destino de notificação "${id}" não encontrado.`);
+    }
+
+    if (patch.name !== undefined && patch.name.trim()) dest.name = patch.name.trim();
+    if (typeof patch.enabled === 'boolean') dest.enabled = patch.enabled;
+    if (patch.minSeverity) dest.minSeverity = patch.minSeverity;
+    if (Array.isArray(patch.triggers) && patch.triggers.length > 0) {
+      dest.triggers = Array.from(new Set(patch.triggers));
+    }
+    if (patch.target !== undefined && patch.target.trim()) {
+      if (dest.type === 'webhook' && !/^https?:\/\//i.test(patch.target.trim())) {
+        throw new Error('A URL do Webhook deve começar com http:// ou https://.');
+      }
+      if (dest.type === 'email' && !patch.target.trim().includes('@')) {
+        throw new Error('Informe um endereço de e-mail destinatário válido.');
+      }
+      dest.target = patch.target.trim();
+    }
+    if (patch.emailFrom !== undefined) dest.emailFrom = patch.emailFrom.trim() || undefined;
+    if (patch.smtpHost !== undefined) dest.smtpHost = patch.smtpHost.trim() || undefined;
+    if (patch.smtpPort !== undefined) dest.smtpPort = Number(patch.smtpPort) || undefined;
+    if (typeof patch.smtpSecure === 'boolean') dest.smtpSecure = patch.smtpSecure;
+    if (patch.webhookMethod) dest.webhookMethod = patch.webhookMethod;
+    if (patch.webhookFormat) dest.webhookFormat = patch.webhookFormat;
+
+    if (patch.clearSecret) {
+      this.persistence.deleteServiceCredential(`notif:${id}`);
+      dest.usernameHint = undefined;
+    } else if (patch.username !== undefined || (patch.secret !== undefined && patch.secret !== '')) {
+      const existing = this.persistence.getServiceCredential(`notif:${id}`);
+      const nextUser = patch.username !== undefined ? patch.username.trim() : (existing?.username ?? '');
+      const nextSecret =
+        patch.secret !== undefined && patch.secret !== '' ? patch.secret : (existing?.secret ?? '');
+      this.persistence.setServiceCredential(`notif:${id}`, nextUser, nextSecret);
+    }
+
+    this.addAudit({
+      eventType: 'notification.updated',
+      actor: this.currentActor().actor,
+      role: this.currentActor().role,
+      targetId: id,
+      outcome: 'success',
+      detail: `Destino "${dest.name}" (${dest.type}) atualizado (${dest.enabled ? 'ativo' : 'pausado'}, severidade >= ${dest.minSeverity}).`,
+    });
+    this.notify();
+    return this.getState();
+  }
+
+  removeNotificationDestination(id: string): WorkspaceState {
+    this.assertCanMutate('operator');
+    this.state.notifications ??= [];
+    const idx = this.state.notifications.findIndex((d) => d.id === id);
+    if (idx < 0) {
+      throw new Error(`Destino de notificação "${id}" não encontrado.`);
+    }
+    const [removed] = this.state.notifications.splice(idx, 1);
+    this.persistence.deleteServiceCredential(`notif:${id}`);
+
+    this.addAudit({
+      eventType: 'notification.removed',
+      actor: this.currentActor().actor,
+      role: this.currentActor().role,
+      targetId: id,
+      outcome: 'success',
+      detail: `Destino de notificação "${removed.name}" (${removed.type}) removido e segredo apagado.`,
+    });
+    this.notify();
+    return this.getState();
+  }
+
+  async testNotificationDestination(
+    id: string,
+  ): Promise<{ status: 'sent' | 'failed'; message: string; state: WorkspaceState }> {
+    this.assertCanMutate('operator');
+    this.state.notifications ??= [];
+    const dest = this.state.notifications.find((d) => d.id === id);
+    if (!dest) {
+      throw new Error(`Destino de notificação "${id}" não encontrado.`);
+    }
+
+    const cred = this.persistence.getServiceCredential(`notif:${dest.id}`);
+    const nowIso = new Date().toISOString();
+    const payload: AlertDispatchPayload = {
+      trigger: 'critical_incident',
+      severity: 'high',
+      title: `Teste de Notificação OpenShield (${dest.name})`,
+      summary:
+        'Alerta de verificação disparado pelo backend OpenShield. O canal permanecerá ativo mesmo com a dashboard fechada.',
+      source: 'openshield-settings-test',
+      occurredAt: nowIso,
+      siteId: this.state.context.activeSiteId,
+    };
+
+    const outcome = await deliverNotification(dest, payload, {
+      username: cred?.username || dest.usernameHint,
+      secret: cred?.secret,
+    });
+
+    dest.lastDispatchedAt = nowIso;
+    dest.lastDispatchStatus = outcome.status;
+    dest.lastDispatchMessage = outcome.message;
+
+    this.state.notificationHistory ??= [];
+    this.state.notificationHistory.unshift({
+      id: `ntf-log-${crypto.randomUUID().slice(0, 8)}`,
+      destinationId: dest.id,
+      destinationName: dest.name,
+      channelType: dest.type,
+      trigger: 'critical_incident',
+      severity: 'high',
+      title: payload.title,
+      status: outcome.status,
+      detail: outcome.message,
+      dispatchedAt: nowIso,
+    });
+    if (this.state.notificationHistory.length > 50) {
+      this.state.notificationHistory.length = 50;
+    }
+
+    this.addAudit({
+      eventType: 'notification.tested',
+      actor: this.currentActor().actor,
+      role: this.currentActor().role,
+      targetId: dest.id,
+      outcome: outcome.status === 'sent' ? 'success' : 'denied',
+      detail: `Teste manual de alerta para "${dest.name}" (${dest.type}): ${outcome.message}`,
+    });
+    this.notify();
+    return { ...outcome, state: this.getState() };
   }
 
   renderPrometheusMetrics(): string {
@@ -2146,6 +2524,8 @@ export class OpenShieldStore {
         outboxPendingTotal: 0,
       },
       latencyHistory: [],
+      notifications: [],
+      notificationHistory: [],
     };
   }
 
@@ -2749,6 +3129,8 @@ export class OpenShieldStore {
         maxLatencyMs: avg + 8,
         measuredCount: 6,
       })),
+      notifications: [],
+      notificationHistory: [],
     };
   }
 }

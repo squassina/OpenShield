@@ -9,6 +9,9 @@ import type {
   Incident,
   IntegrationAdapter,
   NetworkDevice,
+  NotificationChannelType,
+  NotificationSeverityThreshold,
+  NotificationTriggerEvent,
   OpenShieldEventV1,
   OperatingProfile,
   ServiceProviderMode,
@@ -448,6 +451,75 @@ app.post('/api/v1/kill-switch', async (req, res) => {
     res.json(state);
   } catch (err) {
     res.status(403).json({ error: err instanceof Error ? err.message : 'Falha ao acionar Kill Switch.' });
+  }
+});
+
+// Notification & Alert destinations (Email, Webhook, Telegram)
+app.post('/api/v1/notifications', (req, res) => {
+  try {
+    const body = req.body as {
+      name: string;
+      type: NotificationChannelType;
+      target: string;
+      enabled?: boolean;
+      minSeverity?: NotificationSeverityThreshold;
+      triggers?: NotificationTriggerEvent[];
+      emailFrom?: string;
+      smtpHost?: string;
+      smtpPort?: number;
+      smtpSecure?: boolean;
+      webhookMethod?: 'POST' | 'PUT';
+      webhookFormat?: 'openshield_json' | 'slack' | 'discord';
+      username?: string;
+      secret?: string;
+    };
+    const state = store.addNotificationDestination(body);
+    res.status(201).json(state);
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : 'Falha ao adicionar destino de alerta.' });
+  }
+});
+
+app.patch('/api/v1/notifications/:id', (req, res) => {
+  try {
+    const body = req.body as {
+      name?: string;
+      enabled?: boolean;
+      minSeverity?: NotificationSeverityThreshold;
+      triggers?: NotificationTriggerEvent[];
+      target?: string;
+      emailFrom?: string;
+      smtpHost?: string;
+      smtpPort?: number;
+      smtpSecure?: boolean;
+      webhookMethod?: 'POST' | 'PUT';
+      webhookFormat?: 'openshield_json' | 'slack' | 'discord';
+      username?: string;
+      secret?: string;
+      clearSecret?: boolean;
+    };
+    const state = store.updateNotificationDestination(req.params.id, body);
+    res.json(state);
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : 'Falha ao atualizar destino de alerta.' });
+  }
+});
+
+app.delete('/api/v1/notifications/:id', (req, res) => {
+  try {
+    const state = store.removeNotificationDestination(req.params.id);
+    res.json(state);
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : 'Falha ao remover destino de alerta.' });
+  }
+});
+
+app.post('/api/v1/notifications/:id/test', async (req, res) => {
+  try {
+    const out = await store.testNotificationDestination(req.params.id);
+    res.json(out);
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : 'Falha ao testar envio de alerta.' });
   }
 });
 

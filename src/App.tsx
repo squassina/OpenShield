@@ -824,6 +824,37 @@ export default function App() {
                 )
               }
               onNavigateToIntegrations={() => setActiveTab('integrations')}
+              onAddNotification={(payload) =>
+                runAction(
+                  'notif-add',
+                  () => api.addNotificationDestination(payload),
+                  `Destino de alerta "${payload.name}" salvo com sucesso.`,
+                )
+              }
+              onUpdateNotification={(id, payload) =>
+                runAction(
+                  `notif-upd-${id}`,
+                  () => api.updateNotificationDestination(id, payload),
+                  'Configuração do destino de alerta atualizada.',
+                )
+              }
+              onRemoveNotification={(id, name) =>
+                runAction(
+                  `notif-rm-${id}`,
+                  () => api.removeNotificationDestination(id),
+                  `Destino de alerta "${name}" removido.`,
+                )
+              }
+              onTestNotification={(id) =>
+                runAction(`notif-test-${id}`, async () => {
+                  const res = await api.testNotificationDestination(id);
+                  showToast(
+                    res.status === 'sent' ? 'info' : 'error',
+                    res.message,
+                  );
+                  return res.state;
+                })
+              }
               busyKey={busyKey}
             />
           )}

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import type { WorkspaceState } from '../types/openshield';
 import { NetworkHealthCard } from './NetworkHealthCard';
+import { OverviewTopologyMap } from './OverviewTopologyMap';
 
 export type NavTab =
   | 'overview'
@@ -169,6 +170,9 @@ export function OverviewView({
         onNavigate={onNavigate}
         busyKey={busyKey}
       />
+
+      {/* Interactive SVG Topology Map */}
+      <OverviewTopologyMap state={state} onNavigate={onNavigate} />
 
       {/* Main 2-column operational grid */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">

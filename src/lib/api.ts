@@ -7,6 +7,9 @@ import type {
   Incident,
   IntegrationAdapter,
   NetworkDevice,
+  NotificationChannelType,
+  NotificationSeverityThreshold,
+  NotificationTriggerEvent,
   OpenShieldEventV1,
   OperatingProfile,
   ServiceProviderMode,
@@ -283,6 +286,64 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ active }),
     }),
+
+  addNotificationDestination: (payload: {
+    name: string;
+    type: NotificationChannelType;
+    target: string;
+    enabled?: boolean;
+    minSeverity?: NotificationSeverityThreshold;
+    triggers?: NotificationTriggerEvent[];
+    emailFrom?: string;
+    smtpHost?: string;
+    smtpPort?: number;
+    smtpSecure?: boolean;
+    webhookMethod?: 'POST' | 'PUT';
+    webhookFormat?: 'openshield_json' | 'slack' | 'discord';
+    username?: string;
+    secret?: string;
+  }) =>
+    requestJson<WorkspaceState>('/api/v1/notifications', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  updateNotificationDestination: (
+    id: string,
+    payload: {
+      name?: string;
+      enabled?: boolean;
+      minSeverity?: NotificationSeverityThreshold;
+      triggers?: NotificationTriggerEvent[];
+      target?: string;
+      emailFrom?: string;
+      smtpHost?: string;
+      smtpPort?: number;
+      smtpSecure?: boolean;
+      webhookMethod?: 'POST' | 'PUT';
+      webhookFormat?: 'openshield_json' | 'slack' | 'discord';
+      username?: string;
+      secret?: string;
+      clearSecret?: boolean;
+    },
+  ) =>
+    requestJson<WorkspaceState>(`/api/v1/notifications/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+
+  removeNotificationDestination: (id: string) =>
+    requestJson<WorkspaceState>(`/api/v1/notifications/${id}`, {
+      method: 'DELETE',
+    }),
+
+  testNotificationDestination: (id: string) =>
+    requestJson<{ status: 'sent' | 'failed'; message: string; state: WorkspaceState }>(
+      `/api/v1/notifications/${id}/test`,
+      {
+        method: 'POST',
+      },
+    ),
 
   getAuditLog: (
     filtersOrLimit:

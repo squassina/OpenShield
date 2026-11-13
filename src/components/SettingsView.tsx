@@ -23,6 +23,11 @@ import {
   X,
 } from 'lucide-react';
 import { api } from '../lib/api';
+import {
+  NotificationsCard,
+  type NotificationCreatePayload,
+  type NotificationUpdatePayload,
+} from './NotificationsCard';
 import type {
   EnvSecretStatus,
   IntegrationAdapter,
@@ -422,6 +427,10 @@ interface SettingsViewProps {
   onLoadDemo: () => Promise<void>;
   onResetWorkspace: () => Promise<void>;
   onNavigateToIntegrations: () => void;
+  onAddNotification: (payload: NotificationCreatePayload) => Promise<void>;
+  onUpdateNotification: (id: string, payload: NotificationUpdatePayload) => Promise<void>;
+  onRemoveNotification: (id: string, name: string) => Promise<void>;
+  onTestNotification: (id: string) => Promise<void>;
   busyKey: string | null;
 }
 
@@ -467,6 +476,10 @@ export function SettingsView({
   onLoadDemo,
   onResetWorkspace,
   onNavigateToIntegrations,
+  onAddNotification,
+  onUpdateNotification,
+  onRemoveNotification,
+  onTestNotification,
   busyKey,
 }: SettingsViewProps) {
   const [envStatus, setEnvStatus] = useState<EnvSecretStatus[]>([]);
@@ -1279,6 +1292,16 @@ export function SettingsView({
           </div>
         )}
       </section>
+
+      {/* Box 3: Notificações e Alertas (E-mail SMTP, Webhooks, Telegram) */}
+      <NotificationsCard
+        state={state}
+        onAddNotification={onAddNotification}
+        onUpdateNotification={onUpdateNotification}
+        onRemoveNotification={onRemoveNotification}
+        onTestNotification={onTestNotification}
+        busyKey={busyKey}
+      />
 
       {/* Multi-Site & Sanitized Backup/Restore */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">

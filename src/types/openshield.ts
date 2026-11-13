@@ -211,6 +211,11 @@ export interface AuditEntry {
     | 'action.rolled_back'
     | 'kill_switch.triggered'
     | 'kill_switch.reset'
+    | 'notification.added'
+    | 'notification.updated'
+    | 'notification.removed'
+    | 'notification.dispatched'
+    | 'notification.tested'
     | 'context.updated';
   actor: string;
   role: string;
@@ -276,6 +281,51 @@ export interface LatencySample {
   measuredCount: number;
 }
 
+export type NotificationChannelType = 'email' | 'webhook' | 'telegram';
+
+export type NotificationSeverityThreshold = 'critical' | 'high' | 'medium';
+
+export type NotificationTriggerEvent =
+  | 'critical_incident'
+  | 'kill_switch'
+  | 'endpoint_offline'
+  | 'ai_anomaly';
+
+export interface NotificationDestination {
+  id: string;
+  name: string;
+  type: NotificationChannelType;
+  enabled: boolean;
+  minSeverity: NotificationSeverityThreshold;
+  triggers: NotificationTriggerEvent[];
+  target: string;
+  emailFrom?: string;
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpSecure?: boolean;
+  webhookMethod?: 'POST' | 'PUT';
+  webhookFormat?: 'openshield_json' | 'slack' | 'discord';
+  usernameHint?: string;
+  hasSecret?: boolean;
+  lastDispatchedAt?: string;
+  lastDispatchStatus?: 'sent' | 'simulated' | 'failed';
+  lastDispatchMessage?: string;
+  createdAt: string;
+}
+
+export interface NotificationDispatchRecord {
+  id: string;
+  destinationId: string;
+  destinationName: string;
+  channelType: NotificationChannelType;
+  trigger: NotificationTriggerEvent;
+  severity: EventSeverity;
+  title: string;
+  status: 'sent' | 'simulated' | 'failed';
+  detail: string;
+  dispatchedAt: string;
+}
+
 export interface WorkspaceState {
   context: OperatingContext;
   integrations: IntegrationAdapter[];
@@ -288,4 +338,6 @@ export interface WorkspaceState {
   auditLog: AuditEntry[];
   metrics: OperationalMetrics;
   latencyHistory?: LatencySample[];
+  notifications?: NotificationDestination[];
+  notificationHistory?: NotificationDispatchRecord[];
 }
