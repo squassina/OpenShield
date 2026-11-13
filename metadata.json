@@ -1,0 +1,6 @@
+{
+  "name": "OpenShield",
+  "description": "Plataforma autônoma e auto-hospedada de inteligência em segurança de rede e privacidade para residências e pequenos escritórios.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
