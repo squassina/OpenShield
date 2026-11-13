@@ -19,6 +19,7 @@ export type NavTab =
   | 'dns'
   | 'incidents'
   | 'policies'
+  | 'audit'
   | 'settings';
 
 interface OverviewViewProps {

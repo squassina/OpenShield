@@ -2,8 +2,8 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { createServer } from 'node:http';
 import path from 'node:path';
-import { createServer as createViteServer } from 'vite';
 import type {
+  AiSensitivityConfig,
   AutonomyLevel,
   DnsInsight,
   Incident,
@@ -93,6 +93,7 @@ app.patch('/api/v1/context', (req, res) => {
       globalAutonomy?: AutonomyLevel;
       cloudAiOptIn?: boolean;
       activeSiteId?: string;
+      aiSensitivity?: AiSensitivityConfig;
     };
     const state = store.updateContext(body);
     res.json(state);
@@ -450,12 +451,20 @@ app.post('/api/v1/kill-switch', async (req, res) => {
   }
 });
 
-// Audit endpoint (bounded limit 1-500)
+// Persistent SQLite Audit endpoint (supports timestamp, action type, category, outcome & search filters)
 app.get('/api/v1/audit', (req, res) => {
-  const rawLimit = Number(req.query.limit ?? 100);
-  const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(500, rawLimit)) : 100;
-  const entries = store.getState().auditLog.slice(0, limit);
-  res.json({ entries });
+  const rawLimit = Number(req.query.limit ?? 200);
+  const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(1000, rawLimit)) : 200;
+  const result = store.queryAuditLog({
+    eventType: typeof req.query.eventType === 'string' ? req.query.eventType : undefined,
+    category: typeof req.query.category === 'string' ? req.query.category : undefined,
+    from: typeof req.query.from === 'string' ? req.query.from : undefined,
+    to: typeof req.query.to === 'string' ? req.query.to : undefined,
+    outcome: typeof req.query.outcome === 'string' ? req.query.outcome : undefined,
+    search: typeof req.query.search === 'string' ? req.query.search : undefined,
+    limit,
+  });
+  res.json(result);
 });
 
 function startServer() {
@@ -465,14 +474,17 @@ function startServer() {
     let viteMiddleware: express.RequestHandler | null = null;
     let viteInitError: Error | null = null;
 
-    const viteReady = createViteServer({
-      server: {
-        middlewareMode: true,
-        hmr: process.env.DISABLE_HMR === 'true' ? false : { server: httpServer },
-        ws: { server: httpServer },
-      },
-      appType: 'spa',
-    })
+    const viteReady = import('vite')
+      .then(({ createServer: createViteServer }) =>
+        createViteServer({
+          server: {
+            middlewareMode: true,
+            hmr: process.env.DISABLE_HMR === 'true' ? false : { server: httpServer },
+            ws: { server: httpServer },
+          },
+          appType: 'spa',
+        }),
+      )
       .then((vite) => {
         viteMiddleware = vite.middlewares;
       })

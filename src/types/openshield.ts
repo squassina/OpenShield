@@ -229,6 +229,16 @@ export interface OperationalMetrics {
   outboxPendingTotal: number;
 }
 
+export type SensitivityPreset = 'conservador' | 'balanceado' | 'agressivo' | 'customizado';
+
+export interface AiSensitivityConfig {
+  preset: SensitivityPreset;
+  minRiskScoreAlert: number;
+  dnsBurstThresholdPerMin: number;
+  latencySpikeFactor: number;
+  flagLowSeverityEvents: boolean;
+}
+
 export interface OperatingContext {
   profile: OperatingProfile;
   simulatedRole: SimulatedRole;
@@ -239,6 +249,7 @@ export interface OperatingContext {
   cloudAiOptIn: boolean;
   activeSiteId: string;
   sites: { id: string; name: string; profile: OperatingProfile }[];
+  aiSensitivity?: AiSensitivityConfig;
 }
 
 export interface EnvSecretStatus {

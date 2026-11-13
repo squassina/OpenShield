@@ -16,8 +16,67 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import type { IntegrationAdapter, WorkspaceState } from '../types/openshield';
+import type { IntegrationAdapter, LatencySample, WorkspaceState } from '../types/openshield';
 import type { NavTab } from './OverviewView';
+
+interface LatencyChartPoint extends LatencySample {
+  timeLabel: string;
+}
+
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{ payload?: LatencyChartPoint; value?: number }>;
+}
+
+function formatExactTimestamp(iso: string): string {
+  const dt = new Date(iso);
+  if (Number.isNaN(dt.getTime())) {
+    return iso;
+  }
+  return dt.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+}
+
+function LatencyTooltip({ active, payload }: CustomTooltipProps) {
+  if (!active || !payload || payload.length === 0) {
+    return null;
+  }
+  const point = payload[0]?.payload;
+  if (!point) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-lg border border-slate-700 bg-[#0B1120] px-3 py-2 shadow-lg text-xs space-y-1">
+      <div className="font-mono text-[11px] text-slate-400 tabular-nums">
+        {formatExactTimestamp(point.timestamp)}
+      </div>
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-slate-300">Latência média:</span>
+        <span className="font-mono font-semibold text-sky-400 tabular-nums">
+          {point.avgLatencyMs} ms
+        </span>
+      </div>
+      <div className="flex items-center justify-between gap-4 text-[11px] text-slate-400 tabular-nums">
+        <span>
+          Faixa{' '}
+          <span className="font-mono text-slate-200">
+            {point.minLatencyMs}–{point.maxLatencyMs} ms
+          </span>
+        </span>
+        <span>
+          {point.measuredCount} {point.measuredCount === 1 ? 'endpoint' : 'endpoints'}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 interface NetworkHealthCardProps {
   state: WorkspaceState;
@@ -337,15 +396,8 @@ export function NetworkHealthCard({
                           tickFormatter={(val) => `${val}ms`}
                         />
                         <Tooltip
-                          contentStyle={{
-                            backgroundColor: '#0B1120',
-                            borderColor: '#334155',
-                            borderRadius: '8px',
-                            fontSize: '11px',
-                            color: '#f1f5f9',
-                          }}
-                          labelStyle={{ color: '#94a3b8', marginBottom: '2px' }}
-                          formatter={(value) => [`${value ?? '--'} ms`, 'Latência média']}
+                          cursor={{ stroke: '#475569', strokeWidth: 1 }}
+                          content={<LatencyTooltip />}
                         />
                         <Line
                           type="monotone"

@@ -1,6 +1,61 @@
 import { useEffect, useState } from 'react';
-import { Cloud, Cpu, Lock, ShieldAlert, ShieldCheck } from 'lucide-react';
-import type { Incident, WorkspaceState } from '../types/openshield';
+import {
+  CheckCircle2,
+  Cloud,
+  Cpu,
+  Gauge,
+  Lock,
+  ShieldAlert,
+  ShieldCheck,
+  SlidersHorizontal,
+} from 'lucide-react';
+import type {
+  AiSensitivityConfig,
+  Incident,
+  SensitivityPreset,
+  WorkspaceState,
+} from '../types/openshield';
+
+const SENSITIVITY_PRESETS: Record<
+  Exclude<SensitivityPreset, 'customizado'>,
+  AiSensitivityConfig & { label: string; hint: string }
+> = {
+  conservador: {
+    preset: 'conservador',
+    label: 'Conservador',
+    hint: 'Menor ruído · apenas alto impacto (score >= 70)',
+    minRiskScoreAlert: 70,
+    dnsBurstThresholdPerMin: 250,
+    latencySpikeFactor: 3.5,
+    flagLowSeverityEvents: false,
+  },
+  balanceado: {
+    preset: 'balanceado',
+    label: 'Balanceado',
+    hint: 'Equilíbrio padrão para residência e escritório',
+    minRiskScoreAlert: 50,
+    dnsBurstThresholdPerMin: 120,
+    latencySpikeFactor: 2.5,
+    flagLowSeverityEvents: false,
+  },
+  agressivo: {
+    preset: 'agressivo',
+    label: 'Agressivo',
+    hint: 'Vigilância máxima · captura anomalias leves e rajadas DNS',
+    minRiskScoreAlert: 30,
+    dnsBurstThresholdPerMin: 50,
+    latencySpikeFactor: 1.8,
+    flagLowSeverityEvents: true,
+  },
+};
+
+const DEFAULT_SENSITIVITY: AiSensitivityConfig = {
+  preset: 'balanceado',
+  minRiskScoreAlert: 50,
+  dnsBurstThresholdPerMin: 120,
+  latencySpikeFactor: 2.5,
+  flagLowSeverityEvents: false,
+};
 
 interface IncidentsAiViewProps {
   state: WorkspaceState;
@@ -8,6 +63,7 @@ interface IncidentsAiViewProps {
   onSelectIncident: (id: string) => void;
   onInvestigate: (incidentId: string, mode: 'local' | 'cloud_gemini') => Promise<void>;
   onToggleCloudOptIn: (enabled: boolean) => Promise<void>;
+  onUpdateSensitivity: (config: AiSensitivityConfig) => Promise<void>;
   onProposeAction: (incidentId: string, policyId: string) => Promise<void>;
   onUpdateStatus: (incidentId: string, status: Incident['status']) => Promise<void>;
   busyKey: string | null;
@@ -19,6 +75,7 @@ export function IncidentsAiView({
   onSelectIncident,
   onInvestigate,
   onToggleCloudOptIn,
+  onUpdateSensitivity,
   onProposeAction,
   onUpdateStatus,
   busyKey,
@@ -26,7 +83,20 @@ export function IncidentsAiView({
   const activeIncident =
     state.incidents.find((i) => i.id === selectedIncidentId) ?? state.incidents[0] ?? null;
 
+  const currentSensitivity = state.context.aiSensitivity ?? DEFAULT_SENSITIVITY;
+  const [sensitivityDraft, setSensitivityDraft] =
+    useState<AiSensitivityConfig>(currentSensitivity);
   const [ttlNote, setTtlNote] = useState('900s');
+
+  useEffect(() => {
+    setSensitivityDraft(currentSensitivity);
+  }, [
+    currentSensitivity.preset,
+    currentSensitivity.minRiskScoreAlert,
+    currentSensitivity.dnsBurstThresholdPerMin,
+    currentSensitivity.latencySpikeFactor,
+    currentSensitivity.flagLowSeverityEvents,
+  ]);
 
   useEffect(() => {
     if (activeIncident) {
@@ -35,17 +105,51 @@ export function IncidentsAiView({
     }
   }, [activeIncident, state.policies]);
 
-  if (!activeIncident) {
-    return (
-      <div className="rounded-xl border border-slate-800 bg-[#131C31] p-10 text-center text-sm text-slate-400">
-        Nenhum incidente correlacionado no momento.
-      </div>
-    );
-  }
+  const hasPendingSensitivity =
+    sensitivityDraft.preset !== currentSensitivity.preset ||
+    sensitivityDraft.minRiskScoreAlert !== currentSensitivity.minRiskScoreAlert ||
+    sensitivityDraft.dnsBurstThresholdPerMin !== currentSensitivity.dnsBurstThresholdPerMin ||
+    sensitivityDraft.latencySpikeFactor !== currentSensitivity.latencySpikeFactor ||
+    sensitivityDraft.flagLowSeverityEvents !== currentSensitivity.flagLowSeverityEvents;
 
-  const relatedEvents = state.events.filter((e) => activeIncident.eventIds.includes(e.eventId));
-  const recommendedPolicy = state.policies.find((p) => p.id === activeIncident.recommendedPolicyId);
-  const inv = activeIncident.investigation;
+  const isSavingSensitivity = busyKey === 'ai-sensitivity';
+
+  const applyPreset = async (presetKey: Exclude<SensitivityPreset, 'customizado'>) => {
+    const presetConfig = SENSITIVITY_PRESETS[presetKey];
+    const next: AiSensitivityConfig = {
+      preset: presetConfig.preset,
+      minRiskScoreAlert: presetConfig.minRiskScoreAlert,
+      dnsBurstThresholdPerMin: presetConfig.dnsBurstThresholdPerMin,
+      latencySpikeFactor: presetConfig.latencySpikeFactor,
+      flagLowSeverityEvents: presetConfig.flagLowSeverityEvents,
+    };
+    setSensitivityDraft(next);
+    await onUpdateSensitivity(next);
+  };
+
+  const aggressivityMeta =
+    sensitivityDraft.minRiskScoreAlert <= 35 || sensitivityDraft.flagLowSeverityEvents
+      ? {
+          label: 'Vigilância Agressiva',
+          textClass: 'text-amber-300',
+        }
+      : sensitivityDraft.minRiskScoreAlert >= 70
+        ? {
+            label: 'Monitoramento Conservador',
+            textClass: 'text-emerald-400',
+          }
+        : {
+            label: 'Monitoramento Balanceado',
+            textClass: 'text-sky-400',
+          };
+
+  const relatedEvents = activeIncident
+    ? state.events.filter((e) => activeIncident.eventIds.includes(e.eventId))
+    : [];
+  const recommendedPolicy = activeIncident
+    ? state.policies.find((p) => p.id === activeIncident.recommendedPolicyId)
+    : undefined;
+  const inv = activeIncident?.investigation;
 
   return (
     <div className="space-y-6">
@@ -58,6 +162,182 @@ export function IncidentsAiView({
         </p>
       </div>
 
+      {/* AI Anomaly Sensitivity Thresholds Card */}
+      <section
+        aria-label="Limiares de Sensibilidade da IA"
+        className="rounded-xl border border-slate-800 bg-[#131C31] p-5 space-y-4"
+      >
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between border-b border-slate-800 pb-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-base font-semibold text-slate-100">
+              <SlidersHorizontal className="w-4 h-4 text-sky-400 shrink-0" />
+              <h2>Limiares de Sensibilidade da IA</h2>
+            </div>
+            <p className="text-xs text-slate-400">
+              Ajuste em tempo real a agressividade da correlação e detecção de anomalias em eventos de rede, DNS e latência.
+            </p>
+          </div>
+
+          <div className="inline-flex flex-wrap items-center gap-1 p-1 rounded-lg bg-slate-950 border border-slate-800 shrink-0">
+            {(['conservador', 'balanceado', 'agressivo'] as const).map((presetKey) => {
+              const active = sensitivityDraft.preset === presetKey;
+              return (
+                <button
+                  key={presetKey}
+                  type="button"
+                  disabled={isSavingSensitivity}
+                  onClick={() => applyPreset(presetKey)}
+                  title={SENSITIVITY_PRESETS[presetKey].hint}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50 ${
+                    active
+                      ? 'bg-blue-600 text-white'
+                      : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900'
+                  }`}
+                >
+                  {SENSITIVITY_PRESETS[presetKey].label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <label className="rounded-lg border border-slate-800 bg-slate-950/60 p-3.5 space-y-2 block">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-medium text-slate-200">Limiar Mínimo de Risco</span>
+              <span className="font-mono font-semibold text-sky-400 tabular-nums">
+                {sensitivityDraft.minRiskScoreAlert}/100
+              </span>
+            </div>
+            <input
+              type="range"
+              min={25}
+              max={90}
+              step={5}
+              value={sensitivityDraft.minRiskScoreAlert}
+              onChange={(e) =>
+                setSensitivityDraft((prev) => ({
+                  ...prev,
+                  preset: 'customizado',
+                  minRiskScoreAlert: Number(e.target.value),
+                }))
+              }
+              className="w-full accent-blue-500 cursor-pointer"
+            />
+            <div className="flex justify-between text-[11px] text-slate-500">
+              <span>25 (mais alertas)</span>
+              <span>90 (somente críticos)</span>
+            </div>
+          </label>
+
+          <label className="rounded-lg border border-slate-800 bg-slate-950/60 p-3.5 space-y-2 block">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-medium text-slate-200">Rajada DNS Suspeita</span>
+              <span className="font-mono font-semibold text-sky-400 tabular-nums">
+                {sensitivityDraft.dnsBurstThresholdPerMin} req/min
+              </span>
+            </div>
+            <input
+              type="range"
+              min={20}
+              max={400}
+              step={10}
+              value={sensitivityDraft.dnsBurstThresholdPerMin}
+              onChange={(e) =>
+                setSensitivityDraft((prev) => ({
+                  ...prev,
+                  preset: 'customizado',
+                  dnsBurstThresholdPerMin: Number(e.target.value),
+                }))
+              }
+              className="w-full accent-blue-500 cursor-pointer"
+            />
+            <div className="flex justify-between text-[11px] text-slate-500">
+              <span>20/min (rigoroso)</span>
+              <span>400/min (tolerante)</span>
+            </div>
+          </label>
+
+          <label className="rounded-lg border border-slate-800 bg-slate-950/60 p-3.5 space-y-2 block">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-medium text-slate-200">Pico de Latência Anômala</span>
+              <span className="font-mono font-semibold text-sky-400 tabular-nums">
+                {sensitivityDraft.latencySpikeFactor.toFixed(1)}x base
+              </span>
+            </div>
+            <input
+              type="range"
+              min={1.5}
+              max={5.0}
+              step={0.1}
+              value={sensitivityDraft.latencySpikeFactor}
+              onChange={(e) =>
+                setSensitivityDraft((prev) => ({
+                  ...prev,
+                  preset: 'customizado',
+                  latencySpikeFactor: Number(e.target.value),
+                }))
+              }
+              className="w-full accent-blue-500 cursor-pointer"
+            />
+            <div className="flex justify-between text-[11px] text-slate-500">
+              <span>1.5x (sensível)</span>
+              <span>5.0x (alto desvio)</span>
+            </div>
+          </label>
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-1 text-xs">
+          <label className="inline-flex items-center gap-2.5 text-slate-300 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={sensitivityDraft.flagLowSeverityEvents}
+              onChange={(e) =>
+                setSensitivityDraft((prev) => ({
+                  ...prev,
+                  preset: 'customizado',
+                  flagLowSeverityEvents: e.target.checked,
+                }))
+              }
+              className="rounded border-slate-600 bg-slate-950 text-blue-500 focus:ring-blue-500"
+            />
+            <span>
+              Incluir eventos de severidade baixa (<span className="font-mono text-slate-200">low</span>) na correlação em tempo real
+            </span>
+          </label>
+
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
+            <span className={`inline-flex items-center gap-1.5 font-medium ${aggressivityMeta.textClass}`}>
+              <Gauge className="w-3.5 h-3.5 shrink-0" />
+              <span>{aggressivityMeta.label}</span>
+              <span className="text-slate-500">·</span>
+              <span className="font-mono text-slate-400">{sensitivityDraft.preset}</span>
+            </span>
+
+            {hasPendingSensitivity ? (
+              <button
+                type="button"
+                disabled={isSavingSensitivity}
+                onClick={() => onUpdateSensitivity(sensitivityDraft)}
+                className="px-3.5 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+              >
+                {isSavingSensitivity ? 'Aplicando...' : 'Aplicar em Tempo Real'}
+              </button>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-emerald-400 font-medium whitespace-nowrap">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Ativo no motor</span>
+              </span>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {!activeIncident || !inv ? (
+        <div className="rounded-xl border border-slate-800 bg-[#131C31] p-10 text-center text-sm text-slate-400">
+          Nenhum incidente correlacionado no momento. Novos eventos recebidos respeitarão os limiares configurados acima.
+        </div>
+      ) : (
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         {/* Left Queue (4 cols) */}
         <section className="xl:col-span-4 rounded-xl border border-slate-800 bg-[#131C31] divide-y divide-slate-800">
@@ -327,6 +607,7 @@ export function IncidentsAiView({
           </div>
         </section>
       </div>
+      )}
     </div>
   );
 }

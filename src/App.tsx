@@ -11,12 +11,14 @@ import {
   Network,
   OctagonAlert,
   PlugZap,
+  ScrollText,
   Search,
   Settings,
   Shield,
   ShieldAlert,
   X,
 } from 'lucide-react';
+import { AuditLogsView } from './components/AuditLogsView';
 import { DevicesTopologyView } from './components/DevicesTopologyView';
 import { DnsPrivacyView } from './components/DnsPrivacyView';
 import { IncidentsAiView } from './components/IncidentsAiView';
@@ -26,6 +28,7 @@ import { PoliciesAuditView } from './components/PoliciesAuditView';
 import { SettingsView } from './components/SettingsView';
 import { api } from './lib/api';
 import type {
+  AiSensitivityConfig,
   AutonomyLevel,
   DnsInsight,
   Incident,
@@ -43,6 +46,7 @@ const NAV_ITEMS: { id: NavTab; label: string; icon: typeof LayoutDashboard }[] =
   { id: 'dns', label: 'Privacidade e DNS', icon: GlobeLock },
   { id: 'incidents', label: 'Incidentes e IA', icon: ShieldAlert },
   { id: 'policies', label: 'Políticas e Auditoria', icon: Shield },
+  { id: 'audit', label: 'Logs de Auditoria', icon: ScrollText },
   { id: 'settings', label: 'Configurações', icon: Settings },
 ];
 
@@ -668,6 +672,13 @@ export default function App() {
                     : 'Modo exclusivamente local-first restaurado.',
                 )
               }
+              onUpdateSensitivity={(aiSensitivity: AiSensitivityConfig) =>
+                runAction(
+                  'ai-sensitivity',
+                  () => api.updateContext({ aiSensitivity }),
+                  `Sensibilidade da IA ajustada (${aiSensitivity.preset} · score mínimo ${aiSensitivity.minRiskScoreAlert}).`,
+                )
+              }
               onProposeAction={(incidentId, policyId) =>
                 runAction(`propose-${incidentId}`, async () => {
                   const res = await api.proposeAction(incidentId, policyId);
@@ -724,6 +735,8 @@ export default function App() {
               busyKey={busyKey}
             />
           )}
+
+          {activeTab === 'audit' && <AuditLogsView state={state} searchQuery={searchQuery} />}
 
           {activeTab === 'settings' && (
             <SettingsView

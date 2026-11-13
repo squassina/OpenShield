@@ -36,12 +36,63 @@ O painel web (React + Vite + Tailwind CSS) se comunica com um BFF local em Node.
 
 ## Pré-requisitos e Instalação
 
-### Requisitos do servidor onde o OpenShield vai rodar
+### Opção 1 — Docker Compose (Recomendada, sem instalação manual de pacotes)
+
+Você precisa apenas de **Docker** e **Docker Compose** instalados no host. Um único comando constrói e orquestra os dois serviços com volumes persistentes para SQLite:
+
+- **`openshield-node` (FastAPI · porta `8000`)**: API Python FastAPI para ingestão LAN, registro de eventos `openshield.event.v1` e dispositivos descobertos com persistência SQLite no volume `openshield_node_data`.
+- **`openshield-frontend` (Vite + BFF · porta `3000`)**: Interface React compilada via Vite + servidor Express BFF conectado ao Node com persistência SQLite e cofre *write-only* no volume `openshield_frontend_data`.
+
+1. Suba o ambiente completo com um comando:
+
+   ```bash
+   docker compose up -d --build
+   ```
+
+2. Acesse nos endereços:
+
+   ```text
+   Frontend (UI):         http://localhost:3000
+   Node FastAPI (Docs):   http://localhost:8000/docs
+   ```
+
+3. Comandos úteis de operação:
+
+   ```bash
+   # Ver logs em tempo real dos dois serviços
+   docker compose logs -f
+
+   # Atualizar após alterações no código
+   docker compose up -d --build
+
+   # Parar mantendo os bancos SQLite e credenciais salvos nos volumes
+   docker compose down
+   ```
+
+> **Notas de rede no Docker**:
+> - Na rede interna do Compose (`openshield-net`), o frontend/BFF já vem pré-apontado para `OPENSHIELD_NODE_URL=http://openshield-node:8000`. Ao cadastrar o serviço OpenWrt/Node na UI, você também pode apontar para `http://openshield-node:8000/api/v1` se quiser coletar diretamente do contêiner FastAPI.
+> - Para conectar o OpenShield a serviços rodando no **próprio host Linux** (ex.: Ollama na porta `11434`), utilize `http://host.docker.internal:11434` (já mapeado via `host-gateway` no `docker-compose.yml`).
+> - Para acessar equipamentos da sua rede física (ex.: `http://192.168.1.1/ubus`, Pi-hole, AdGuard), os IPs da LAN funcionam normalmente. Caso utilize descoberta mDNS (`.local`, como `homeassistant.local`), use `network_mode: host` conforme indicado nos comentários do `docker-compose.yml`.
+
+#### Alternativa com `docker build` / `docker run` avulso (somente Frontend/BFF)
+
+```bash
+docker build -t openshield:latest .
+docker run -d \
+  --name openshield \
+  --restart unless-stopped \
+  -p 3000:3000 \
+  --add-host=host.docker.internal:host-gateway \
+  -v openshield_frontend_data:/app/.openshield-data \
+  openshield:latest
+```
+
+---
+
+### Opção 2 — Instalação Manual (Node.js)
 
 - **Node.js `>= 22.0.0`** (utiliza o módulo nativo `node:sqlite` para persistência local, sem precisar instalar banco de dados externo).
 - **npm** (ou **bun**) para instalar as dependências.
-
-### Passo a passo
 
 1. Instale as dependências:
 
@@ -68,11 +119,7 @@ O painel web (React + Vite + Tailwind CSS) se comunica com um BFF local em Node.
    NODE_ENV=production npm start
    ```
 
-5. Acesse no navegador:
-
-   ```text
-   http://localhost:3000
-   ```
+5. Acesse em `http://localhost:3000`.
 
 > Ao iniciar pela primeira vez sem base salva, o sistema começa com o inventário limpo para você adicionar apenas os serviços e dispositivos que possui. Se preferir testar rapidamente antes de configurar seus servidores reais, clique em **Carregar Cenário Demo (Mock)** na aba **Configurações**.
 

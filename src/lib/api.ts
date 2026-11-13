@@ -1,4 +1,5 @@
 import type {
+  AiSensitivityConfig,
   AuditEntry,
   AutonomyLevel,
   DnsInsight,
@@ -41,6 +42,7 @@ export const api = {
     globalAutonomy?: AutonomyLevel;
     cloudAiOptIn?: boolean;
     activeSiteId?: string;
+    aiSensitivity?: AiSensitivityConfig;
   }) =>
     requestJson<WorkspaceState>('/api/v1/context', {
       method: 'PATCH',
@@ -282,8 +284,43 @@ export const api = {
       body: JSON.stringify({ active }),
     }),
 
-  getAuditLog: (limit = 500) =>
-    requestJson<{ entries: AuditEntry[] }>(`/api/v1/audit?limit=${limit}`),
+  getAuditLog: (
+    filtersOrLimit:
+      | number
+      | {
+          limit?: number;
+          eventType?: string;
+          category?: string;
+          from?: string;
+          to?: string;
+          outcome?: string;
+          search?: string;
+        } = 200,
+  ) => {
+    const params = new URLSearchParams();
+    if (typeof filtersOrLimit === 'number') {
+      params.set('limit', String(filtersOrLimit));
+    } else {
+      if (filtersOrLimit.limit !== undefined) params.set('limit', String(filtersOrLimit.limit));
+      if (filtersOrLimit.eventType && filtersOrLimit.eventType !== 'all') {
+        params.set('eventType', filtersOrLimit.eventType);
+      }
+      if (filtersOrLimit.category && filtersOrLimit.category !== 'all') {
+        params.set('category', filtersOrLimit.category);
+      }
+      if (filtersOrLimit.from) params.set('from', filtersOrLimit.from);
+      if (filtersOrLimit.to) params.set('to', filtersOrLimit.to);
+      if (filtersOrLimit.outcome && filtersOrLimit.outcome !== 'all') {
+        params.set('outcome', filtersOrLimit.outcome);
+      }
+      if (filtersOrLimit.search?.trim()) params.set('search', filtersOrLimit.search.trim());
+    }
+    return requestJson<{
+      entries: AuditEntry[];
+      totalMatched?: number;
+      eventTypes?: string[];
+    }>(`/api/v1/audit?${params.toString()}`);
+  },
 
   getMetricsText: async () => {
     const res = await fetch('/metrics');

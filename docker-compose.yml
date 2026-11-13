@@ -1,0 +1,63 @@
+services:
+  openshield-node:
+    build:
+      context: ./node-fastapi
+      dockerfile: Dockerfile
+    image: openshield-node:latest
+    container_name: openshield-node
+    restart: unless-stopped
+    ports:
+      - "${OPENSHIELD_NODE_PORT:-8000}:8000"
+    environment:
+      OPENSHIELD_NODE_DB_PATH: /data/openshield-node.sqlite3
+    volumes:
+      - openshield_node_data:/data
+    networks:
+      - openshield-net
+
+  openshield-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: openshield-frontend:latest
+    container_name: openshield-frontend
+    restart: unless-stopped
+    depends_on:
+      openshield-node:
+        condition: service_healthy
+    ports:
+      - "${OPENSHIELD_PORT:-3000}:3000"
+    # Permite alcançar serviços rodando no próprio host Docker (ex: Ollama em http://host.docker.internal:11434)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # Dica para Linux: se usar descoberta mDNS (.local, ex: homeassistant.local),
+    # troque ports/extra_hosts por "network_mode: host" e ajuste OPENSHIELD_NODE_URL=http://127.0.0.1:8000
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      OPENSHIELD_DB_PATH: /app/.openshield-data/openshield.sqlite3
+      OPENSHIELD_NODE_URL: ${OPENSHIELD_NODE_URL:-http://openshield-node:8000}
+      # Opcionais (a maior parte das URLs e credenciais pode ser configurada direto pela UI em Configurações)
+      OPENSHIELD_OPENWRT_URL: ${OPENSHIELD_OPENWRT_URL:-}
+      OPENSHIELD_OPENWRT_USERNAME: ${OPENSHIELD_OPENWRT_USERNAME:-}
+      OPENSHIELD_OPENWRT_PASSWORD: ${OPENSHIELD_OPENWRT_PASSWORD:-}
+      OPENSHIELD_PIHOLE_URL: ${OPENSHIELD_PIHOLE_URL:-}
+      OPENSHIELD_PIHOLE_PASSWORD: ${OPENSHIELD_PIHOLE_PASSWORD:-}
+      OPENSHIELD_ADGUARD_URL: ${OPENSHIELD_ADGUARD_URL:-}
+      OPENSHIELD_ADGUARD_USERNAME: ${OPENSHIELD_ADGUARD_USERNAME:-}
+      OPENSHIELD_ADGUARD_PASSWORD: ${OPENSHIELD_ADGUARD_PASSWORD:-}
+      OPENSHIELD_OLLAMA_URL: ${OPENSHIELD_OLLAMA_URL:-http://host.docker.internal:11434}
+      OPENSHIELD_OLLAMA_MODEL: ${OPENSHIELD_OLLAMA_MODEL:-llama3.1:8b}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    volumes:
+      - openshield_frontend_data:/app/.openshield-data
+    networks:
+      - openshield-net
+
+volumes:
+  openshield_node_data:
+  openshield_frontend_data:
+
+networks:
+  openshield-net:
+    driver: bridge

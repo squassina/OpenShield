@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import type {
+  AiSensitivityConfig,
   Incident,
   NetworkDevice,
   OpenShieldEventV1,
@@ -11,12 +12,26 @@ export function correlateEventIntoIncidents(
   incidents: Incident[],
   devices: NetworkDevice[],
   activeSiteId: string,
+  aiSensitivity?: AiSensitivityConfig,
 ): { updatedIncident: Incident | null; created: boolean } {
-  // Only medium, high, or critical security/DNS/IOC events create or escalate incidents
-  if (
-    event.severity === 'info' ||
-    (event.severity === 'low' && event.eventType !== 'threat.ioc')
-  ) {
+  const allowLowSeverity =
+    event.eventType === 'threat.ioc' || Boolean(aiSensitivity?.flagLowSeverityEvents);
+
+  if (event.severity === 'info' || (event.severity === 'low' && !allowLowSeverity)) {
+    return { updatedIncident: null, created: false };
+  }
+
+  const baseScore =
+    event.severity === 'critical'
+      ? 90
+      : event.severity === 'high'
+        ? 78
+        : event.severity === 'medium'
+          ? 52
+          : 35;
+
+  const minRiskThreshold = aiSensitivity?.minRiskScoreAlert ?? 50;
+  if (baseScore < minRiskThreshold && !(event.severity === 'low' && allowLowSeverity)) {
     return { updatedIncident: null, created: false };
   }
 
@@ -60,15 +75,6 @@ export function correlateEventIntoIncidents(
     return { updatedIncident: existing, created: false };
   }
 
-  const baseScore =
-    event.severity === 'critical'
-      ? 90
-      : event.severity === 'high'
-        ? 78
-        : event.severity === 'medium'
-          ? 52
-          : 35;
-
   const isDns = event.eventType === 'dns.query';
   const newIncident: Incident = {
     id: `inc-${crypto.randomUUID().slice(0, 8)}`,
@@ -82,6 +88,7 @@ export function correlateEventIntoIncidents(
     riskFactors: [
       `Origem: ${event.sourceIntegrationId} (${event.eventType})`,
       `Severidade normalizada: ${event.severity}`,
+      `Sensibilidade IA: ${aiSensitivity?.preset ?? 'balanceado'} (limiar >= ${minRiskThreshold})`,
     ],
     deviceId,
     deviceHostname,

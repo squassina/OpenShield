@@ -246,4 +246,101 @@ export class SqlitePersistence {
       profile: String(r.profile) as AuditEntry['profile'],
     }));
   }
+
+  queryAudit(filters: {
+    eventType?: string;
+    category?: string;
+    from?: string;
+    to?: string;
+    outcome?: string;
+    search?: string;
+    limit?: number;
+  } = {}): { entries: AuditEntry[]; totalMatched: number; eventTypes: string[] } {
+    const clauses: string[] = [];
+    const params: (string | number)[] = [];
+
+    if (filters.eventType && filters.eventType !== 'all') {
+      clauses.push('event_type = ?');
+      params.push(filters.eventType);
+    }
+
+    if (filters.category && filters.category !== 'all') {
+      if (filters.category === 'kill_switch') {
+        clauses.push("event_type LIKE 'kill_switch.%'");
+      } else if (filters.category === 'propose_action') {
+        clauses.push("event_type LIKE 'action.%'");
+      } else if (filters.category === 'config') {
+        clauses.push(
+          "event_type IN ('integration.registered','integration.removed','integration.synced','credentials.updated','device.added','device.updated','device.removed','dns.added','dns.list_updated','site.added','site.removed','workspace.demo_loaded','workspace.reset','workspace.restored')",
+        );
+      } else if (filters.category === 'state_change') {
+        clauses.push(
+          "event_type IN ('context.updated','gateway.connected','event.ingested','ai.investigated','authorization.denied')",
+        );
+      }
+    }
+
+    if (filters.from) {
+      const fromMs = Date.parse(filters.from);
+      if (Number.isFinite(fromMs)) {
+        clauses.push('timestamp >= ?');
+        params.push(new Date(fromMs).toISOString());
+      }
+    }
+
+    if (filters.to) {
+      const toMs = Date.parse(filters.to);
+      if (Number.isFinite(toMs)) {
+        clauses.push('timestamp <= ?');
+        params.push(new Date(toMs).toISOString());
+      }
+    }
+
+    if (filters.outcome && filters.outcome !== 'all') {
+      clauses.push('outcome = ?');
+      params.push(filters.outcome);
+    }
+
+    if (filters.search && filters.search.trim()) {
+      const q = `%${filters.search.trim().toLowerCase()}%`;
+      clauses.push(
+        '(LOWER(detail) LIKE ? OR LOWER(actor) LIKE ? OR LOWER(target_id) LIKE ? OR LOWER(event_type) LIKE ?)',
+      );
+      params.push(q, q, q, q);
+    }
+
+    const whereSql = clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '';
+    const limit = Number.isFinite(filters.limit)
+      ? Math.max(1, Math.min(1000, Number(filters.limit)))
+      : 200;
+
+    const countRow = this.db
+      .prepare(`SELECT COUNT(*) AS total FROM audit_trail ${whereSql}`)
+      .get(...params);
+    const totalMatched = Number(countRow?.total ?? 0);
+
+    const rows = this.db
+      .prepare(`SELECT * FROM audit_trail ${whereSql} ORDER BY seq DESC LIMIT ?`)
+      .all(...params, limit);
+
+    const distinctRows = this.db
+      .prepare('SELECT DISTINCT event_type FROM audit_trail ORDER BY event_type ASC')
+      .all();
+
+    return {
+      entries: rows.map((r) => ({
+        id: String(r.id),
+        timestamp: String(r.timestamp),
+        eventType: String(r.event_type) as AuditEntry['eventType'],
+        actor: String(r.actor),
+        role: String(r.role),
+        targetId: String(r.target_id),
+        outcome: String(r.outcome) as AuditEntry['outcome'],
+        detail: String(r.detail),
+        profile: String(r.profile) as AuditEntry['profile'],
+      })),
+      totalMatched,
+      eventTypes: distinctRows.map((r) => String(r.event_type)),
+    };
+  }
 }

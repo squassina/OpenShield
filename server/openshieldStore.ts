@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import type {
   ActionExecution,
+  AiSensitivityConfig,
   AuditEntry,
   AutonomyLevel,
   DnsInsight,
@@ -32,6 +33,13 @@ import { SqlitePersistence } from './persistence.ts';
 
 const SECRET_FIELD_PATTERN = /(password|passwd|secret|token|api_key|apikey|private_key|credential)/i;
 const AUTONOMY_RANK: Record<AutonomyLevel, number> = { L0: 0, L1: 1, L2: 2, L3: 3 };
+const DEFAULT_AI_SENSITIVITY: AiSensitivityConfig = {
+  preset: 'balanceado',
+  minRiskScoreAlert: 50,
+  dnsBurstThresholdPerMin: 120,
+  latencySpikeFactor: 2.5,
+  flagLowSeverityEvents: false,
+};
 
 function minutesAgoIso(minutes: number): string {
   return new Date(Date.now() - minutes * 60_000).toISOString();
@@ -48,6 +56,7 @@ export class OpenShieldStore {
     if (saved) {
       this.state = saved;
       this.state.latencyHistory ??= [];
+      this.state.context.aiSensitivity ??= { ...DEFAULT_AI_SENSITIVITY };
       this.state.metrics.outboxPendingTotal = this.persistence.outboxCount();
       const recentAudit = this.persistence.loadRecentAudit(200);
       if (recentAudit.length > 0) {
@@ -164,6 +173,18 @@ export class OpenShieldStore {
       check('OPENSHIELD_OLLAMA_URL', 'Endpoint Runtime Ollama (Fallback)', 'IA Local-First'),
       check('GEMINI_API_KEY', 'Chave Gemini (Opcional Nuvem)', 'IA Segunda Opinião'),
     ];
+  }
+
+  queryAuditLog(filters: {
+    eventType?: string;
+    category?: string;
+    from?: string;
+    to?: string;
+    outcome?: string;
+    search?: string;
+    limit?: number;
+  }) {
+    return this.persistence.queryAudit(filters);
   }
 
   recordHttpRequest(): void {
@@ -324,6 +345,39 @@ export class OpenShieldStore {
         targetId: 'autonomy-ceiling',
         outcome: 'success',
         detail: `Teto global de autonomia ajustado para ${patch.globalAutonomy}.`,
+      });
+    }
+
+    if (patch.aiSensitivity) {
+      this.assertCanMutate('operator');
+      const raw = patch.aiSensitivity;
+      const sanitized: AiSensitivityConfig = {
+        preset:
+          raw.preset === 'conservador' ||
+          raw.preset === 'balanceado' ||
+          raw.preset === 'agressivo' ||
+          raw.preset === 'customizado'
+            ? raw.preset
+            : 'customizado',
+        minRiskScoreAlert: Math.max(20, Math.min(95, Math.round(Number(raw.minRiskScoreAlert) || 50))),
+        dnsBurstThresholdPerMin: Math.max(
+          10,
+          Math.min(1000, Math.round(Number(raw.dnsBurstThresholdPerMin) || 120)),
+        ),
+        latencySpikeFactor: Math.max(
+          1.2,
+          Math.min(10, Math.round((Number(raw.latencySpikeFactor) || 2.5) * 10) / 10),
+        ),
+        flagLowSeverityEvents: Boolean(raw.flagLowSeverityEvents),
+      };
+      this.state.context.aiSensitivity = sanitized;
+      this.addAudit({
+        eventType: 'context.updated',
+        actor: this.currentActor().actor,
+        role: this.currentActor().role,
+        targetId: 'ai-anomaly-sensitivity',
+        outcome: 'success',
+        detail: `Sensibilidade IA atualizada (${sanitized.preset}): score>=${sanitized.minRiskScoreAlert}, rajada DNS>=${sanitized.dnsBurstThresholdPerMin}/min, latência>=${sanitized.latencySpikeFactor}x, severidade baixa=${sanitized.flagLowSeverityEvents ? 'ativa' : 'inativa'}.`,
       });
     }
 
@@ -1221,6 +1275,7 @@ export class OpenShieldStore {
       this.state.incidents,
       this.state.devices,
       this.state.context.activeSiteId,
+      this.state.context.aiSensitivity,
     );
 
     this.addAudit({
@@ -2060,6 +2115,7 @@ export class OpenShieldStore {
           { id: 'site-office-sp', name: 'Escritório Centro (Matriz)', profile: 'business' },
           { id: 'site-office-filial', name: 'Escritório Coworking (Filial)', profile: 'business' },
         ],
+        aiSensitivity: { ...DEFAULT_AI_SENSITIVITY },
       },
       integrations: [],
       devices: [],
@@ -2398,6 +2454,7 @@ export class OpenShieldStore {
           { id: 'site-office-sp', name: 'Escritório Centro (Matriz)', profile: 'business' },
           { id: 'site-office-filial', name: 'Escritório Coworking (Filial)', profile: 'business' },
         ],
+        aiSensitivity: { ...DEFAULT_AI_SENSITIVITY },
       },
       integrations: [
         {
