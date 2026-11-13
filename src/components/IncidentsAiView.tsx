@@ -15,6 +15,7 @@ import type {
   SensitivityPreset,
   WorkspaceState,
 } from '../types/openshield';
+import { AiUsageCard } from './AiUsageCard';
 
 const SENSITIVITY_PRESETS: Record<
   Exclude<SensitivityPreset, 'customizado'>,
@@ -332,6 +333,8 @@ export function IncidentsAiView({
           </div>
         </div>
       </section>
+
+      <AiUsageCard records={state.aiUsageHistory ?? []} />
 
       {!activeIncident || !inv ? (
         <div className="rounded-xl border border-slate-800 bg-[#131C31] p-10 text-center text-sm text-slate-400">

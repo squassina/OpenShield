@@ -326,6 +326,23 @@ export interface NotificationDispatchRecord {
   dispatchedAt: string;
 }
 
+export interface AiUsageRecord {
+  id: string;
+  timestamp: string;
+  incidentId: string;
+  incidentTitle: string;
+  provider: AiInvestigation['provider'];
+  channel: 'local' | 'cloud';
+  modelVersion: string;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  durationMs: number;
+  estimatedCostUsd: number;
+  outcome: 'success' | 'error';
+  detail?: string;
+}
+
 export interface WorkspaceState {
   context: OperatingContext;
   integrations: IntegrationAdapter[];
@@ -340,4 +357,5 @@ export interface WorkspaceState {
   latencyHistory?: LatencySample[];
   notifications?: NotificationDestination[];
   notificationHistory?: NotificationDispatchRecord[];
+  aiUsageHistory?: AiUsageRecord[];
 }

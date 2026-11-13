@@ -42,10 +42,18 @@ export function buildSanitizedContext(incident: Incident, relatedEvents: OpenShi
   );
 }
 
+export interface CloudAiUsageMetrics {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  durationMs: number;
+  estimatedCostUsd: number;
+}
+
 export async function runSanitizedCloudInvestigation(
   incident: Incident,
   relatedEvents: OpenShieldEventV1[],
-): Promise<AiInvestigation> {
+): Promise<{ investigation: AiInvestigation; usage: CloudAiUsageMetrics }> {
   const sanitizedPayloadPreview = buildSanitizedContext(incident, relatedEvents);
   const apiKey = process.env.GEMINI_API_KEY;
 
@@ -73,6 +81,7 @@ export async function runSanitizedCloudInvestigation(
     '</evidencias_nao_confiaveis>',
   ].join('\n');
 
+  const startedAt = Date.now();
   const response = await ai.models.generateContent({
     model: 'gemini-4-hydrogen',
     contents: prompt,
@@ -107,6 +116,7 @@ export async function runSanitizedCloudInvestigation(
       },
     },
   });
+  const durationMs = Math.max(1, Date.now() - startedAt);
 
   const rawText = (response.text ?? '{}').trim();
   const parsed = JSON.parse(rawText) as {
@@ -119,23 +129,43 @@ export async function runSanitizedCloudInvestigation(
   const normalizedConfidence: 'alta' | 'média' | 'baixa' =
     parsed.confidence === 'alta' || parsed.confidence === 'baixa' ? parsed.confidence : 'média';
 
+  const promptTokens =
+    response.usageMetadata?.promptTokenCount ?? Math.max(1, Math.ceil(prompt.length / 4));
+  const completionTokens =
+    response.usageMetadata?.candidatesTokenCount ?? Math.max(1, Math.ceil(rawText.length / 4));
+  const totalTokens =
+    response.usageMetadata?.totalTokenCount ?? promptTokens + completionTokens;
+  // Estimativa referencial (~US$ 0.075 / 1M entrada e ~US$ 0.30 / 1M saída)
+  const estimatedCostUsd = Number(
+    (promptTokens * 0.000000075 + completionTokens * 0.0000003).toFixed(6),
+  );
+
   return {
-    provider: 'gemini-sanitized',
-    modelVersion: 'gemini-4-hydrogen (nuvem opt-in)',
-    promptTemplateVersion: 'openshield.investigate.v1.2',
-    generatedAt: new Date().toISOString(),
-    confidence: normalizedConfidence,
-    observedFacts: parsed.observedFacts?.length
-      ? parsed.observedFacts
-      : ['Evidências sanitizadas processadas pela segunda opinião em nuvem.'],
-    inferredHypotheses: parsed.inferredHypotheses?.length
-      ? parsed.inferredHypotheses
-      : ['Comportamento anômalo compatível com telemetria ou varredura automatizada.'],
-    recommendedSteps: parsed.recommendedSteps?.length
-      ? parsed.recommendedSteps
-      : ['Manter monitoramento L0 e avaliar bloqueio temporário reversível via política.'],
-    sanitizedPayloadPreview,
-    promptInjectionGuardNote:
-      'Contexto minimizado: IPs internos, MACs, hostnames e segredos foram mascarados antes do envio. Evidências delimitadas contra prompt injection.',
+    investigation: {
+      provider: 'gemini-sanitized',
+      modelVersion: 'gemini-4-hydrogen (nuvem opt-in)',
+      promptTemplateVersion: 'openshield.investigate.v1.2',
+      generatedAt: new Date().toISOString(),
+      confidence: normalizedConfidence,
+      observedFacts: parsed.observedFacts?.length
+        ? parsed.observedFacts
+        : ['Evidências sanitizadas processadas pela segunda opinião em nuvem.'],
+      inferredHypotheses: parsed.inferredHypotheses?.length
+        ? parsed.inferredHypotheses
+        : ['Comportamento anômalo compatível com telemetria ou varredura automatizada.'],
+      recommendedSteps: parsed.recommendedSteps?.length
+        ? parsed.recommendedSteps
+        : ['Manter monitoramento L0 e avaliar bloqueio temporário reversível via política.'],
+      sanitizedPayloadPreview,
+      promptInjectionGuardNote:
+        'Contexto minimizado: IPs internos, MACs, hostnames e segredos foram mascarados antes do envio. Evidências delimitadas contra prompt injection.',
+    },
+    usage: {
+      promptTokens,
+      completionTokens,
+      totalTokens,
+      durationMs,
+      estimatedCostUsd,
+    },
   };
 }

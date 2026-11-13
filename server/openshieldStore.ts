@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import type {
   ActionExecution,
   AiSensitivityConfig,
+  AiUsageRecord,
   AuditEntry,
   AutonomyLevel,
   DnsInsight,
@@ -65,6 +66,7 @@ export class OpenShieldStore {
       this.state.latencyHistory ??= [];
       this.state.notifications ??= [];
       this.state.notificationHistory ??= [];
+      this.state.aiUsageHistory ??= [];
       this.state.context.aiSensitivity ??= { ...DEFAULT_AI_SENSITIVITY };
       this.state.metrics.outboxPendingTotal = this.persistence.outboxCount();
       const recentAudit = this.persistence.loadRecentAudit(200);
@@ -118,6 +120,18 @@ export class OpenShieldStore {
       history.splice(0, history.length - 288);
     }
     this.state.latencyHistory = history;
+  }
+
+  private recordAiUsage(entry: Omit<AiUsageRecord, 'id' | 'timestamp'>, timestamp?: string): void {
+    this.state.aiUsageHistory ??= [];
+    this.state.aiUsageHistory.unshift({
+      id: `ai-${crypto.randomUUID().slice(0, 8)}`,
+      timestamp: timestamp ?? new Date().toISOString(),
+      ...entry,
+    });
+    if (this.state.aiUsageHistory.length > 100) {
+      this.state.aiUsageHistory.length = 100;
+    }
   }
 
   subscribe(listener: () => void): () => void {
@@ -1525,54 +1539,129 @@ export class OpenShieldStore {
           'Segunda opinião em nuvem desabilitada por padrão. Ative o opt-in explícito de IA em Nuvem antes de enviar contexto sanitizado.',
         );
       }
-      const investigation = await runSanitizedCloudInvestigation(incident, relatedEvents);
-      incident.investigation = investigation;
-      incident.status = incident.status === 'open' ? 'investigating' : incident.status;
-      this.addAudit({
-        eventType: 'ai.investigated',
-        actor: this.currentActor().actor,
-        role: this.currentActor().role,
-        targetId: incident.id,
-        outcome: 'success',
-        detail: `Segunda opinião via ${investigation.modelVersion} concluída após sanitização e remoção de identificadores internos.`,
-      });
-      this.notify();
-      return this.getState();
+      const startedAt = Date.now();
+      try {
+        const { investigation, usage } = await runSanitizedCloudInvestigation(
+          incident,
+          relatedEvents,
+        );
+        incident.investigation = investigation;
+        incident.status = incident.status === 'open' ? 'investigating' : incident.status;
+        this.recordAiUsage({
+          incidentId: incident.id,
+          incidentTitle: incident.title,
+          provider: investigation.provider,
+          channel: 'cloud',
+          modelVersion: investigation.modelVersion,
+          promptTokens: usage.promptTokens,
+          completionTokens: usage.completionTokens,
+          totalTokens: usage.totalTokens,
+          durationMs: usage.durationMs,
+          estimatedCostUsd: usage.estimatedCostUsd,
+          outcome: 'success',
+          detail: 'Segunda opinião sanitizada em nuvem concluída.',
+        });
+        this.addAudit({
+          eventType: 'ai.investigated',
+          actor: this.currentActor().actor,
+          role: this.currentActor().role,
+          targetId: incident.id,
+          outcome: 'success',
+          detail: `Segunda opinião via ${investigation.modelVersion} concluída (${usage.totalTokens} tokens · ~US$ ${usage.estimatedCostUsd.toFixed(6)}) após sanitização.`,
+        });
+        this.notify();
+        return this.getState();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Falha na chamada à API Gemini';
+        this.recordAiUsage({
+          incidentId: incident.id,
+          incidentTitle: incident.title,
+          provider: 'gemini-sanitized',
+          channel: 'cloud',
+          modelVersion: 'gemini-4-hydrogen (nuvem opt-in)',
+          promptTokens: 0,
+          completionTokens: 0,
+          totalTokens: 0,
+          durationMs: Math.max(1, Date.now() - startedAt),
+          estimatedCostUsd: 0,
+          outcome: 'error',
+          detail: message,
+        });
+        this.notify();
+        throw err;
+      }
     }
 
     const ollamaAdapter = this.state.integrations.find(
       (a) => a.kind === 'ollama-http' || a.domain === 'ai_runtime',
     );
     if (ollamaAdapter && ollamaAdapter.mode === 'live') {
-      const liveInvestigation = await runLocalOllamaInvestigation(
-        ollamaAdapter.liveEndpointUrl,
-        incident,
-        relatedEvents,
-        ollamaAdapter.modelName,
-      );
-      incident.investigation = liveInvestigation;
-      incident.status = incident.status === 'open' ? 'investigating' : incident.status;
-      ollamaAdapter.lastHeartbeatAt = new Date().toISOString();
-      ollamaAdapter.status = 'connected';
-      this.addAudit({
-        eventType: 'ai.investigated',
-        actor: this.currentActor().actor,
-        role: this.currentActor().role,
-        targetId: incident.id,
-        outcome: 'success',
-        detail: `Investigação local real via ${liveInvestigation.modelVersion} concluída.`,
-      });
-      this.notify();
-      return this.getState();
+      const startedAt = Date.now();
+      const targetModel = ollamaAdapter.modelName || process.env.OPENSHIELD_OLLAMA_MODEL || 'llama3.1:8b';
+      try {
+        const { investigation: liveInvestigation, usage } = await runLocalOllamaInvestigation(
+          ollamaAdapter.liveEndpointUrl,
+          incident,
+          relatedEvents,
+          ollamaAdapter.modelName,
+        );
+        incident.investigation = liveInvestigation;
+        incident.status = incident.status === 'open' ? 'investigating' : incident.status;
+        ollamaAdapter.lastHeartbeatAt = new Date().toISOString();
+        ollamaAdapter.status = 'connected';
+        ollamaAdapter.lastLatencyMs = usage.durationMs;
+        this.recordAiUsage({
+          incidentId: incident.id,
+          incidentTitle: incident.title,
+          provider: liveInvestigation.provider,
+          channel: 'local',
+          modelVersion: liveInvestigation.modelVersion,
+          promptTokens: usage.promptTokens,
+          completionTokens: usage.completionTokens,
+          totalTokens: usage.totalTokens,
+          durationMs: usage.durationMs,
+          estimatedCostUsd: 0,
+          outcome: 'success',
+          detail: 'Inferência executada no runtime Ollama local.',
+        });
+        this.addAudit({
+          eventType: 'ai.investigated',
+          actor: this.currentActor().actor,
+          role: this.currentActor().role,
+          targetId: incident.id,
+          outcome: 'success',
+          detail: `Investigação local real via ${liveInvestigation.modelVersion} concluída (${usage.totalTokens} tokens · ${usage.durationMs}ms).`,
+        });
+        this.notify();
+        return this.getState();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Falha na chamada ao Ollama local';
+        this.recordAiUsage({
+          incidentId: incident.id,
+          incidentTitle: incident.title,
+          provider: 'local-ollama-live',
+          channel: 'local',
+          modelVersion: `${targetModel} (Ollama local real)`,
+          promptTokens: 0,
+          completionTokens: 0,
+          totalTokens: 0,
+          durationMs: Math.max(1, Date.now() - startedAt),
+          estimatedCostUsd: 0,
+          outcome: 'error',
+          detail: message,
+        });
+        this.notify();
+        throw err;
+      }
     }
 
     const sanitizedPreview = buildSanitizedContext(incident, relatedEvents);
-    incident.investigation = {
-      provider: 'local-ollama-mock',
+    const localInvestigation = {
+      provider: 'local-ollama-mock' as const,
       modelVersion: `${ollamaAdapter?.modelName || 'llama3.1:8b-instruct'} (local-first simulado)`,
       promptTemplateVersion: 'openshield.local.v1.4',
       generatedAt: new Date().toISOString(),
-      confidence: incident.riskScore >= 75 ? 'alta' : 'média',
+      confidence: (incident.riskScore >= 75 ? 'alta' : 'média') as 'alta' | 'média',
       observedFacts: [
         `Correlação de ${incident.eventIds.length} evento(s) normalizados no schema openshield.event.v1.`,
         ...incident.riskFactors,
@@ -1589,7 +1678,27 @@ export class OpenShieldStore {
       promptInjectionGuardNote:
         'Inferência local executada apenas sobre evidências persistidas; strings externas delimitadas contra prompt injection.',
     };
+    incident.investigation = localInvestigation;
     incident.status = incident.status === 'open' ? 'investigating' : incident.status;
+
+    const estPromptTokens = Math.max(140, Math.ceil((sanitizedPreview.length + 180) / 4));
+    const estCompletionTokens = Math.max(85, Math.ceil(JSON.stringify(localInvestigation.observedFacts.concat(localInvestigation.inferredHypotheses, localInvestigation.recommendedSteps)).length / 4));
+    const simDurationMs = 190 + (sanitizedPreview.length % 130);
+    this.recordAiUsage({
+      incidentId: incident.id,
+      incidentTitle: incident.title,
+      provider: localInvestigation.provider,
+      channel: 'local',
+      modelVersion: localInvestigation.modelVersion,
+      promptTokens: estPromptTokens,
+      completionTokens: estCompletionTokens,
+      totalTokens: estPromptTokens + estCompletionTokens,
+      durationMs: simDurationMs,
+      estimatedCostUsd: 0,
+      outcome: 'success',
+      detail: 'Inferência local-first simulada (sem consumo em nuvem).',
+    });
+
     this.addAudit({
       eventType: 'ai.investigated',
       actor: this.currentActor().actor,
@@ -2526,6 +2635,7 @@ export class OpenShieldStore {
       latencyHistory: [],
       notifications: [],
       notificationHistory: [],
+      aiUsageHistory: [],
     };
   }
 
@@ -3131,6 +3241,88 @@ export class OpenShieldStore {
       })),
       notifications: [],
       notificationHistory: [],
+      aiUsageHistory: [
+        {
+          id: 'ai-seed-05',
+          timestamp: minutesAgoIso(3),
+          incidentId: 'inc-2026-001',
+          incidentTitle: 'Conexão de saída suspeita em dispositivo IoT correlacionada com IOC CrowdSec',
+          provider: 'local-ollama-mock',
+          channel: 'local',
+          modelVersion: 'llama3.1:8b-instruct (local-first simulado)',
+          promptTokens: 482,
+          completionTokens: 214,
+          totalTokens: 696,
+          durationMs: 245,
+          estimatedCostUsd: 0,
+          outcome: 'success',
+          detail: 'Correlação inicial automática executada localmente.',
+        },
+        {
+          id: 'ai-seed-04',
+          timestamp: minutesAgoIso(19),
+          incidentId: 'inc-2026-001',
+          incidentTitle: 'Conexão de saída suspeita em dispositivo IoT correlacionada com IOC CrowdSec',
+          provider: 'gemini-sanitized',
+          channel: 'cloud',
+          modelVersion: 'gemini-4-hydrogen (nuvem opt-in)',
+          promptTokens: 390,
+          completionTokens: 268,
+          totalTokens: 658,
+          durationMs: 910,
+          estimatedCostUsd: 0.00011,
+          outcome: 'success',
+          detail: 'Segunda opinião sanitizada confirmou anomalia C2 em porta SSH não padrão.',
+        },
+        {
+          id: 'ai-seed-03',
+          timestamp: minutesAgoIso(47),
+          incidentId: 'inc-2026-002',
+          incidentTitle: 'Pico de telemetria DNS em Smart TV bloqueado pelo Pi-hole',
+          provider: 'local-ollama-mock',
+          channel: 'local',
+          modelVersion: 'llama3.1:8b-instruct (local-first simulado)',
+          promptTokens: 348,
+          completionTokens: 176,
+          totalTokens: 524,
+          durationMs: 212,
+          estimatedCostUsd: 0,
+          outcome: 'success',
+          detail: 'Triagem local-first identificou domínio de rastreamento recorrente.',
+        },
+        {
+          id: 'ai-seed-02',
+          timestamp: minutesAgoIso(115),
+          incidentId: 'inc-2026-002',
+          incidentTitle: 'Pico de telemetria DNS em Smart TV bloqueado pelo Pi-hole',
+          provider: 'local-ollama-mock',
+          channel: 'local',
+          modelVersion: 'llama3.1:8b-instruct (local-first simulado)',
+          promptTokens: 310,
+          completionTokens: 158,
+          totalTokens: 468,
+          durationMs: 198,
+          estimatedCostUsd: 0,
+          outcome: 'success',
+          detail: 'Reavaliação após incremento de consultas DNS.',
+        },
+        {
+          id: 'ai-seed-01',
+          timestamp: minutesAgoIso(190),
+          incidentId: 'inc-2026-001',
+          incidentTitle: 'Conexão de saída suspeita em dispositivo IoT correlacionada com IOC CrowdSec',
+          provider: 'gemini-sanitized',
+          channel: 'cloud',
+          modelVersion: 'gemini-4-hydrogen (nuvem opt-in)',
+          promptTokens: 412,
+          completionTokens: 242,
+          totalTokens: 654,
+          durationMs: 1040,
+          estimatedCostUsd: 0.000104,
+          outcome: 'success',
+          detail: 'Auditoria comparativa com payload sanitizado.',
+        },
+      ],
     };
   }
 }
