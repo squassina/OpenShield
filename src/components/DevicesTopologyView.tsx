@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getIntlLocale } from '../i18n';
+import { DevicesTopologySvg } from './DevicesTopologySvg';
 import type { DnsInsight, NetworkDevice, WorkspaceState } from '../types/openshield';
 
 interface DevicesTopologyViewProps {
@@ -543,8 +544,8 @@ export function DevicesTopologyView({
 
       {/* Topology OR Network Flow Visualization */}
       {viewMode === 'topology' ? (
-        <section className="rounded-xl border border-slate-800 bg-[#131C31] p-5">
-          <div className="flex items-center justify-between mb-4">
+        <section className="rounded-xl border border-slate-800 bg-[#131C31] p-5 space-y-5">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-4">
             <h2 className="text-sm font-semibold text-slate-100">
               {t('devices.logicalMapTitle')}
             </h2>
@@ -553,7 +554,21 @@ export function DevicesTopologyView({
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <DevicesTopologySvg
+            devices={scopedDevices}
+            segments={SEGMENTS}
+            segmentFilter={segmentFilter}
+            selectedDeviceId={selectedDeviceId}
+            state={state}
+            onSelectDevice={openDrawer}
+            translateSegment={translateSegment}
+          />
+
+          <div className="space-y-3 pt-1">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              {t('devices.logicalCardsTitle')}
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {SEGMENTS.map((seg) => {
               const items = scopedDevices.filter((d) => d.segment === seg);
               return (
@@ -609,6 +624,7 @@ export function DevicesTopologyView({
                 </div>
               );
             })}
+            </div>
           </div>
         </section>
       ) : (
