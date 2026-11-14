@@ -99,6 +99,7 @@ export interface DnsInsight {
   classification: 'tracker' | 'suspicious' | 'benign';
   deviceId: string;
   deviceHostname: string;
+  deviceIp?: string;
   queriesCount: number;
   blockedCount: number;
   listStatus: 'monitored' | 'blocked' | 'allowed';

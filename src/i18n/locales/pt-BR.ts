@@ -477,6 +477,9 @@ export const ptBR = {
     noDomainsDevice: 'Nenhum domínio DNS agregado ainda para este dispositivo.',
     noDomainsDeviceHint:
       'Sincronize seu servidor DNS (Pi-hole / AdGuard) ou adicione domínios em Privacidade e DNS para vê-los ranqueados aqui.',
+    flowZeroHintTitle: 'Por que os contadores estão zerados?',
+    flowZeroHintBody:
+      'O mapeamento do OpenWrt (ubus / ip neigh) descobre apenas dispositivos, IPs, MACs e segmentos. Para popular consultas DNS, bloqueios e Top 5 domínios por dispositivo, configure e sincronize um serviço DNS (Pi-hole, AdGuard Home ou Technitium) em Integrações / Configurações ou envie eventos dns.query.',
     networkEventCategory: 'Evento de Rede',
     colDevice: 'Dispositivo',
     colIpInterface: 'IP / Interface',

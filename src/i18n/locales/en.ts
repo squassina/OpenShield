@@ -477,6 +477,9 @@ export const en = {
     noDomainsDevice: 'No aggregated DNS domains for this device yet.',
     noDomainsDeviceHint:
       'Sync your DNS server (Pi-hole / AdGuard) or add domains under DNS & Privacy to see them ranked here.',
+    flowZeroHintTitle: 'Why are these counters at 0?',
+    flowZeroHintBody:
+      'OpenWrt neighbor mapping (ubus / ip neigh) only discovers devices, IPs, MACs, and segments. To populate DNS queries, blocks, and Top 5 domains per device, configure and sync a DNS integration (Pi-hole, AdGuard Home, or Technitium) in Integrations & Settings or send dns.query events.',
     networkEventCategory: 'Network Event',
     colDevice: 'Device',
     colIpInterface: 'IP / Interface',

@@ -31,6 +31,7 @@ import {
   syncAdguardLive,
   syncPiholeLive,
   syncTechnitiumLive,
+  type ClientQueryStats,
 } from './adapters/dnsAdapters.ts';
 import { boundedFetchJson } from './adapters/httpClient.ts';
 import { runLocalOllamaInvestigation } from './adapters/ollamaAdapter.ts';
@@ -862,20 +863,169 @@ export class OpenShieldStore {
     return addedOrUpdated;
   }
 
-  private upsertDnsInsights(insights: DnsInsight[]): void {
-    for (const insight of insights) {
-      const existingIdx = this.state.dnsInsights.findIndex((d) => d.domain === insight.domain);
+  private findDeviceForTelemetry(ref: {
+    deviceId?: string;
+    ip?: string;
+    hostname?: string;
+  }): NetworkDevice | undefined {
+    const id = ref.deviceId?.trim();
+    if (id && id !== 'lan-client' && id !== 'manual') {
+      const byId = this.state.devices.find((d) => d.id === id);
+      if (byId) return byId;
+    }
+
+    const rawHost = ref.hostname?.trim();
+    const ipCandidate =
+      ref.ip?.trim() ||
+      (rawHost && /^(?:\d{1,3}\.){3}\d{1,3}$/.test(rawHost) ? rawHost : '');
+    if (ipCandidate) {
+      const byIp = this.state.devices.find((d) => d.ip === ipCandidate);
+      if (byIp) return byIp;
+    }
+
+    if (
+      rawHost &&
+      rawHost !== '(sem-nome)' &&
+      rawHost !== '(unnamed)' &&
+      rawHost !== 'cliente-lan' &&
+      rawHost !== 'lan-client'
+    ) {
+      const hostLower = rawHost.toLowerCase();
+      const byExactHost = this.state.devices.find(
+        (d) => d.hostname.toLowerCase() === hostLower,
+      );
+      if (byExactHost) return byExactHost;
+
+      const baseHost = hostLower.split('.')[0];
+      if (baseHost && baseHost.length >= 2) {
+        const byBaseHost = this.state.devices.find((d) => {
+          const dLower = d.hostname.toLowerCase();
+          if (dLower === '(sem-nome)' || dLower === '(unnamed)') return false;
+          return dLower.split('.')[0] === baseHost;
+        });
+        if (byBaseHost) return byBaseHost;
+      }
+    }
+
+    return undefined;
+  }
+
+  private refreshDeviceFlowCounters(
+    matchedIds: Set<string>,
+    clientStats?: ClientQueryStats[],
+  ): void {
+    const statsByDeviceId = new Map<string, { queries: number; blocked: number }>();
+    if (clientStats) {
+      for (const stat of clientStats) {
+        const dev = this.findDeviceForTelemetry({ ip: stat.ip, hostname: stat.hostname });
+        if (!dev) continue;
+        const prev = statsByDeviceId.get(dev.id) ?? { queries: 0, blocked: 0 };
+        prev.queries += stat.queries;
+        prev.blocked += stat.blocked;
+        statsByDeviceId.set(dev.id, prev);
+        matchedIds.add(dev.id);
+      }
+    }
+
+    for (const devId of matchedIds) {
+      const dev = this.state.devices.find((d) => d.id === devId);
+      if (!dev) continue;
+
+      let sumQueries = 0;
+      let sumBlocked = 0;
+      let suspiciousHits = 0;
+      for (const ins of this.state.dnsInsights) {
+        if (ins.deviceId === dev.id || (dev.ip && ins.deviceIp === dev.ip)) {
+          sumQueries += ins.queriesCount;
+          sumBlocked += ins.blockedCount;
+          if (ins.classification === 'suspicious') suspiciousHits += 1;
+        }
+      }
+
+      const statTotals = statsByDeviceId.get(dev.id);
+      dev.dnsQueries24h = Math.max(
+        dev.dnsQueries24h,
+        sumQueries,
+        statTotals?.queries ?? 0,
+      );
+      dev.blockedQueries24h = Math.max(
+        dev.blockedQueries24h,
+        sumBlocked,
+        statTotals?.blocked ?? 0,
+      );
+
+      if (dev.blockedQueries24h > 0 || suspiciousHits > 0) {
+        const computedRisk = Math.min(
+          92,
+          12 + Math.min(35, dev.blockedQueries24h * 2) + suspiciousHits * 15,
+        );
+        if (computedRisk > dev.riskScore) {
+          dev.riskScore = computedRisk;
+        }
+        if (dev.status === 'nominal' && dev.riskScore >= 50) {
+          dev.status = 'attention';
+        }
+      }
+    }
+  }
+
+  private upsertDnsInsights(insights: DnsInsight[], clientStats?: ClientQueryStats[]): void {
+    const matchedDeviceIds = new Set<string>();
+
+    for (const rawInsight of insights) {
+      const matched = this.findDeviceForTelemetry({
+        deviceId: rawInsight.deviceId,
+        ip: rawInsight.deviceIp,
+        hostname: rawInsight.deviceHostname,
+      });
+
+      const insight: DnsInsight = matched
+        ? {
+            ...rawInsight,
+            deviceId: matched.id,
+            deviceHostname: matched.hostname,
+            deviceIp: matched.ip,
+          }
+        : rawInsight;
+
+      if (matched) {
+        matchedDeviceIds.add(matched.id);
+      }
+
+      const deviceKey =
+        insight.deviceId && insight.deviceId !== 'lan-client'
+          ? insight.deviceId
+          : insight.deviceIp || insight.deviceHostname.toLowerCase();
+
+      const existingIdx = this.state.dnsInsights.findIndex((d) => {
+        if (d.domain !== insight.domain) return false;
+        const existingKey =
+          d.deviceId && d.deviceId !== 'lan-client'
+            ? d.deviceId
+            : d.deviceIp || d.deviceHostname.toLowerCase();
+        return existingKey === deviceKey;
+      });
+
       if (existingIdx >= 0) {
-        this.state.dnsInsights[existingIdx].queriesCount += insight.queriesCount || 1;
-        this.state.dnsInsights[existingIdx].blockedCount += insight.blockedCount || 0;
-        this.state.dnsInsights[existingIdx].lastQueriedAt = insight.lastQueriedAt;
+        const cur = this.state.dnsInsights[existingIdx];
+        cur.queriesCount = Math.max(cur.queriesCount, insight.queriesCount || 1);
+        cur.blockedCount = Math.max(cur.blockedCount, insight.blockedCount || 0);
+        cur.lastQueriedAt = insight.lastQueriedAt;
+        if (matched) {
+          cur.deviceId = matched.id;
+          cur.deviceHostname = matched.hostname;
+          cur.deviceIp = matched.ip;
+        }
       } else {
         this.state.dnsInsights.unshift(insight);
       }
     }
-    if (this.state.dnsInsights.length > 200) {
-      this.state.dnsInsights.length = 200;
+
+    if (this.state.dnsInsights.length > 250) {
+      this.state.dnsInsights.length = 250;
     }
+
+    this.refreshDeviceFlowCounters(matchedDeviceIds, clientStats);
   }
 
   async syncIntegration(
@@ -913,6 +1063,73 @@ export class OpenShieldStore {
         summary: `Ciclo de sincronização simulado para ${adapter.name} concluído.`,
         payload: { syncKind: 'mock', capabilities: adapter.capabilities },
       };
+
+      if (adapter.domain === 'dns' && this.state.devices.length > 0) {
+        const mockCatalog: Array<{
+          domain: string;
+          category: DnsInsight['category'];
+          classification: DnsInsight['classification'];
+          listStatus: DnsInsight['listStatus'];
+          queries: number;
+          blocked: number;
+        }> = [
+          {
+            domain: 'api.github.com',
+            category: 'Nuvem Corporativa',
+            classification: 'benign',
+            listStatus: 'monitored',
+            queries: 42,
+            blocked: 0,
+          },
+          {
+            domain: 'telemetry.sdk.in',
+            category: 'Telemetria & Rastreador',
+            classification: 'tracker',
+            listStatus: 'blocked',
+            queries: 28,
+            blocked: 28,
+          },
+          {
+            domain: 'metrics.icloud.com',
+            category: 'Telemetria & Rastreador',
+            classification: 'tracker',
+            listStatus: 'blocked',
+            queries: 19,
+            blocked: 19,
+          },
+          {
+            domain: 'cdn.cloudflare.net',
+            category: 'Nuvem Corporativa',
+            classification: 'benign',
+            listStatus: 'monitored',
+            queries: 64,
+            blocked: 0,
+          },
+        ];
+
+        const targets = this.state.devices.slice(0, 6);
+        const simInsights: DnsInsight[] = [];
+        targets.forEach((dev, idx) => {
+          const itemA = mockCatalog[idx % mockCatalog.length];
+          const itemB = mockCatalog[(idx + 1) % mockCatalog.length];
+          for (const item of [itemA, itemB]) {
+            simInsights.push({
+              id: `dns-mock-${dev.id}-${item.domain.replace(/[^a-z0-9]/g, '').slice(0, 12)}`,
+              domain: item.domain,
+              category: item.category,
+              classification: item.classification,
+              deviceId: dev.id,
+              deviceHostname: dev.hostname,
+              deviceIp: dev.ip,
+              queriesCount: item.queries,
+              blockedCount: item.blocked,
+              listStatus: item.listStatus,
+              lastQueriedAt: nowIso,
+            });
+          }
+        });
+        this.upsertDnsInsights(simInsights);
+      }
 
       this.ingestEvent(simEvent);
       adapter.lastSyncedAt = nowIso;
@@ -961,7 +1178,7 @@ export class OpenShieldStore {
         const res = this.ingestEvent(ev);
         if (res.status === 'accepted') ingested += 1;
       }
-      this.upsertDnsInsights(pihole.insights);
+      this.upsertDnsInsights(pihole.insights, pihole.clientStats);
       message = pihole.summaryNote;
     } else if (adapter.kind === 'adguard-home') {
       const adguard = await syncAdguardLive(adapter.liveEndpointUrl, adapter.id, {
@@ -972,7 +1189,7 @@ export class OpenShieldStore {
         const res = this.ingestEvent(ev);
         if (res.status === 'accepted') ingested += 1;
       }
-      this.upsertDnsInsights(adguard.insights);
+      this.upsertDnsInsights(adguard.insights, adguard.clientStats);
       message = adguard.summaryNote;
     } else if (adapter.kind === 'technitium-dns') {
       const tech = await syncTechnitiumLive(adapter.liveEndpointUrl, adapter.id, adapter.name, {
@@ -982,7 +1199,7 @@ export class OpenShieldStore {
         const res = this.ingestEvent(ev);
         if (res.status === 'accepted') ingested += 1;
       }
-      this.upsertDnsInsights(tech.insights);
+      this.upsertDnsInsights(tech.insights, tech.clientStats);
       message = tech.summaryNote;
     } else {
       const headers: Record<string, string> = {};
@@ -1557,6 +1774,77 @@ export class OpenShieldStore {
       this.state.context.activeSiteId,
       this.state.context.aiSensitivity,
     );
+
+    // Update per-device Flow telemetry & risk score from ingested events
+    const matchedDevice = this.findDeviceForTelemetry({
+      deviceId: event.deviceId,
+      ip:
+        typeof event.payload?.srcIp === 'string'
+          ? event.payload.srcIp
+          : typeof event.payload?.clientIp === 'string'
+            ? event.payload.clientIp
+            : undefined,
+      hostname:
+        typeof event.payload?.deviceHostname === 'string'
+          ? event.payload.deviceHostname
+          : undefined,
+    });
+
+    if (matchedDevice) {
+      matchedDevice.lastSeenAt = event.occurredAt;
+      const rawDom =
+        event.payload?.domain ??
+        event.payload?.qname ??
+        event.payload?.targetDomain ??
+        event.payload?.hostname;
+      const domainStr = typeof rawDom === 'string' ? rawDom.trim().toLowerCase() : '';
+      const countRaw = Number(event.payload?.queriesInWindow ?? event.payload?.count ?? 1);
+      const count = Number.isFinite(countRaw) && countRaw > 0 ? Math.round(countRaw) : 1;
+      const isBlocked = String(event.payload?.action ?? '').toLowerCase() === 'blocked';
+
+      if (event.eventType === 'dns.query' || (domainStr && domainStr.includes('.'))) {
+        matchedDevice.dnsQueries24h += count;
+        if (isBlocked) {
+          matchedDevice.blockedQueries24h += count;
+        }
+        if (domainStr && domainStr.includes('.')) {
+          this.upsertDnsInsights([
+            {
+              id: `dns-ev-${matchedDevice.id}-${crypto.createHash('sha1').update(domainStr).digest('hex').slice(0, 6)}`,
+              domain: domainStr,
+              category: isBlocked
+                ? 'Telemetria & Rastreador'
+                : event.severity === 'high' || event.severity === 'critical'
+                  ? 'Suspeito / DGA'
+                  : 'Nuvem Corporativa',
+              classification:
+                event.severity === 'high' || event.severity === 'critical'
+                  ? 'suspicious'
+                  : isBlocked
+                    ? 'tracker'
+                    : 'benign',
+              deviceId: matchedDevice.id,
+              deviceHostname: matchedDevice.hostname,
+              deviceIp: matchedDevice.ip,
+              queriesCount: count,
+              blockedCount: isBlocked ? count : 0,
+              listStatus: isBlocked ? 'blocked' : 'monitored',
+              lastQueriedAt: event.occurredAt,
+            },
+          ]);
+        }
+      }
+
+      if (correlation.updatedIncident) {
+        matchedDevice.riskScore = Math.max(
+          matchedDevice.riskScore,
+          correlation.updatedIncident.riskScore,
+        );
+        if (matchedDevice.status === 'nominal' && matchedDevice.riskScore >= 50) {
+          matchedDevice.status = 'attention';
+        }
+      }
+    }
 
     this.addAudit({
       eventType: 'event.ingested',

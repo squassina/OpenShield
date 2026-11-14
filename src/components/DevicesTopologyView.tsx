@@ -97,12 +97,23 @@ function getTopDomainsForDevice(
 ): AggregatedDomainFlow[] {
   const byDomain = new Map<string, AggregatedDomainFlow>();
   const hostLower = device.hostname.toLowerCase();
+  const hostBase =
+    hostLower !== '(sem-nome)' && hostLower !== '(unnamed)' ? hostLower.split('.')[0] : '';
 
   for (const insight of state.dnsInsights) {
-    if (
+    const insHostLower = insight.deviceHostname.toLowerCase();
+    const insHostBase =
+      insHostLower !== '(sem-nome)' && insHostLower !== '(unnamed)'
+        ? insHostLower.split('.')[0]
+        : '';
+    const matchesInsight =
       insight.deviceId === device.id ||
-      insight.deviceHostname.toLowerCase() === hostLower
-    ) {
+      (Boolean(device.ip) && insight.deviceIp === device.ip) ||
+      (Boolean(device.ip) && insHostLower === device.ip.toLowerCase()) ||
+      (hostLower !== '(sem-nome)' && hostLower !== '(unnamed)' && insHostLower === hostLower) ||
+      (Boolean(hostBase) && hostBase.length >= 2 && insHostBase === hostBase);
+
+    if (matchesInsight) {
       const key = insight.domain.trim().toLowerCase();
       if (!key) continue;
       const existing = byDomain.get(key);
@@ -807,6 +818,17 @@ export function DevicesTopologyView({
               {t('devices.aggregatedDomainsCount', { count: state.dnsInsights.length })}
             </span>
           </div>
+
+          {scopedDevices.length > 0 &&
+            scopedDevices.every((d) => d.dnsQueries24h === 0) &&
+            state.dnsInsights.length === 0 && (
+              <div className="rounded-lg border border-blue-900/60 bg-blue-950/25 px-4 py-3 text-xs text-slate-300 leading-relaxed">
+                <strong className="text-blue-300 font-semibold">
+                  {t('devices.flowZeroHintTitle')}
+                </strong>{' '}
+                {t('devices.flowZeroHintBody')}
+              </div>
+            )}
 
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
             {/* Left: Interactive Gateway -> Segment -> Device Flow Map */}

@@ -2,11 +2,21 @@ import crypto from 'node:crypto';
 import type { DnsInsight, OpenShieldEventV1 } from '../../src/types/openshield.ts';
 import { boundedFetchJson } from './httpClient.ts';
 
+export interface ClientQueryStats {
+  ip?: string;
+  hostname?: string;
+  queries: number;
+  blocked: number;
+}
+
 export interface DnsSyncResult {
   events: OpenShieldEventV1[];
   insights: DnsInsight[];
+  clientStats?: ClientQueryStats[];
   summaryNote: string;
 }
+
+const IPV4_SIMPLE_REGEX = /^(?:\d{1,3}\.){3}\d{1,3}$/;
 
 async function resolvePiholeHeaders(baseUrl: string, secret?: string): Promise<Record<string, string>> {
   const password = secret || process.env.OPENSHIELD_PIHOLE_PASSWORD;
@@ -61,6 +71,7 @@ export async function syncPiholeLive(
   const blocked = Number(queriesObj.blocked ?? queriesObj.ads_blocked_today ?? 0);
 
   const insights: DnsInsight[] = [];
+  const clientStatsMap = new Map<string, ClientQueryStats>();
   try {
     const qRes = await boundedFetchJson<{
       queries?: Array<{
@@ -69,37 +80,76 @@ export async function syncPiholeLive(
         status?: string;
         time?: number;
       }>;
-    }>(`${baseUrl}/api/queries?length=15`, { headers, timeoutMs: 4000 });
+    }>(`${baseUrl}/api/queries?length=100`, { headers, timeoutMs: 4500 });
 
     if (qRes.ok && Array.isArray(qRes.data.queries)) {
-      const seen = new Set<string>();
+      const grouped = new Map<string, DnsInsight>();
       for (const entry of qRes.data.queries) {
         const domain = String(entry.domain ?? '').trim().toLowerCase();
-        if (!domain || seen.has(domain)) continue;
-        seen.add(domain);
+        if (!domain) continue;
         const rawStatus = String(entry.status ?? '').toUpperCase();
         const isBlocked =
           rawStatus.includes('GRAVITY') ||
           rawStatus.includes('DENY') ||
           rawStatus.includes('BLOCKED') ||
           rawStatus.includes('REGEX');
-        const clientLabel = String(entry.client?.name || entry.client?.ip || 'cliente-lan');
-        insights.push({
-          id: `dns-live-${crypto.createHash('sha1').update(domain).digest('hex').slice(0, 8)}`,
-          domain,
-          category: isBlocked ? 'Telemetria & Rastreador' : 'Serviço Local',
-          classification: isBlocked ? 'tracker' : 'benign',
-          deviceId: 'lan-client',
-          deviceHostname: clientLabel,
-          queriesCount: 1,
-          blockedCount: isBlocked ? 1 : 0,
-          listStatus: isBlocked ? 'blocked' : 'monitored',
-          lastQueriedAt:
-            typeof entry.time === 'number'
-              ? new Date(entry.time * 1000).toISOString()
-              : new Date().toISOString(),
-        });
+
+        const clientIp =
+          typeof entry.client?.ip === 'string' && entry.client.ip.trim()
+            ? entry.client.ip.trim()
+            : undefined;
+        const clientName =
+          typeof entry.client?.name === 'string' && entry.client.name.trim()
+            ? entry.client.name.trim()
+            : undefined;
+        const clientLabel = clientName || clientIp || 'cliente-lan';
+        const clientKey = clientIp || clientLabel.toLowerCase();
+
+        const cStat = clientStatsMap.get(clientKey) ?? {
+          ip: clientIp,
+          hostname: clientName,
+          queries: 0,
+          blocked: 0,
+        };
+        cStat.queries += 1;
+        if (isBlocked) cStat.blocked += 1;
+        clientStatsMap.set(clientKey, cStat);
+
+        const groupKey = `${clientKey}|${domain}`;
+        const queriedIso =
+          typeof entry.time === 'number'
+            ? new Date(entry.time * 1000).toISOString()
+            : new Date().toISOString();
+
+        const existing = grouped.get(groupKey);
+        if (existing) {
+          existing.queriesCount += 1;
+          if (isBlocked) {
+            existing.blockedCount += 1;
+            existing.listStatus = 'blocked';
+            existing.classification = 'tracker';
+            existing.category = 'Telemetria & Rastreador';
+          }
+          if (Date.parse(queriedIso) > Date.parse(existing.lastQueriedAt)) {
+            existing.lastQueriedAt = queriedIso;
+          }
+        } else if (grouped.size < 80) {
+          grouped.set(groupKey, {
+            id: `dns-live-${crypto.createHash('sha1').update(groupKey).digest('hex').slice(0, 8)}`,
+            domain,
+            category: isBlocked ? 'Telemetria & Rastreador' : 'Serviço Local',
+            classification: isBlocked ? 'tracker' : 'benign',
+            deviceId: 'lan-client',
+            deviceHostname: clientLabel,
+            deviceIp: clientIp,
+            queriesCount: 1,
+            blockedCount: isBlocked ? 1 : 0,
+            listStatus: isBlocked ? 'blocked' : 'monitored',
+            lastQueriedAt: queriedIso,
+          });
+        }
       }
+      insights.push(...grouped.values());
     }
   } catch {
     // Graceful fallback if /api/queries is unavailable
@@ -126,6 +176,7 @@ export async function syncPiholeLive(
   return {
     events: [event],
     insights,
+    clientStats: [...clientStatsMap.values()],
     summaryNote: `${adapterName} sincronizado (${total} consultas / ${blocked} bloqueadas).`,
   };
 }
@@ -157,31 +208,73 @@ export async function syncAdguardLive(
     data?: Array<{
       question?: { name?: string };
       client?: string;
+      client_info?: { name?: string };
       reason?: string;
       time?: string;
     }>;
-  }>(`${baseUrl}/control/querylog?limit=15`, { headers, timeoutMs: 5000 });
+  }>(`${baseUrl}/control/querylog?limit=100`, { headers, timeoutMs: 5000 });
 
   const entries = Array.isArray(qlogRes.data.data) ? qlogRes.data.data : [];
-  const insights: DnsInsight[] = entries
-    .filter((entry) => entry.question?.name)
-    .slice(0, 8)
-    .map((entry) => {
-      const domain = String(entry.question?.name ?? '').toLowerCase();
-      const isBlocked = String(entry.reason ?? '').toLowerCase().includes('filtered');
-      return {
-        id: `dns-live-${crypto.createHash('sha1').update(domain).digest('hex').slice(0, 8)}`,
+  const grouped = new Map<string, DnsInsight>();
+  const clientStatsMap = new Map<string, ClientQueryStats>();
+
+  for (const entry of entries) {
+    const domain = String(entry.question?.name ?? '').trim().toLowerCase();
+    if (!domain) continue;
+    const isBlocked = String(entry.reason ?? '').toLowerCase().includes('filtered');
+    const rawClient = String(entry.client ?? '').trim();
+    const clientIp = IPV4_SIMPLE_REGEX.test(rawClient) ? rawClient : undefined;
+    const clientName =
+      typeof entry.client_info?.name === 'string' && entry.client_info.name.trim()
+        ? entry.client_info.name.trim()
+        : !clientIp && rawClient
+          ? rawClient
+          : undefined;
+    const clientLabel = clientName || clientIp || 'cliente-lan';
+    const clientKey = clientIp || clientLabel.toLowerCase();
+
+    const cStat = clientStatsMap.get(clientKey) ?? {
+      ip: clientIp,
+      hostname: clientName,
+      queries: 0,
+      blocked: 0,
+    };
+    cStat.queries += 1;
+    if (isBlocked) cStat.blocked += 1;
+    clientStatsMap.set(clientKey, cStat);
+
+    const groupKey = `${clientKey}|${domain}`;
+    const queriedIso = entry.time || new Date().toISOString();
+    const existing = grouped.get(groupKey);
+    if (existing) {
+      existing.queriesCount += 1;
+      if (isBlocked) {
+        existing.blockedCount += 1;
+        existing.listStatus = 'blocked';
+        existing.classification = 'tracker';
+        existing.category = 'Telemetria & Rastreador';
+      }
+      if (Date.parse(queriedIso) > Date.parse(existing.lastQueriedAt)) {
+        existing.lastQueriedAt = queriedIso;
+      }
+    } else if (grouped.size < 80) {
+      grouped.set(groupKey, {
+        id: `dns-live-${crypto.createHash('sha1').update(groupKey).digest('hex').slice(0, 8)}`,
         domain,
         category: isBlocked ? 'Telemetria & Rastreador' : 'Serviço Local',
         classification: isBlocked ? 'tracker' : 'benign',
         deviceId: 'lan-client',
-        deviceHostname: String(entry.client ?? 'cliente-lan'),
+        deviceHostname: clientLabel,
+        deviceIp: clientIp,
         queriesCount: 1,
         blockedCount: isBlocked ? 1 : 0,
         listStatus: isBlocked ? 'blocked' : 'monitored',
-        lastQueriedAt: entry.time || new Date().toISOString(),
-      };
-    });
+        lastQueriedAt: queriedIso,
+      });
+    }
+  }
+
+  const insights = [...grouped.values()];
 
   const event: OpenShieldEventV1 = {
     eventId: `ev-${crypto.randomUUID().slice(0, 8)}`,
@@ -201,6 +294,7 @@ export async function syncAdguardLive(
   return {
     events: [event],
     insights,
+    clientStats: [...clientStatsMap.values()],
     summaryNote: `AdGuard Home sincronizado (${entries.length} consultas recentes).`,
   };
 }
