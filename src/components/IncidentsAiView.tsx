@@ -83,6 +83,11 @@ export function IncidentsAiView({
   const activeIncident =
     state.incidents.find((i) => i.id === selectedIncidentId) ?? state.incidents[0] ?? null;
   const incidentsPagination = usePagination(state.incidents, 10);
+  const timelinePagination = usePagination(
+    activeIncident?.timeline ?? [],
+    10,
+    activeIncident?.id ?? '',
+  );
 
   const currentSensitivity = state.context.aiSensitivity ?? DEFAULT_SENSITIVITY;
   const [sensitivityDraft, setSensitivityDraft] =
@@ -486,32 +491,46 @@ export function IncidentsAiView({
               <h3 className="text-sm font-semibold text-slate-100">
                 {t('incidents.timelineTitle')}
               </h3>
-              <div className="divide-y divide-slate-800/80 border border-slate-800 rounded-lg bg-slate-950/50">
-                {activeIncident.timeline.map((step) => {
-                  const fullEvent = relatedEvents.find((e) => e.eventId === step.eventId);
-                  return (
-                    <div key={step.eventId} className="p-3.5 text-xs space-y-2">
-                      <div className="flex flex-wrap items-center justify-between gap-2 text-slate-400 font-mono tabular-nums">
-                        <span>
-                          {new Date(step.timestamp).toLocaleTimeString(locale)} · {t('incidents.sourcePrefix')}{' '}
-                          <strong className="text-slate-200">{step.sourceIntegrationId}</strong>
-                        </span>
-                        <span>{step.eventId}</span>
+              <div className="border border-slate-800 rounded-lg bg-slate-950/50 overflow-hidden">
+                <div className="divide-y divide-slate-800/80 max-h-[360px] overflow-y-auto">
+                  {timelinePagination.pagedItems.map((step) => {
+                    const fullEvent = relatedEvents.find((e) => e.eventId === step.eventId);
+                    return (
+                      <div key={step.eventId} className="p-3.5 text-xs space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-slate-400 font-mono tabular-nums">
+                          <span>
+                            {new Date(step.timestamp).toLocaleTimeString(locale)} ·{' '}
+                            {t('incidents.sourcePrefix')}{' '}
+                            <strong className="text-slate-200">{step.sourceIntegrationId}</strong>
+                          </span>
+                          <span>{step.eventId}</span>
+                        </div>
+                        <p className="text-slate-200">{step.description}</p>
+                        {fullEvent && (
+                          <details className="text-slate-400">
+                            <summary className="cursor-pointer text-blue-400 hover:text-blue-300 select-none">
+                              {t('incidents.inspectEnvelope')}
+                            </summary>
+                            <pre className="mt-2 p-3 rounded bg-slate-950 border border-slate-800 font-mono text-[11px] text-slate-300 overflow-x-auto">
+                              {JSON.stringify(fullEvent, null, 2)}
+                            </pre>
+                          </details>
+                        )}
                       </div>
-                      <p className="text-slate-200">{step.description}</p>
-                      {fullEvent && (
-                        <details className="text-slate-400">
-                          <summary className="cursor-pointer text-blue-400 hover:text-blue-300 select-none">
-                            {t('incidents.inspectEnvelope')}
-                          </summary>
-                          <pre className="mt-2 p-3 rounded bg-slate-950 border border-slate-800 font-mono text-[11px] text-slate-300 overflow-x-auto">
-                            {JSON.stringify(fullEvent, null, 2)}
-                          </pre>
-                        </details>
-                      )}
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+                {activeIncident.timeline.length > 0 && (
+                  <PaginationControls
+                    page={timelinePagination.page}
+                    pageSize={timelinePagination.pageSize}
+                    totalItems={timelinePagination.totalItems}
+                    totalPages={timelinePagination.totalPages}
+                    onPageChange={timelinePagination.setPage}
+                    onPageSizeChange={timelinePagination.setPageSize}
+                    compact
+                  />
+                )}
               </div>
             </div>
           </div>

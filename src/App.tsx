@@ -533,6 +533,30 @@ export default function App() {
           {activeTab === 'integrations' && (
             <IntegrationsView
               state={state}
+              searchQuery={searchQuery}
+              onBlockRouterAccessIp={(id, ttlSeconds) =>
+                runAction(`rtr-block-${id}`, async () => {
+                  const res = await api.blockRouterAccessIp(id, ttlSeconds);
+                  showToast(
+                    'info',
+                    t('toasts.routerAccessBlocked', {
+                      ip: res.execution.targetIp ?? res.execution.targetLabel,
+                      mode:
+                        res.execution.enforcementMode === 'live'
+                          ? t('common.real')
+                          : t('common.simulated'),
+                    }),
+                  );
+                  return res.state;
+                })
+              }
+              onUpdateRouterAccessStatus={(id, status) =>
+                runAction(
+                  `rtr-status-${id}`,
+                  () => api.updateRouterAccessStatus(id, status),
+                  t('toasts.routerAccessStatusUpdated'),
+                )
+              }
               onSwitchMode={(id: string, mode: ServiceProviderMode, liveUrl: string) =>
                 runAction(`mode-${id}`, async () => {
                   const res = await api.switchIntegrationMode(id, mode, liveUrl);

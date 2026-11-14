@@ -1,4 +1,5 @@
 import type {
+  ActionExecution,
   AiSensitivityConfig,
   AuditEntry,
   AutonomyLevel,
@@ -13,6 +14,7 @@ import type {
   OpenShieldEventV1,
   OperatingProfile,
   PeriodicSyncConfig,
+  RouterAccessService,
   ServiceProviderMode,
   SimulatedRole,
   SyncAdapterResult,
@@ -69,6 +71,27 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ events }),
     }),
+
+  ingestRouterLogs: (payload: {
+    sourceIntegrationId: string;
+    rawLog?: string;
+    entries?: Array<{
+      srcIp: string;
+      service: RouterAccessService;
+      targetPort?: number;
+      protocol?: string;
+      attemptsCount?: number;
+      message?: string;
+      occurredAt?: string;
+    }>;
+  }) =>
+    requestJson<{ acceptedEntries: number; eventsIngested: number; state: WorkspaceState }>(
+      '/api/v1/ingest/router-logs',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    ),
 
   ingestEvent: (payload: {
     sourceIntegrationId: string;
@@ -303,6 +326,21 @@ export const api = {
     requestJson<WorkspaceState>('/api/v1/kill-switch', {
       method: 'POST',
       body: JSON.stringify({ active }),
+    }),
+
+  blockRouterAccessIp: (attemptId: string, ttlSeconds?: number) =>
+    requestJson<{ execution: ActionExecution; state: WorkspaceState }>(
+      `/api/v1/router-access/${attemptId}/block`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ ttlSeconds }),
+      },
+    ),
+
+  updateRouterAccessStatus: (attemptId: string, status: 'observed' | 'ignored') =>
+    requestJson<WorkspaceState>(`/api/v1/router-access/${attemptId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
     }),
 
   addNotificationDestination: (payload: {

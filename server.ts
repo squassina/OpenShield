@@ -15,6 +15,7 @@ import type {
   OpenShieldEventV1,
   OperatingProfile,
   PeriodicSyncConfig,
+  RouterAccessService,
   ServiceProviderMode,
   SimulatedRole,
 } from './src/types/openshield.ts';
@@ -166,6 +167,65 @@ app.post('/api/v1/simulator/ingest-event', (req, res) => {
     res.status(httpCode).json(result);
   } catch (err) {
     res.status(403).json({ error: err instanceof Error ? err.message : 'Proveniência rejeitada.' });
+  }
+});
+
+// Router access attempts log ingestion (syslog / logread push)
+app.post('/api/v1/ingest/router-logs', express.text({ type: 'text/plain', limit: '1mb' }), (req, res) => {
+  try {
+    const querySource =
+      typeof req.query.sourceIntegrationId === 'string'
+        ? req.query.sourceIntegrationId.trim()
+        : '';
+
+    let sourceIntegrationId = querySource;
+    let rawLog: string | undefined;
+    let entries:
+      | Array<{
+          srcIp: string;
+          service: RouterAccessService;
+          targetPort?: number;
+          protocol?: string;
+          attemptsCount?: number;
+          message?: string;
+          occurredAt?: string;
+        }>
+      | undefined;
+
+    if (typeof req.body === 'string') {
+      rawLog = req.body;
+    } else if (req.body && typeof req.body === 'object') {
+      const body = req.body as {
+        sourceIntegrationId?: string;
+        rawLog?: string;
+        entries?: typeof entries;
+      };
+      if (typeof body.sourceIntegrationId === 'string' && body.sourceIntegrationId.trim()) {
+        sourceIntegrationId = body.sourceIntegrationId.trim();
+      }
+      if (typeof body.rawLog === 'string') {
+        rawLog = body.rawLog;
+      }
+      if (Array.isArray(body.entries)) {
+        entries = body.entries;
+      }
+    }
+
+    if (!sourceIntegrationId) {
+      res.status(400).json({ error: 'sourceIntegrationId é obrigatório.' });
+      return;
+    }
+
+    const result = store.ingestRouterLogs({
+      sourceIntegrationId,
+      rawLog,
+      entries,
+    });
+    res.status(202).json(result);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Falha na ingestão de logs do roteador.';
+    const status = msg.includes('Proveniência rejeitada') || msg.includes('403') ? 403 : 400;
+    res.status(status).json({ error: msg });
   }
 });
 
@@ -471,6 +531,38 @@ app.post('/api/v1/kill-switch', async (req, res) => {
     res.json(state);
   } catch (err) {
     res.status(403).json({ error: err instanceof Error ? err.message : 'Falha ao acionar Kill Switch.' });
+  }
+});
+
+// Router access attempts containment & triage
+app.post('/api/v1/router-access/:id/block', async (req, res) => {
+  try {
+    const body = (req.body ?? {}) as { ttlSeconds?: number };
+    const result = await store.blockRouterAccessAttempt(req.params.id, body.ttlSeconds);
+    res.status(201).json(result);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Falha ao bloquear IP no roteador.';
+    const status =
+      msg.includes('Kill Switch') || msg.includes('RBAC') || msg.includes('Permissão')
+        ? 403
+        : 400;
+    res.status(status).json({ error: msg });
+  }
+});
+
+app.patch('/api/v1/router-access/:id/status', (req, res) => {
+  try {
+    const { status } = (req.body ?? {}) as { status?: string };
+    if (status !== 'observed' && status !== 'ignored') {
+      res.status(400).json({ error: 'Status inválido; use "observed" ou "ignored".' });
+      return;
+    }
+    const state = store.updateRouterAccessStatus(req.params.id, status);
+    res.json(state);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Falha ao atualizar tentativa de acesso.';
+    const status = msg.includes('RBAC') || msg.includes('Permissão') ? 403 : 400;
+    res.status(status).json({ error: msg });
   }
 });
 

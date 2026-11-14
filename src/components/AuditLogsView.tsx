@@ -69,6 +69,8 @@ const KNOWN_EVENT_TYPES: string[] = [
   'dns.list_updated',
   'site.added',
   'site.removed',
+  'router_access.detected',
+  'router_access.blocked',
   'workspace.demo_loaded',
   'workspace.reset',
   'workspace.restored',
@@ -132,14 +134,18 @@ export function AuditLogsView({ state, searchQuery = '' }: AuditLogsViewProps) {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string>(new Date().toISOString());
 
-  const auditPagination = usePagination(entries, 10);
-
   const effectiveSearch = useMemo(() => {
     const local = localSearch.trim();
     const global = searchQuery.trim();
     if (local) return local;
     return global;
   }, [localSearch, searchQuery]);
+
+  const auditPagination = usePagination(
+    entries,
+    10,
+    `${category}|${eventType}|${timePreset}|${fromLocal}|${toLocal}|${outcome}|${effectiveSearch}|${limit}`,
+  );
 
   const resolvedRange = useMemo(() => {
     const now = Date.now();

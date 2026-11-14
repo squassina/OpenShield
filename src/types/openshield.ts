@@ -67,7 +67,8 @@ export interface OpenShieldEventV1 {
     | 'ids.alert'
     | 'zeek.connection'
     | 'dns.query'
-    | 'threat.ioc';
+    | 'threat.ioc'
+    | 'router.access_attempt';
   severity: EventSeverity;
   deviceId?: string;
   dataSource?: 'mock' | 'live';
@@ -164,6 +165,10 @@ export interface ActionExecution {
   policyId: string;
   targetLabel: string;
   targetDomain?: string;
+  targetIp?: string;
+  targetSegment?: string;
+  enforcementMode?: 'live' | 'simulated';
+  ruleRef?: string;
   actionType: 'dns_block_domain' | 'nftables_temp_drop' | 'isolate_iot_segment' | 'dry_run_only';
   autonomyLevel: AutonomyLevel;
   status:
@@ -217,6 +222,8 @@ export interface AuditEntry {
     | 'notification.removed'
     | 'notification.dispatched'
     | 'notification.tested'
+    | 'router_access.detected'
+    | 'router_access.blocked'
     | 'context.updated';
   actor: string;
   role: string;
@@ -354,6 +361,28 @@ export interface AiUsageRecord {
   detail?: string;
 }
 
+export type RouterAccessService = 'ssh' | 'luci' | 'ubus' | 'wan_drop';
+
+export interface RouterAccessAttempt {
+  id: string;
+  sourceIntegrationId: string;
+  siteId: string;
+  srcIp: string;
+  service: RouterAccessService;
+  targetPort?: number;
+  protocol?: string;
+  attemptsCount: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  severity: EventSeverity;
+  status: 'observed' | 'blocked' | 'ignored';
+  lastMessage: string;
+  sampleLines: string[];
+  linkedIncidentId?: string;
+  linkedExecutionId?: string;
+  blockedUntil?: string;
+}
+
 export interface WorkspaceState {
   context: OperatingContext;
   integrations: IntegrationAdapter[];
@@ -369,4 +398,5 @@ export interface WorkspaceState {
   notifications?: NotificationDestination[];
   notificationHistory?: NotificationDispatchRecord[];
   aiUsageHistory?: AiUsageRecord[];
+  routerAccessAttempts?: RouterAccessAttempt[];
 }

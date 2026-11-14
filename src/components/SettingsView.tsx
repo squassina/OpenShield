@@ -24,6 +24,7 @@ import {
   X,
 } from 'lucide-react';
 import { api } from '../lib/api';
+import { PaginationControls, usePagination } from './PaginationControls';
 import {
   NotificationsCard,
   type NotificationCreatePayload,
@@ -510,6 +511,8 @@ export function SettingsView({
   const [newSiteName, setNewSiteName] = useState('');
   const [newSiteProfile, setNewSiteProfile] = useState<OperatingProfile>(state.context.profile);
   const backupFileInputRef = useRef<HTMLInputElement | null>(null);
+  const servicesPagination = usePagination(state.integrations, 10);
+  const sitesPagination = usePagination(state.context.sites, 10);
 
   // Step-based Add Service builder state
   const [selectedServiceKey, setSelectedServiceKey] = useState<ServiceCatalogKey>('pihole-v6');
@@ -1053,8 +1056,9 @@ export function SettingsView({
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-800">
-            {state.integrations.map((adapter) => {
+          <>
+            <div className="divide-y divide-slate-800 max-h-[560px] overflow-y-auto">
+              {servicesPagination.pagedItems.map((adapter) => {
               const tpl = getTemplateForAdapter(adapter);
               const isEditing = editingId === adapter.id && editDraft !== null;
               const isBusy =
@@ -1345,7 +1349,17 @@ export function SettingsView({
                 </div>
               );
             })}
-          </div>
+            </div>
+            <PaginationControls
+              page={servicesPagination.page}
+              pageSize={servicesPagination.pageSize}
+              totalItems={servicesPagination.totalItems}
+              totalPages={servicesPagination.totalPages}
+              onPageChange={servicesPagination.setPage}
+              onPageSizeChange={servicesPagination.setPageSize}
+              compact
+            />
+          </>
         )}
       </section>
 
@@ -1409,8 +1423,8 @@ export function SettingsView({
             </button>
           </form>
 
-          <div className="divide-y divide-slate-800/80 border-t border-slate-800 pt-2">
-            {state.context.sites.map((site) => {
+          <div className="divide-y divide-slate-800/80 border-t border-slate-800 pt-2 max-h-[300px] overflow-y-auto">
+            {sitesPagination.pagedItems.map((site) => {
               const isActive = state.context.activeSiteId === site.id;
               const sameProfileCount = state.context.sites.filter(
                 (s) => s.profile === site.profile,
@@ -1439,6 +1453,19 @@ export function SettingsView({
               );
             })}
           </div>
+          {state.context.sites.length > 0 && (
+            <div className="-mx-5 -mb-5 mt-2 overflow-hidden rounded-b-xl">
+              <PaginationControls
+                page={sitesPagination.page}
+                pageSize={sitesPagination.pageSize}
+                totalItems={sitesPagination.totalItems}
+                totalPages={sitesPagination.totalPages}
+                onPageChange={sitesPagination.setPage}
+                onPageSizeChange={sitesPagination.setPageSize}
+                compact
+              />
+            </div>
+          )}
         </section>
 
         <section className="rounded-xl border border-slate-800 bg-[#131C31] p-5 space-y-4">

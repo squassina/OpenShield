@@ -150,6 +150,8 @@ export const ptBR = {
     notifRemoved: 'Destino de alerta "{{name}}" removido.',
     periodicSyncOn: 'Sincronização periódica ativada (a cada {{interval}}).',
     periodicSyncOff: 'Sincronização periódica pausada.',
+    routerAccessBlocked: 'IP {{ip}} bloqueado no roteador (modo {{mode}} · TTL 15m).',
+    routerAccessStatusUpdated: 'Status da tentativa de acesso atualizado.',
   },
   overview: {
     titleBusiness: 'Postura de Segurança do Escritório',
@@ -212,6 +214,9 @@ export const ptBR = {
     relSec: 'há {{n}}s',
     relMin: 'há {{n}}m',
     relHour: 'há {{n}}h',
+    routerAccessTitle: '{{count}} tentativa(s) de acesso não autorizado ao roteador detectada(s)',
+    routerAccessSubtitle: 'Origens recentes em observação: {{ips}}',
+    routerAccessCta: 'Revisar / Bloquear IP',
   },
   networkHealth: {
     ariaLabel: 'Saúde da Rede',
@@ -396,6 +401,40 @@ export const ptBR = {
     autoSyncStatusSuccess: 'OK',
     autoSyncStatusPartial: 'Parcial',
     autoSyncStatusFailed: 'Falha',
+    routerAccess: {
+      title: 'Tentativas de Acesso ao Roteador ({{count}})',
+      subtitle:
+        'Detecção via OpenWrt ubus logread ou push syslog/SSH (SSH, LuCI HTTP/HTTPS, ubus RPC e WAN drops).',
+      filterAll: 'Todos',
+      filterWanDrop: 'WAN Drop',
+      searchPlaceholder: 'Filtrar IP, serviço ou log...',
+      aclHintTitle: 'Permissão OpenWrt necessária para leitura de logs:',
+      emptyTitle: 'Nenhuma tentativa de acesso ao roteador registrada ainda.',
+      emptySubtitle:
+        'Sincronize o adaptador OpenWrt (ubus) ou envie logs via POST /api/v1/ingest/router-logs para monitorar tentativas em SSH, LuCI e WAN.',
+      sev: {
+        critical: 'Crítica',
+        high: 'Alta',
+        medium: 'Média',
+        low: 'Baixa',
+        info: 'Info',
+      },
+      attemptsCount: '{{count}} tentativa(s)',
+      statusBlocked: 'Bloqueado até {{until}}',
+      statusIgnored: 'Ignorado',
+      statusObserved: 'Em observação',
+      sourceAdapter: 'origem: {{id}}',
+      linkedExec: 'exec: {{id}}',
+      viewRawLines: 'Ver linhas brutas ({{count}})',
+      blockIpBtn: 'Bloquear IP (15m)',
+      reopenBtn: 'Reobservar',
+      ignoreBtn: 'Ignorar',
+      setupGuideSummary:
+        'Guia de configuração no roteador (push syslog/logread & ACL rpcd no OpenWrt)',
+      pushCmdTitle: 'Exemplo de envio push (cron / syslog-ng / logread no roteador):',
+      aclJsonTitle:
+        'Permissões rpcd no OpenWrt (/usr/share/rpcd/acl.d/openshield.json):',
+    },
   },
   devices: {
     title: 'Dispositivos e Topologia de Rede',
@@ -745,6 +784,9 @@ export const ptBR = {
     loadingMetrics: 'Carregando métricas operacionais...',
     killSwitchBanner:
       'Kill Switch ativo: todas as execuções automatizadas permanecem suspensas em L0. Use o botão no topo para liberar após revisão.',
+    enforcementLive: 'Execução Real no Roteador',
+    enforcementSim: 'Simulado (Sem Gateway Live)',
+    ruleRefLabel: 'Regra:',
   },
   audit: {
     title: 'Logs de Auditoria',
@@ -836,6 +878,8 @@ export const ptBR = {
       'workspace.demo_loaded': 'Cenário Demo Carregado',
       'workspace.reset': 'Workspace Zerado',
       'workspace.restored': 'Backup Restaurado',
+      'router_access.detected': 'Acesso ao Roteador Detectado',
+      'router_access.blocked': 'IP Bloqueado no Roteador',
     },
   },
   notifications: {

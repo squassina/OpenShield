@@ -49,7 +49,7 @@ export function DnsPrivacyView({
     });
   }, [state.dnsInsights, filter, searchQuery]);
 
-  const dnsPagination = usePagination(filteredInsights, 10);
+  const dnsPagination = usePagination(filteredInsights, 10, `${filter}|${searchQuery}`);
 
   const dnsAdapters = state.integrations.filter((i) => i.domain === 'dns');
   const liveDnsCount = dnsAdapters.filter((i) => i.mode === 'live').length;

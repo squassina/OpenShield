@@ -7,6 +7,10 @@ import type {
 } from '../src/types/openshield.ts';
 import { buildSanitizedContext } from './geminiSanitizer.ts';
 
+function normalizeIp(ip: string): string {
+  return ip.trim().replace(/^::ffff:/i, '');
+}
+
 export function correlateEventIntoIncidents(
   event: OpenShieldEventV1,
   incidents: Incident[],
@@ -15,7 +19,9 @@ export function correlateEventIntoIncidents(
   aiSensitivity?: AiSensitivityConfig,
 ): { updatedIncident: Incident | null; created: boolean } {
   const allowLowSeverity =
-    event.eventType === 'threat.ioc' || Boolean(aiSensitivity?.flagLowSeverityEvents);
+    event.eventType === 'threat.ioc' ||
+    event.eventType === 'router.access_attempt' ||
+    Boolean(aiSensitivity?.flagLowSeverityEvents);
 
   if (event.severity === 'info' || (event.severity === 'low' && !allowLowSeverity)) {
     return { updatedIncident: null, created: false };
@@ -35,21 +41,34 @@ export function correlateEventIntoIncidents(
     return { updatedIncident: null, created: false };
   }
 
+  const rawSrcIp =
+    typeof event.payload.srcIp === 'string'
+      ? normalizeIp(event.payload.srcIp)
+      : typeof event.payload.clientIp === 'string'
+        ? normalizeIp(event.payload.clientIp)
+        : '';
+
   const matchedDevice =
     devices.find((d) => d.id === event.deviceId) ??
-    devices.find(
-      (d) =>
-        typeof event.payload.srcIp === 'string' && d.ip === event.payload.srcIp,
-    );
+    (rawSrcIp
+      ? devices.find((d) => normalizeIp(d.ip) === rawSrcIp)
+      : undefined);
 
-  const deviceId = matchedDevice?.id ?? event.deviceId ?? 'dev-lan-unknown';
-  const deviceHostname = matchedDevice?.hostname ?? 'dispositivo-lan';
+  const isRouterAccess = event.eventType === 'router.access_attempt';
+  const deviceId =
+    matchedDevice?.id ??
+    event.deviceId ??
+    (isRouterAccess && rawSrcIp ? `src-${rawSrcIp}` : 'dev-lan-unknown');
+  const deviceHostname =
+    matchedDevice?.hostname ??
+    (isRouterAccess && rawSrcIp ? rawSrcIp : 'dispositivo-lan');
 
-  // Look for an existing open/investigating incident on the same device
+  // Look for an existing open/investigating incident on the same device or attacker IP
   const existing = incidents.find(
     (inc) =>
-      inc.deviceId === deviceId &&
-      (inc.status === 'open' || inc.status === 'investigating'),
+      (inc.status === 'open' || inc.status === 'investigating') &&
+      (inc.deviceId === deviceId ||
+        (rawSrcIp && (inc.title.includes(rawSrcIp) || inc.riskFactors.some((r) => r.includes(rawSrcIp))))),
   );
 
   if (existing) {
@@ -78,9 +97,11 @@ export function correlateEventIntoIncidents(
   const isDns = event.eventType === 'dns.query';
   const newIncident: Incident = {
     id: `inc-${crypto.randomUUID().slice(0, 8)}`,
-    title: isDns
-      ? `Anomalia DNS detectada em ${deviceHostname}`
-      : `Alerta de segurança correlacionado em ${deviceHostname}`,
+    title: isRouterAccess
+      ? `Tentativas de acesso não autorizado ao roteador (${rawSrcIp || deviceHostname})`
+      : isDns
+        ? `Anomalia DNS detectada em ${deviceHostname}`
+        : `Alerta de segurança correlacionado em ${deviceHostname}`,
     summary: event.summary,
     severity: event.severity,
     status: 'open',
@@ -89,6 +110,7 @@ export function correlateEventIntoIncidents(
       `Origem: ${event.sourceIntegrationId} (${event.eventType})`,
       `Severidade normalizada: ${event.severity}`,
       `Sensibilidade IA: ${aiSensitivity?.preset ?? 'balanceado'} (limiar >= ${minRiskThreshold})`,
+      ...(rawSrcIp ? [`IP origem: ${rawSrcIp}`] : []),
     ],
     deviceId,
     deviceHostname,
@@ -105,9 +127,11 @@ export function correlateEventIntoIncidents(
       },
     ],
     recommendedPolicyId: isDns ? 'pol-dns-tracker' : 'pol-iot-quarantine',
-    recommendedAction: isDns
-      ? 'Avaliar bloqueio do domínio suspeito via adaptador DNS (TTL 30 min)'
-      : 'Avaliar contenção temporária do destino externo no gateway (TTL 15 min)',
+    recommendedAction: isRouterAccess
+      ? `Bloquear IP ${rawSrcIp || deviceHostname} temporariamente no firewall do gateway (TTL 15 min)`
+      : isDns
+        ? 'Avaliar bloqueio do domínio suspeito via adaptador DNS (TTL 30 min)'
+        : 'Avaliar contenção temporária do destino externo no gateway (TTL 15 min)',
     investigation: {
       provider: 'local-ollama-mock',
       modelVersion: 'correlator-deterministico-v1',

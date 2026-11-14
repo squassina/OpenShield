@@ -268,14 +268,14 @@ export class SqlitePersistence {
       if (filters.category === 'kill_switch') {
         clauses.push("event_type LIKE 'kill_switch.%'");
       } else if (filters.category === 'propose_action') {
-        clauses.push("event_type LIKE 'action.%'");
+        clauses.push("(event_type LIKE 'action.%' OR event_type = 'router_access.blocked')");
       } else if (filters.category === 'config') {
         clauses.push(
           "event_type IN ('integration.registered','integration.removed','integration.synced','credentials.updated','device.added','device.updated','device.removed','dns.added','dns.list_updated','site.added','site.removed','notification.added','notification.updated','notification.removed','workspace.demo_loaded','workspace.reset','workspace.restored')",
         );
       } else if (filters.category === 'state_change') {
         clauses.push(
-          "event_type IN ('context.updated','gateway.connected','event.ingested','ai.investigated','authorization.denied','notification.dispatched','notification.tested')",
+          "event_type IN ('context.updated','gateway.connected','event.ingested','ai.investigated','authorization.denied','notification.dispatched','notification.tested','router_access.detected')",
         );
       }
     }

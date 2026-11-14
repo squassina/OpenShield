@@ -22,6 +22,8 @@ import type {
   OperatingProfile,
   PeriodicSyncConfig,
   PolicyRule,
+  RouterAccessAttempt,
+  RouterAccessService,
   ServiceProviderMode,
   SyncAdapterResult,
   WorkspaceState,
@@ -33,14 +35,21 @@ import {
   syncTechnitiumLive,
   type ClientQueryStats,
 } from './adapters/dnsAdapters.ts';
+import {
+  applyFirewallRuleLive,
+  rollbackFirewallRuleLive,
+} from './adapters/firewallAdapter.ts';
 import { boundedFetchJson } from './adapters/httpClient.ts';
 import { runLocalOllamaInvestigation } from './adapters/ollamaAdapter.ts';
 import {
   mapOpenWrtNeighbors,
+  normalizeIpAddress,
   parseIp4NeighText,
   parseOpenWrtCommandOutput,
+  parseRouterAccessLogs,
   syncOpenWrtReadOnly,
   type DiscoveredDeviceHint,
+  type ParsedRouterAccessLogEntry,
 } from './adapters/openwrtAdapter.ts';
 import { correlateEventIntoIncidents } from './correlator.ts';
 import { buildSanitizedContext, runSanitizedCloudInvestigation } from './geminiSanitizer.ts';
@@ -81,6 +90,7 @@ export class OpenShieldStore {
       this.state.notifications ??= [];
       this.state.notificationHistory ??= [];
       this.state.aiUsageHistory ??= [];
+      this.state.routerAccessAttempts ??= [];
       this.state.context.aiSensitivity ??= { ...DEFAULT_AI_SENSITIVITY };
       this.state.context.periodicSync ??= { ...DEFAULT_PERIODIC_SYNC };
       if (this.state.context.periodicSync.enabled) {
@@ -297,6 +307,13 @@ export class OpenShieldStore {
     const now = Date.now();
     let changed = false;
     const expiredDnsToRevert: { execId: string; domain: string }[] = [];
+    const expiredFwToRevert: {
+      execId: string;
+      targetIp?: string;
+      ruleRef?: string;
+      enforcementMode?: 'live' | 'simulated';
+      siteId?: string;
+    }[] = [];
 
     for (const exec of this.state.executions) {
       if ((exec.status === 'active' || exec.status === 'verified') && exec.expiresAt) {
@@ -304,8 +321,34 @@ export class OpenShieldStore {
           exec.status = 'expired';
           exec.verificationDetail = `TTL de ${exec.ttlSeconds}s expirado automaticamente; regra temporária removida do adaptador.`;
           exec.rollbackAvailable = false;
+          const inc = this.state.incidents.find((i) => i.id === exec.incidentId);
           if (exec.actionType === 'dns_block_domain' && exec.targetDomain) {
             expiredDnsToRevert.push({ execId: exec.id, domain: exec.targetDomain });
+          } else if (
+            exec.actionType === 'nftables_temp_drop' ||
+            exec.actionType === 'isolate_iot_segment'
+          ) {
+            expiredFwToRevert.push({
+              execId: exec.id,
+              targetIp: exec.targetIp,
+              ruleRef: exec.ruleRef,
+              enforcementMode: exec.enforcementMode,
+              siteId: inc?.siteId,
+            });
+            if (exec.targetIp) {
+              const dev = this.state.devices.find(
+                (d) => normalizeIpAddress(d.ip) === normalizeIpAddress(exec.targetIp ?? ''),
+              );
+              if (dev && dev.status === 'isolated') {
+                dev.status = 'attention';
+              }
+            }
+          }
+          for (const attempt of this.state.routerAccessAttempts ?? []) {
+            if (attempt.linkedExecutionId === exec.id && attempt.status === 'blocked') {
+              attempt.status = 'observed';
+              attempt.blockedUntil = undefined;
+            }
           }
           this.addAudit({
             eventType: 'action.expired',
@@ -315,12 +358,19 @@ export class OpenShieldStore {
             outcome: 'success',
             detail: `Contenção "${exec.targetLabel}" expirada por TTL (${exec.ttlSeconds}s) e revertida com segurança.`,
           });
-          const inc = this.state.incidents.find((i) => i.id === exec.incidentId);
           if (inc && inc.status === 'contained') {
             inc.status = 'resolved';
           }
           changed = true;
         }
+      }
+    }
+
+    for (const attempt of this.state.routerAccessAttempts ?? []) {
+      if (attempt.status === 'blocked' && attempt.blockedUntil && now >= Date.parse(attempt.blockedUntil)) {
+        attempt.status = 'observed';
+        attempt.blockedUntil = undefined;
+        changed = true;
       }
     }
 
@@ -330,6 +380,9 @@ export class OpenShieldStore {
 
     for (const item of expiredDnsToRevert) {
       void this.revertLiveDnsOnExpiry(item.execId, item.domain);
+    }
+    for (const fwItem of expiredFwToRevert) {
+      void this.revertLiveFirewallOnExpiry(fwItem);
     }
 
     const periodic = this.state.context.periodicSync;
@@ -396,6 +449,41 @@ export class OpenShieldStore {
       const exec = this.state.executions.find((e) => e.id === execId);
       if (exec) {
         exec.verificationDetail = `${exec.verificationDetail} (${notes.join(' · ')})`;
+        this.notify();
+      }
+    }
+  }
+
+  private async revertLiveFirewallOnExpiry(item: {
+    execId: string;
+    targetIp?: string;
+    ruleRef?: string;
+    enforcementMode?: 'live' | 'simulated';
+    siteId?: string;
+  }): Promise<void> {
+    if (item.enforcementMode !== 'live') return;
+    try {
+      const res = await rollbackFirewallRuleLive(
+        this.state.integrations,
+        {
+          executionId: item.execId,
+          targetIp: item.targetIp,
+          ruleRef: item.ruleRef,
+          enforcementMode: item.enforcementMode,
+        },
+        (id) => this.persistence.getServiceCredential(id),
+        item.siteId,
+      );
+      const exec = this.state.executions.find((e) => e.id === item.execId);
+      if (exec) {
+        exec.verificationDetail = `${exec.verificationDetail} (${res.detail})`;
+        this.notify();
+      }
+    } catch (err) {
+      const exec = this.state.executions.find((e) => e.id === item.execId);
+      if (exec) {
+        const msg = err instanceof Error ? err.message : 'erro desconhecido';
+        exec.verificationDetail = `${exec.verificationDetail} (Aviso rollback gateway: ${msg})`;
         this.notify();
       }
     }
@@ -875,11 +963,13 @@ export class OpenShieldStore {
     }
 
     const rawHost = ref.hostname?.trim();
+    const cleanedHostIp = rawHost ? normalizeIpAddress(rawHost) : '';
+    const cleanedRefIp = ref.ip ? normalizeIpAddress(ref.ip) : '';
     const ipCandidate =
-      ref.ip?.trim() ||
-      (rawHost && /^(?:\d{1,3}\.){3}\d{1,3}$/.test(rawHost) ? rawHost : '');
+      cleanedRefIp ||
+      (cleanedHostIp && /^(?:\d{1,3}\.){3}\d{1,3}$/.test(cleanedHostIp) ? cleanedHostIp : '');
     if (ipCandidate) {
-      const byIp = this.state.devices.find((d) => d.ip === ipCandidate);
+      const byIp = this.state.devices.find((d) => normalizeIpAddress(d.ip) === ipCandidate);
       if (byIp) return byIp;
     }
 
@@ -1028,9 +1118,91 @@ export class OpenShieldStore {
     this.refreshDeviceFlowCounters(matchedDeviceIds, clientStats);
   }
 
+  private upsertRouterAccessEntries(
+    entries: ParsedRouterAccessLogEntry[],
+    sourceIntegrationId: string,
+    siteId: string,
+    options?: { additive?: boolean },
+  ): number {
+    this.state.routerAccessAttempts ??= [];
+    let recordedCount = 0;
+
+    for (const entry of entries) {
+      const cleanIp = normalizeIpAddress(entry.srcIp);
+      if (!cleanIp) continue;
+      const entryMs = Date.parse(entry.occurredAt) || Date.now();
+      const existing = this.state.routerAccessAttempts.find(
+        (a) =>
+          a.srcIp === cleanIp &&
+          a.service === entry.service &&
+          Math.abs(entryMs - Date.parse(a.lastSeenAt)) <= 15 * 60 * 1000,
+      );
+
+      if (existing) {
+        const prevCount = existing.attemptsCount;
+        existing.attemptsCount = options?.additive
+          ? existing.attemptsCount + entry.attemptsCount
+          : Math.max(existing.attemptsCount, entry.attemptsCount);
+        existing.lastSeenAt = entry.occurredAt;
+        existing.lastMessage = entry.lastMessage;
+        existing.sourceIntegrationId = sourceIntegrationId;
+        if (entry.targetPort && !existing.targetPort) existing.targetPort = entry.targetPort;
+        if (entry.protocol && !existing.protocol) existing.protocol = entry.protocol;
+        for (const line of entry.sampleLines) {
+          if (existing.sampleLines.length < 6 && !existing.sampleLines.includes(line)) {
+            existing.sampleLines.push(line);
+          }
+        }
+        if (existing.attemptsCount >= 6 && existing.service !== 'wan_drop') {
+          existing.severity = 'critical';
+        } else if (existing.attemptsCount >= 3 || entry.severity === 'high') {
+          existing.severity = 'high';
+        }
+        if (existing.attemptsCount > prevCount) {
+          recordedCount += 1;
+        }
+      } else {
+        const attempt: RouterAccessAttempt = {
+          id: `rtr-${crypto.randomUUID().slice(0, 8)}`,
+          sourceIntegrationId,
+          siteId,
+          srcIp: cleanIp,
+          service: entry.service,
+          targetPort: entry.targetPort,
+          protocol: entry.protocol,
+          attemptsCount: entry.attemptsCount,
+          firstSeenAt: entry.occurredAt,
+          lastSeenAt: entry.occurredAt,
+          severity: entry.severity,
+          status: 'observed',
+          lastMessage: entry.lastMessage,
+          sampleLines: entry.sampleLines.slice(0, 6),
+        };
+        this.state.routerAccessAttempts.unshift(attempt);
+        recordedCount += 1;
+        this.addAudit({
+          eventType: 'router_access.detected',
+          actor: sourceIntegrationId,
+          role: 'gateway-connector',
+          targetId: attempt.srcIp,
+          outcome: 'success',
+          detail: `Tentativa de acesso ${attempt.service.toUpperCase()} detectada de ${attempt.srcIp} (${attempt.attemptsCount}x).`,
+        });
+      }
+    }
+
+    this.state.routerAccessAttempts.sort(
+      (a, b) => Date.parse(b.lastSeenAt) - Date.parse(a.lastSeenAt),
+    );
+    if (this.state.routerAccessAttempts.length > 200) {
+      this.state.routerAccessAttempts.length = 200;
+    }
+    return recordedCount;
+  }
+
   async syncIntegration(
     id: string,
-    options?: { skipLatencySample?: boolean; bypassRbac?: boolean; actor?: string },
+    options?: { skipLatencySample?: boolean; bypassRbac?: boolean; skipNotify?: boolean; actor?: string },
   ): Promise<{ result: SyncAdapterResult; state: WorkspaceState }> {
     if (!options?.bypassRbac) {
       this.assertCanMutate('operator');
@@ -1131,7 +1303,7 @@ export class OpenShieldStore {
         this.upsertDnsInsights(simInsights);
       }
 
-      this.ingestEvent(simEvent);
+      this.ingestEvent(simEvent, { skipNotify: true });
       adapter.lastSyncedAt = nowIso;
       adapter.lastHeartbeatAt = nowIso;
       adapter.status = this.state.context.nodeAvailable ? 'connected' : 'stale';
@@ -1149,7 +1321,9 @@ export class OpenShieldStore {
         message: `Sincronização simulada concluída para ${adapter.name}.`,
         syncedAt: nowIso,
       };
-      this.notify();
+      if (!options?.skipNotify) {
+        this.notify();
+      }
       return { result, state: this.getState() };
     }
 
@@ -1166,16 +1340,27 @@ export class OpenShieldStore {
       adapter.boardInfo = owrt.boardInfo;
       discovered = this.upsertDiscoveredDevices(owrt.discoveredDevices, adapter.siteId);
       for (const ev of owrt.events) {
-        const res = this.ingestEvent(ev);
+        const res = this.ingestEvent(ev, { skipNotify: true });
         if (res.status === 'accepted') ingested += 1;
       }
-      message = `OpenWrt/Node real sincronizado: ${owrt.boardInfo.model} (${discovered} dispositivo(s), ${ingested} evento(s)).`;
+      const routerHits = this.upsertRouterAccessEntries(
+        owrt.routerAccessEntries,
+        adapter.id,
+        adapter.siteId,
+        { additive: false },
+      );
+      const logSuffix = owrt.routerLogWarning
+        ? ` · Aviso logs: ${owrt.routerLogWarning}`
+        : routerHits > 0
+          ? ` · ${routerHits} tentativa(s) de acesso ao roteador`
+          : '';
+      message = `OpenWrt/Node real sincronizado: ${owrt.boardInfo.model} (${discovered} dispositivo(s), ${ingested} evento(s)${logSuffix}).`;
     } else if (adapter.kind === 'pihole-v6') {
       const pihole = await syncPiholeLive(adapter.liveEndpointUrl, adapter.id, adapter.name, {
         secret: cred?.secret,
       });
       for (const ev of pihole.events) {
-        const res = this.ingestEvent(ev);
+        const res = this.ingestEvent(ev, { skipNotify: true });
         if (res.status === 'accepted') ingested += 1;
       }
       this.upsertDnsInsights(pihole.insights, pihole.clientStats);
@@ -1186,7 +1371,7 @@ export class OpenShieldStore {
         secret: cred?.secret,
       });
       for (const ev of adguard.events) {
-        const res = this.ingestEvent(ev);
+        const res = this.ingestEvent(ev, { skipNotify: true });
         if (res.status === 'accepted') ingested += 1;
       }
       this.upsertDnsInsights(adguard.insights, adguard.clientStats);
@@ -1196,7 +1381,7 @@ export class OpenShieldStore {
         secret: cred?.secret,
       });
       for (const ev of tech.events) {
-        const res = this.ingestEvent(ev);
+        const res = this.ingestEvent(ev, { skipNotify: true });
         if (res.status === 'accepted') ingested += 1;
       }
       this.upsertDnsInsights(tech.insights, tech.clientStats);
@@ -1244,7 +1429,7 @@ export class OpenShieldStore {
             ? (res.data as Record<string, unknown>)
             : { itemCount: Array.isArray(res.data) ? res.data.length : 1 },
       };
-      this.ingestEvent(ev);
+      this.ingestEvent(ev, { skipNotify: true });
       ingested = 1;
       message = summaryText;
     }
@@ -1267,7 +1452,9 @@ export class OpenShieldStore {
       detail: message,
     });
 
-    this.notify();
+    if (!options?.skipNotify) {
+      this.notify();
+    }
     return {
       result: {
         adapterId: adapter.id,
@@ -1299,6 +1486,7 @@ export class OpenShieldStore {
       try {
         const out = await this.syncIntegration(adapter.id, {
           skipLatencySample: true,
+          skipNotify: true,
           bypassRbac: options?.bypassRbac,
           actor: options?.trigger === 'timer' ? 'openshield-sync-timer' : undefined,
         });
@@ -1388,11 +1576,13 @@ export class OpenShieldStore {
     const capabilities: IntegrationAdapter['capabilities'] =
       input.kind === 'pihole-v6' || input.kind === 'adguard-home' || input.kind === 'technitium-dns'
         ? ['health_check', 'read_events', 'read_configuration', 'write_configuration']
-        : input.domain === 'gateway'
-          ? ['discover', 'health_check']
-          : input.kind === 'ollama-http' || input.domain === 'ai_runtime'
-            ? ['health_check']
-            : ['health_check', 'read_events'];
+        : input.kind === 'openwrt-rpcd' || input.kind === 'opnsense-api'
+          ? ['discover', 'health_check', 'read_events', 'execute_action', 'verify_action']
+          : input.domain === 'gateway'
+            ? ['discover', 'health_check']
+            : input.kind === 'ollama-http' || input.domain === 'ai_runtime'
+              ? ['health_check']
+              : ['health_check', 'read_events'];
 
     const protocolVersion =
       input.domain === 'gateway'
@@ -1685,19 +1875,22 @@ export class OpenShieldStore {
     return this.getState();
   }
 
-  ingestEvent(input: {
-    eventId?: string;
-    schemaVersion?: string;
-    occurredAt?: string;
-    sourceIntegrationId: string;
-    eventType: OpenShieldEventV1['eventType'];
-    severity: OpenShieldEventV1['severity'];
-    summary: string;
-    deviceId?: string;
-    dataSource?: 'mock' | 'live';
-    payload?: Record<string, unknown>;
-    simulateDuplicateId?: string;
-  }): {
+  ingestEvent(
+    input: {
+      eventId?: string;
+      schemaVersion?: string;
+      occurredAt?: string;
+      sourceIntegrationId: string;
+      eventType: OpenShieldEventV1['eventType'];
+      severity: OpenShieldEventV1['severity'];
+      summary: string;
+      deviceId?: string;
+      dataSource?: 'mock' | 'live';
+      payload?: Record<string, unknown>;
+      simulateDuplicateId?: string;
+    },
+    options?: { skipNotify?: boolean },
+  ): {
     status: 'accepted' | 'duplicate' | 'buffered';
     event: OpenShieldEventV1;
     correlatedIncidentId: string | null;
@@ -1873,13 +2066,291 @@ export class OpenShieldStore {
       );
     }
 
-    this.notify();
+    if (!options?.skipNotify) {
+      this.notify();
+    }
     return {
       status: 'accepted',
       event,
       correlatedIncidentId: correlation.updatedIncident?.id ?? null,
       state: this.getState(),
     };
+  }
+
+  ingestRouterLogs(input: {
+    sourceIntegrationId: string;
+    rawLog?: string;
+    entries?: Array<{
+      srcIp: string;
+      service: RouterAccessService;
+      targetPort?: number;
+      protocol?: string;
+      attemptsCount?: number;
+      message?: string;
+      occurredAt?: string;
+    }>;
+  }): { acceptedEntries: number; eventsIngested: number; state: WorkspaceState } {
+    const source = this.state.integrations.find((i) => i.id === input.sourceIntegrationId);
+    if (!source) {
+      this.state.metrics.authorizationDeniedTotal += 1;
+      this.addAudit({
+        eventType: 'authorization.denied',
+        actor: input.sourceIntegrationId,
+        role: 'untrusted-source',
+        targetId: input.sourceIntegrationId,
+        outcome: 'denied',
+        detail: `Ingestão de logs rejeitada: sourceIntegrationId "${input.sourceIntegrationId}" não está registrado no Node.`,
+      });
+      this.notify();
+      throw new Error(
+        `Proveniência rejeitada (HTTP 403): fonte "${input.sourceIntegrationId}" não possui integração registrada.`,
+      );
+    }
+
+    const nowIso = new Date().toISOString();
+    let parsedEntries: ParsedRouterAccessLogEntry[] = [];
+    let generatedEvents: OpenShieldEventV1[] = [];
+
+    if (typeof input.rawLog === 'string' && input.rawLog.trim()) {
+      const parsed = parseRouterAccessLogs(input.rawLog, source.id, nowIso);
+      parsedEntries = parsed.entries;
+      generatedEvents = parsed.events;
+    }
+
+    if (Array.isArray(input.entries)) {
+      for (const item of input.entries) {
+        const cleanIp = normalizeIpAddress(String(item.srcIp ?? ''));
+        if (!cleanIp) continue;
+        const count = Math.max(1, Math.round(Number(item.attemptsCount) || 1));
+        const severity: EventSeverity =
+          item.service === 'wan_drop'
+            ? count >= 10
+              ? 'high'
+              : count >= 4
+                ? 'medium'
+                : 'low'
+            : count >= 6
+              ? 'critical'
+              : count >= 3
+                ? 'high'
+                : 'medium';
+        const occurredAt = item.occurredAt || nowIso;
+        const msg =
+          item.message?.trim() ||
+          `Tentativa ${item.service.toUpperCase()} originada de ${cleanIp}`;
+        parsedEntries.push({
+          srcIp: cleanIp,
+          service: item.service,
+          targetPort: item.targetPort,
+          protocol: item.protocol || 'tcp',
+          attemptsCount: count,
+          occurredAt,
+          lastMessage: msg,
+          sampleLines: [msg],
+          severity,
+        });
+        generatedEvents.push({
+          eventId: `ev-rtr-${crypto.randomUUID().slice(0, 8)}`,
+          schemaVersion: 'openshield.event.v1',
+          occurredAt,
+          sourceIntegrationId: source.id,
+          eventType: 'router.access_attempt',
+          severity,
+          dataSource: 'live',
+          summary: `${count} tentativa(s) de acesso ${item.service.toUpperCase()} originada(s) de ${cleanIp}.`,
+          payload: {
+            srcIp: cleanIp,
+            service: item.service,
+            targetPort: item.targetPort,
+            protocol: item.protocol || 'tcp',
+            attemptsCount: count,
+            lastMessage: msg,
+          },
+        });
+      }
+    }
+
+    let eventsIngested = 0;
+    for (const ev of generatedEvents) {
+      const res = this.ingestEvent(ev, { skipNotify: true });
+      if (res.status === 'accepted') {
+        eventsIngested += 1;
+      }
+    }
+
+    const acceptedEntries = this.upsertRouterAccessEntries(
+      parsedEntries,
+      source.id,
+      source.siteId,
+      { additive: true },
+    );
+
+    const highSeverityEntry = parsedEntries.find(
+      (e) => e.severity === 'critical' || e.severity === 'high',
+    );
+    if (highSeverityEntry) {
+      void this.dispatchAlertToDestinations(
+        {
+          trigger: 'critical_incident',
+          severity: highSeverityEntry.severity,
+          title: `Tentativa de acesso ao roteador (${highSeverityEntry.service.toUpperCase()})`,
+          summary: `${highSeverityEntry.attemptsCount} tentativa(s) detectada(s) a partir de ${highSeverityEntry.srcIp}.`,
+          source: source.name,
+          occurredAt: nowIso,
+          siteId: source.siteId,
+        },
+        ['critical_incident', 'ai_anomaly'],
+      );
+    }
+
+    this.notify();
+    return { acceptedEntries, eventsIngested, state: this.getState() };
+  }
+
+  async blockRouterAccessAttempt(
+    attemptId: string,
+    ttlSeconds = 900,
+  ): Promise<{ execution: ActionExecution; state: WorkspaceState }> {
+    this.assertCanMutate('operator');
+    if (this.state.context.killSwitchActive) {
+      throw new Error('Kill Switch ativo: bloqueio no firewall impedido.');
+    }
+
+    const attempt = (this.state.routerAccessAttempts ?? []).find((a) => a.id === attemptId);
+    if (!attempt) {
+      throw new Error('Registro de tentativa de acesso ao roteador não encontrado.');
+    }
+
+    const ttl = Math.max(60, Math.min(3600, Math.round(ttlSeconds || 900)));
+    const executionId = `act-${crypto.randomUUID().slice(0, 8)}`;
+
+    let incident = attempt.linkedIncidentId
+      ? this.state.incidents.find((i) => i.id === attempt.linkedIncidentId)
+      : this.state.incidents.find(
+          (i) =>
+            (i.status === 'open' || i.status === 'investigating') &&
+            (i.title.includes(attempt.srcIp) || i.riskFactors.some((r) => r.includes(attempt.srcIp))),
+        );
+
+    if (!incident) {
+      incident = {
+        id: `inc-${crypto.randomUUID().slice(0, 8)}`,
+        title: `Tentativas de acesso não autorizado ao roteador (${attempt.srcIp})`,
+        summary: `${attempt.attemptsCount} tentativa(s) de acesso ${attempt.service.toUpperCase()} originada(s) de ${attempt.srcIp}.`,
+        severity: attempt.severity,
+        status: 'open',
+        riskScore: attempt.severity === 'critical' ? 92 : attempt.severity === 'high' ? 80 : 58,
+        riskFactors: [
+          `Origem: ${attempt.sourceIntegrationId} (router.access_attempt)`,
+          `Serviço alvo: ${attempt.service.toUpperCase()}${attempt.targetPort ? `/${attempt.targetPort}` : ''}`,
+          `IP origem: ${attempt.srcIp}`,
+        ],
+        deviceId: `src-${attempt.srcIp}`,
+        deviceHostname: attempt.srcIp,
+        siteId: attempt.siteId,
+        dataSource: 'live',
+        eventIds: [],
+        timeline: [
+          {
+            timestamp: attempt.lastSeenAt,
+            sourceIntegrationId: attempt.sourceIntegrationId,
+            eventId: attempt.id,
+            description: attempt.lastMessage,
+            severity: attempt.severity,
+          },
+        ],
+        recommendedPolicyId: 'pol-iot-quarantine',
+        recommendedAction: `Bloquear IP ${attempt.srcIp} temporariamente no firewall do gateway (TTL ${ttl}s)`,
+        investigation: {
+          provider: 'local-ollama-mock',
+          modelVersion: 'correlator-deterministico-v1',
+          promptTemplateVersion: 'openshield.local.v1.4',
+          generatedAt: new Date().toISOString(),
+          confidence: 'alta',
+          observedFacts: [attempt.lastMessage],
+          inferredHypotheses: [
+            `Origem ${attempt.srcIp} realizou ${attempt.attemptsCount} tentativa(s) em ${attempt.service.toUpperCase()}.`,
+          ],
+          recommendedSteps: [
+            `Aplicar drop temporário em ${attempt.srcIp} no gateway com rollback automático após ${ttl}s.`,
+          ],
+          promptInjectionGuardNote: 'Análise determinística local-first.',
+        },
+      };
+      this.state.incidents.unshift(incident);
+    }
+
+    const fwRes = await applyFirewallRuleLive(
+      this.state.integrations,
+      {
+        executionId,
+        targetIp: attempt.srcIp,
+        actionType: 'nftables_temp_drop',
+      },
+      (id) => this.persistence.getServiceCredential(id),
+      attempt.siteId,
+    );
+
+    const expiresAt = new Date(Date.now() + ttl * 1000).toISOString();
+    const execution: ActionExecution = {
+      id: executionId,
+      incidentId: incident.id,
+      policyId: 'pol-iot-quarantine',
+      targetLabel: `Roteador (${attempt.service.toUpperCase()}) · Drop ${attempt.srcIp}`,
+      targetIp: attempt.srcIp,
+      enforcementMode: fwRes.enforcementMode,
+      ruleRef: fwRes.ruleRef,
+      actionType: 'nftables_temp_drop',
+      autonomyLevel: this.state.context.globalAutonomy === 'L3' ? 'L3' : 'L2',
+      status: 'verified',
+      ttlSeconds: ttl,
+      expiresAt,
+      executedBy: this.currentActor().actor,
+      verificationDetail: `${fwRes.detail} Expiração automática agendada em ${ttl}s.`,
+      rollbackAvailable: true,
+      createdAt: new Date().toISOString(),
+    };
+
+    this.state.executions.unshift(execution);
+    incident.status = 'contained';
+    attempt.status = 'blocked';
+    attempt.blockedUntil = expiresAt;
+    attempt.linkedExecutionId = execution.id;
+    attempt.linkedIncidentId = incident.id;
+
+    this.addAudit({
+      eventType: 'router_access.blocked',
+      actor: this.currentActor().actor,
+      role: this.currentActor().role,
+      targetId: attempt.srcIp,
+      outcome: fwRes.enforcementMode === 'live' ? 'success' : 'simulated',
+      detail: `IP ${attempt.srcIp} bloqueado (${attempt.service.toUpperCase()}, TTL ${ttl}s, modo ${fwRes.enforcementMode}): ${fwRes.detail}`,
+    });
+
+    this.notify();
+    return { execution, state: this.getState() };
+  }
+
+  updateRouterAccessStatus(
+    attemptId: string,
+    status: 'observed' | 'ignored',
+  ): WorkspaceState {
+    this.assertCanMutate('operator');
+    const attempt = (this.state.routerAccessAttempts ?? []).find((a) => a.id === attemptId);
+    if (!attempt) {
+      throw new Error('Registro de tentativa de acesso ao roteador não encontrado.');
+    }
+    attempt.status = status;
+    this.addAudit({
+      eventType: 'context.updated',
+      actor: this.currentActor().actor,
+      role: this.currentActor().role,
+      targetId: attempt.srcIp,
+      outcome: 'success',
+      detail: `Tentativa de acesso ${attempt.service.toUpperCase()} de ${attempt.srcIp} marcada como "${status}".`,
+    });
+    this.notify();
+    return this.getState();
   }
 
   private async applyDnsRuleToLiveAdapters(
@@ -1911,9 +2382,11 @@ export class OpenShieldStore {
       }
     }
 
-    const insight = this.state.dnsInsights.find((d) => d.domain === domain);
-    if (insight) {
-      insight.listStatus = listStatus;
+    const domLow = domain.trim().toLowerCase();
+    for (const d of this.state.dnsInsights) {
+      if (d.domain.trim().toLowerCase() === domLow) {
+        d.listStatus = listStatus;
+      }
     }
 
     return { notes, errors };
@@ -1962,13 +2435,17 @@ export class OpenShieldStore {
       }
     }
 
-    const existing = this.state.dnsInsights.find((d) => d.domain === normalized);
-    if (existing) {
-      existing.category = category;
-      existing.classification = classification;
-      existing.listStatus = listStatus;
-      existing.deviceHostname = hostname;
-      existing.lastQueriedAt = new Date().toISOString();
+    const matchingEntries = this.state.dnsInsights.filter(
+      (d) => d.domain.trim().toLowerCase() === normalized,
+    );
+    if (matchingEntries.length > 0) {
+      for (const entry of matchingEntries) {
+        entry.category = category;
+        entry.classification = classification;
+        entry.listStatus = listStatus;
+        entry.lastQueriedAt = new Date().toISOString();
+      }
+      matchingEntries[0].deviceHostname = hostname;
     } else {
       this.state.dnsInsights.unshift({
         id: `dns-${crypto.randomUUID().slice(0, 8)}`,
@@ -2026,7 +2503,12 @@ export class OpenShieldStore {
     }
 
     const suffix = syncNotes.length > 0 ? ` (${syncNotes.join(' · ')})` : '';
-    item.listStatus = listStatus;
+    const domLow = item.domain.trim().toLowerCase();
+    for (const d of this.state.dnsInsights) {
+      if (d.domain.trim().toLowerCase() === domLow) {
+        d.listStatus = listStatus;
+      }
+    }
     this.addAudit({
       eventType: 'dns.list_updated',
       actor: this.currentActor().actor,
@@ -2282,6 +2764,31 @@ export class OpenShieldStore {
     return dnsMatch?.domain;
   }
 
+  private resolveIncidentTargetIp(incident: Incident): { targetIp?: string; targetSegment?: string } {
+    const dev = this.state.devices.find((d) => d.id === incident.deviceId);
+    const related = this.state.events.filter((e) => incident.eventIds.includes(e.eventId));
+    for (const ev of related) {
+      if (ev.eventType === 'router.access_attempt' && typeof ev.payload.srcIp === 'string' && ev.payload.srcIp.trim()) {
+        return { targetIp: normalizeIpAddress(ev.payload.srcIp), targetSegment: dev?.segment };
+      }
+    }
+    if (dev?.ip) {
+      return { targetIp: normalizeIpAddress(dev.ip), targetSegment: dev.segment };
+    }
+    for (const ev of related) {
+      const candidate =
+        (typeof ev.payload.srcIp === 'string' && ev.payload.srcIp) ||
+        (typeof ev.payload.externalIndicator === 'string' && ev.payload.externalIndicator) ||
+        (typeof ev.payload.indicator === 'string' && ev.payload.indicator) ||
+        (typeof ev.payload.clientIp === 'string' && ev.payload.clientIp) ||
+        '';
+      if (candidate.trim()) {
+        return { targetIp: normalizeIpAddress(candidate), targetSegment: dev?.segment };
+      }
+    }
+    return { targetIp: undefined, targetSegment: dev?.segment };
+  }
+
   async proposePolicyAction(input: {
     incidentId: string;
     policyId: string;
@@ -2331,9 +2838,13 @@ export class OpenShieldStore {
       actionType === 'dns_block_domain' || policy.id === 'pol-dns-tracker'
         ? this.resolveIncidentTargetDomain(incident)
         : undefined;
+    const { targetIp, targetSegment } = this.resolveIncidentTargetIp(incident);
+    const executionId = `act-${crypto.randomUUID().slice(0, 8)}`;
 
     let status: ActionExecution['status'] = 'dry_run';
     let expiresAt: string | null = null;
+    let enforcementMode: ActionExecution['enforcementMode'] = 'simulated';
+    let ruleRef: string | undefined;
     let verificationDetail =
       'Modo L0 (Observar): simulação concluída sem alterar firewall, DNS ou encaminhamento.';
 
@@ -2348,23 +2859,48 @@ export class OpenShieldStore {
       if (actionType === 'dns_block_domain' && targetDomain) {
         const res = await this.applyDnsRuleToLiveAdapters(targetDomain, 'blocked');
         if (res.notes.length > 0) {
+          enforcementMode = 'live';
           liveNote = ` Sincronizado em DNS real: ${res.notes.join(' · ')}.`;
         } else if (res.errors.length > 0) {
           liveNote = ` Aviso DNS real: ${res.errors.join(' · ')}.`;
         }
+      } else if (actionType === 'nftables_temp_drop' || actionType === 'isolate_iot_segment') {
+        const fwRes = await applyFirewallRuleLive(
+          this.state.integrations,
+          { executionId, targetIp, actionType },
+          (id) => this.persistence.getServiceCredential(id),
+          incident.siteId,
+        );
+        enforcementMode = fwRes.enforcementMode;
+        ruleRef = fwRes.ruleRef;
+        liveNote = ` ${fwRes.detail}`;
+        if (fwRes.enforcementMode === 'live' && targetIp) {
+          const dev = this.state.devices.find(
+            (d) => d.id === incident.deviceId || normalizeIpAddress(d.ip) === normalizeIpAddress(targetIp),
+          );
+          if (dev && dev.deviceType !== 'router') {
+            dev.status = 'isolated';
+          }
+        }
       }
-      verificationDetail = `Ação ${effectiveLevel} aplicada e verificada via verify_action. Expiração automática agendada em ${ttl}s.${liveNote}`;
+      verificationDetail = `Ação ${effectiveLevel} aplicada (${enforcementMode === 'live' ? 'Gateway Real' : 'Simulado'}) e verificada via verify_action. Expiração automática agendada em ${ttl}s.${liveNote}`;
       incident.status = 'contained';
     }
 
     const execution: ActionExecution = {
-      id: `act-${crypto.randomUUID().slice(0, 8)}`,
+      id: executionId,
       incidentId: incident.id,
       policyId: policy.id,
       targetLabel: targetDomain
         ? `${incident.deviceHostname} · ${targetDomain}`
-        : `${incident.deviceHostname} · ${incident.recommendedAction}`,
+        : targetIp && incident.deviceHostname !== targetIp
+          ? `${incident.deviceHostname} (${targetIp}) · ${incident.recommendedAction}`
+          : `${incident.deviceHostname} · ${incident.recommendedAction}`,
       targetDomain,
+      targetIp,
+      targetSegment,
+      enforcementMode,
+      ruleRef,
       actionType,
       autonomyLevel: effectiveLevel,
       status,
@@ -2382,7 +2918,7 @@ export class OpenShieldStore {
       actor: this.currentActor().actor,
       role: this.currentActor().role,
       targetId: execution.id,
-      outcome: effectiveLevel === 'L0' ? 'simulated' : 'success',
+      outcome: effectiveLevel === 'L0' || enforcementMode === 'simulated' ? 'simulated' : 'success',
       detail: `${execution.verificationDetail} (Política: ${policy.name})`,
     });
 
@@ -2400,18 +2936,41 @@ export class OpenShieldStore {
       throw new Error('Execução não está aguardando aprovação L3.');
     }
 
+    const inc = this.state.incidents.find((i) => i.id === exec.incidentId);
     let liveNote = '';
     if (exec.actionType === 'dns_block_domain' && exec.targetDomain) {
       const res = await this.applyDnsRuleToLiveAdapters(exec.targetDomain, 'blocked');
-      if (res.notes.length > 0) liveNote = ` (${res.notes.join(' · ')})`;
+      if (res.notes.length > 0) {
+        exec.enforcementMode = 'live';
+        liveNote = ` (${res.notes.join(' · ')})`;
+      } else {
+        exec.enforcementMode = 'simulated';
+      }
+    } else if (exec.actionType === 'nftables_temp_drop' || exec.actionType === 'isolate_iot_segment') {
+      const fwRes = await applyFirewallRuleLive(
+        this.state.integrations,
+        { executionId: exec.id, targetIp: exec.targetIp, actionType: exec.actionType },
+        (id) => this.persistence.getServiceCredential(id),
+        inc?.siteId,
+      );
+      exec.enforcementMode = fwRes.enforcementMode;
+      exec.ruleRef = fwRes.ruleRef;
+      liveNote = ` (${fwRes.detail})`;
+      if (fwRes.enforcementMode === 'live' && exec.targetIp) {
+        const dev = this.state.devices.find(
+          (d) => d.id === inc?.deviceId || normalizeIpAddress(d.ip) === normalizeIpAddress(exec.targetIp ?? ''),
+        );
+        if (dev && dev.deviceType !== 'router') {
+          dev.status = 'isolated';
+        }
+      }
     }
 
     exec.status = 'verified';
     exec.expiresAt = new Date(Date.now() + exec.ttlSeconds * 1000).toISOString();
     exec.rollbackAvailable = true;
-    exec.verificationDetail = `Aprovado por ${this.currentActor().actor}; regra verificada com TTL de ${exec.ttlSeconds}s.${liveNote}`;
+    exec.verificationDetail = `Aprovado por ${this.currentActor().actor}; regra verificada (${exec.enforcementMode === 'live' ? 'Gateway Real' : 'Simulado'}) com TTL de ${exec.ttlSeconds}s.${liveNote}`;
 
-    const inc = this.state.incidents.find((i) => i.id === exec.incidentId);
     if (inc) {
       inc.status = 'contained';
     }
@@ -2421,8 +2980,8 @@ export class OpenShieldStore {
       actor: this.currentActor().actor,
       role: this.currentActor().role,
       targetId: exec.id,
-      outcome: 'success',
-      detail: `Ação L3 "${exec.targetLabel}" aprovada e verificada com sucesso.`,
+      outcome: exec.enforcementMode === 'live' ? 'success' : 'simulated',
+      detail: `Ação L3 "${exec.targetLabel}" aprovada e verificada com sucesso.${liveNote}`,
     });
     this.notify();
     return this.getState();
@@ -2435,6 +2994,7 @@ export class OpenShieldStore {
       throw new Error('Esta execução não possui rollback disponível no momento.');
     }
 
+    const inc = this.state.incidents.find((i) => i.id === exec.incidentId);
     let liveNote = '';
     if (exec.actionType === 'dns_block_domain' && exec.targetDomain) {
       const res = await this.applyDnsRuleToLiveAdapters(exec.targetDomain, 'monitored');
@@ -2443,6 +3003,34 @@ export class OpenShieldStore {
       } else if (res.errors.length > 0) {
         liveNote = ` Aviso ao reverter DNS: ${res.errors.join(' · ')}.`;
       }
+    } else if (exec.actionType === 'nftables_temp_drop' || exec.actionType === 'isolate_iot_segment') {
+      const fwRes = await rollbackFirewallRuleLive(
+        this.state.integrations,
+        {
+          executionId: exec.id,
+          targetIp: exec.targetIp,
+          ruleRef: exec.ruleRef,
+          enforcementMode: exec.enforcementMode,
+        },
+        (id) => this.persistence.getServiceCredential(id),
+        inc?.siteId,
+      );
+      liveNote = ` ${fwRes.detail}`;
+      if (exec.targetIp) {
+        const dev = this.state.devices.find(
+          (d) => normalizeIpAddress(d.ip) === normalizeIpAddress(exec.targetIp ?? ''),
+        );
+        if (dev && dev.status === 'isolated') {
+          dev.status = 'attention';
+        }
+      }
+    }
+
+    for (const attempt of this.state.routerAccessAttempts ?? []) {
+      if (attempt.linkedExecutionId === exec.id && attempt.status === 'blocked') {
+        attempt.status = 'observed';
+        attempt.blockedUntil = undefined;
+      }
     }
 
     exec.status = 'rolled_back';
@@ -2450,7 +3038,6 @@ export class OpenShieldStore {
     exec.expiresAt = null;
     exec.verificationDetail = `Rollback executado por ${this.currentActor().actor} e verificado no adaptador.${liveNote}`;
 
-    const inc = this.state.incidents.find((i) => i.id === exec.incidentId);
     if (inc && inc.status === 'contained') {
       inc.status = 'investigating';
     }
@@ -2469,6 +3056,7 @@ export class OpenShieldStore {
 
   async triggerKillSwitch(active: boolean): Promise<WorkspaceState> {
     if (active) {
+      this.assertCanMutate('operator');
       this.state.context.killSwitchActive = true;
       this.state.context.globalAutonomy = 'L0';
       let abortedCount = 0;
@@ -2479,14 +3067,51 @@ export class OpenShieldStore {
           exec.status === 'verified' ||
           exec.status === 'awaiting_approval'
         ) {
+          let rollbackNote = '';
           if (exec.actionType === 'dns_block_domain' && exec.targetDomain && exec.status !== 'awaiting_approval') {
             await this.applyDnsRuleToLiveAdapters(exec.targetDomain, 'monitored');
+          } else if (
+            (exec.actionType === 'nftables_temp_drop' || exec.actionType === 'isolate_iot_segment') &&
+            exec.status !== 'awaiting_approval'
+          ) {
+            const inc = this.state.incidents.find((i) => i.id === exec.incidentId);
+            try {
+              const fwRes = await rollbackFirewallRuleLive(
+                this.state.integrations,
+                {
+                  executionId: exec.id,
+                  targetIp: exec.targetIp,
+                  ruleRef: exec.ruleRef,
+                  enforcementMode: exec.enforcementMode,
+                },
+                (id) => this.persistence.getServiceCredential(id),
+                inc?.siteId,
+              );
+              rollbackNote = ` (${fwRes.detail})`;
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : 'gateway offline';
+              rollbackNote = ` (Aviso rollback gateway: ${msg})`;
+            }
+            if (exec.targetIp) {
+              const dev = this.state.devices.find(
+                (d) => normalizeIpAddress(d.ip) === normalizeIpAddress(exec.targetIp ?? ''),
+              );
+              if (dev && dev.status === 'isolated') {
+                dev.status = 'attention';
+              }
+            }
+          }
+          for (const attempt of this.state.routerAccessAttempts ?? []) {
+            if (attempt.linkedExecutionId === exec.id && attempt.status === 'blocked') {
+              attempt.status = 'observed';
+              attempt.blockedUntil = undefined;
+            }
           }
           exec.status = 'aborted_kill_switch';
           exec.rollbackAvailable = false;
           exec.expiresAt = null;
           exec.verificationDetail =
-            'Interrompido pelo Kill Switch global; contenção temporária revertida e encaminhamento preservado.';
+            `Interrompido pelo Kill Switch global; contenção temporária revertida e encaminhamento preservado.${rollbackNote}`;
           abortedCount += 1;
         }
       }
@@ -3154,6 +3779,7 @@ export class OpenShieldStore {
       notifications: [],
       notificationHistory: [],
       aiUsageHistory: [],
+      routerAccessAttempts: [],
     };
   }
 
@@ -3702,6 +4328,8 @@ export class OpenShieldStore {
           incidentId: 'inc-2026-002',
           policyId: 'pol-dns-tracker',
           targetLabel: 'smart-tv-sala · Bloqueio DNS metrics-eu.smartview-telemetry.example',
+          targetDomain: 'metrics-eu.smartview-telemetry.example',
+          enforcementMode: 'simulated',
           actionType: 'dns_block_domain',
           autonomyLevel: 'L0',
           status: 'dry_run',
@@ -3839,6 +4467,48 @@ export class OpenShieldStore {
           estimatedCostUsd: 0.000104,
           outcome: 'success',
           detail: 'Auditoria comparativa com payload sanitizado.',
+        },
+      ],
+      routerAccessAttempts: [
+        {
+          id: 'rtr-seed-01',
+          sourceIntegrationId: 'home-gateway',
+          siteId: 'site-home',
+          srcIp: '185.220.101.42',
+          service: 'ssh',
+          targetPort: 22,
+          protocol: 'tcp',
+          attemptsCount: 14,
+          firstSeenAt: minutesAgoIso(11),
+          lastSeenAt: minutesAgoIso(2),
+          severity: 'critical',
+          status: 'observed',
+          lastMessage:
+            "authpriv.warn dropbear[1842]: Bad password attempt for 'root' from 185.220.101.42:54122",
+          sampleLines: [
+            "authpriv.warn dropbear[1842]: Bad password attempt for 'root' from 185.220.101.42:54122",
+            'authpriv.info dropbear[1845]: Login attempt for nonexistent user from 185.220.101.42:54129',
+          ],
+        },
+        {
+          id: 'rtr-seed-02',
+          sourceIntegrationId: 'home-gateway',
+          siteId: 'site-home',
+          srcIp: '192.168.10.44',
+          service: 'luci',
+          targetPort: 443,
+          protocol: 'tcp',
+          attemptsCount: 5,
+          firstSeenAt: minutesAgoIso(14),
+          lastSeenAt: minutesAgoIso(6),
+          severity: 'high',
+          status: 'observed',
+          lastMessage:
+            'daemon.err uhttpd[1120]: luci: failed login on /admin for root from 192.168.10.44',
+          sampleLines: [
+            'daemon.err uhttpd[1120]: luci: failed login on /admin for root from 192.168.10.44',
+          ],
+          linkedIncidentId: 'inc-2026-001',
         },
       ],
     };

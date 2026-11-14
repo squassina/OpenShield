@@ -80,7 +80,7 @@ export async function syncPiholeLive(
         status?: string;
         time?: number;
       }>;
-    }>(`${baseUrl}/api/queries?length=100`, { headers, timeoutMs: 4500 });
+    }>(`${baseUrl}/api/queries?length=500`, { headers, timeoutMs: 5000 });
 
     if (qRes.ok && Array.isArray(qRes.data.queries)) {
       const grouped = new Map<string, DnsInsight>();
@@ -307,7 +307,8 @@ export async function syncTechnitiumLive(
 ): Promise<DnsSyncResult> {
   const baseUrl = endpointUrl.replace(/\/api.*$/, '');
   const token = credentials?.secret || '';
-  const queryUrl = `${baseUrl}/api/dashboard/stats/get?type=LastDay${token ? `&token=${encodeURIComponent(token)}` : ''}`;
+  const tokenParam = token ? `&token=${encodeURIComponent(token)}` : '';
+  const queryUrl = `${baseUrl}/api/dashboard/stats/get?type=LastDay${tokenParam}`;
 
   const res = await boundedFetchJson<{
     status?: string;
@@ -329,10 +330,122 @@ export async function syncTechnitiumLive(
   const total = Number(stats.totalQueries ?? 0);
   const blocked = Number(stats.totalBlocked ?? 0);
   const insights: DnsInsight[] = [];
+  const clientStatsMap = new Map<string, ClientQueryStats>();
+
+  // Optional per-client query log enrichment (/api/logs/query)
+  try {
+    const qRes = await boundedFetchJson<{
+      status?: string;
+      response?: {
+        entries?: Array<{
+          clientIpAddress?: string;
+          clientName?: string;
+          qname?: string;
+          responseType?: string;
+          timestamp?: string;
+        }>;
+      };
+    }>(`${baseUrl}/api/logs/query?entriesPerPage=200${tokenParam}`, { timeoutMs: 4500 });
+
+    const entries = Array.isArray(qRes.data.response?.entries) ? qRes.data.response.entries : [];
+    const grouped = new Map<string, DnsInsight>();
+
+    for (const entry of entries) {
+      const domain = String(entry.qname ?? '').trim().toLowerCase();
+      if (!domain) continue;
+      const respType = String(entry.responseType ?? '').toLowerCase();
+      const isBlocked = respType.includes('blocked');
+      const clientIp =
+        typeof entry.clientIpAddress === 'string' && entry.clientIpAddress.trim()
+          ? entry.clientIpAddress.trim()
+          : undefined;
+      const clientName =
+        typeof entry.clientName === 'string' && entry.clientName.trim()
+          ? entry.clientName.trim()
+          : undefined;
+      const clientLabel = clientName || clientIp || adapterName;
+      const clientKey = clientIp || clientLabel.toLowerCase();
+
+      const cStat = clientStatsMap.get(clientKey) ?? {
+        ip: clientIp,
+        hostname: clientName,
+        queries: 0,
+        blocked: 0,
+      };
+      cStat.queries += 1;
+      if (isBlocked) cStat.blocked += 1;
+      clientStatsMap.set(clientKey, cStat);
+
+      const groupKey = `${clientKey}|${domain}`;
+      const queriedIso = entry.timestamp || new Date().toISOString();
+      const existing = grouped.get(groupKey);
+      if (existing) {
+        existing.queriesCount += 1;
+        if (isBlocked) {
+          existing.blockedCount += 1;
+          existing.listStatus = 'blocked';
+          existing.classification = 'tracker';
+          existing.category = 'Telemetria & Rastreador';
+        }
+        if (Date.parse(queriedIso) > Date.parse(existing.lastQueriedAt)) {
+          existing.lastQueriedAt = queriedIso;
+        }
+      } else if (grouped.size < 80) {
+        grouped.set(groupKey, {
+          id: `dns-live-${crypto.createHash('sha1').update(groupKey).digest('hex').slice(0, 8)}`,
+          domain,
+          category: isBlocked ? 'Telemetria & Rastreador' : 'Serviço Local',
+          classification: isBlocked ? 'tracker' : 'benign',
+          deviceId: 'lan-client',
+          deviceHostname: clientLabel,
+          deviceIp: clientIp,
+          queriesCount: 1,
+          blockedCount: isBlocked ? 1 : 0,
+          listStatus: isBlocked ? 'blocked' : 'monitored',
+          lastQueriedAt: queriedIso,
+        });
+      }
+    }
+    insights.push(...grouped.values());
+  } catch {
+    // Query Logs app/endpoint optional on Technitium
+  }
+
+  // Optional Top Clients stats (/api/dashboard/stats/getTopClients)
+  if (clientStatsMap.size === 0) {
+    try {
+      const tcRes = await boundedFetchJson<{
+        status?: string;
+        response?: {
+          topClients?: Array<{ name?: string; domain?: string; hits?: number }>;
+        };
+      }>(`${baseUrl}/api/dashboard/stats/getTopClients?type=LastDay${tokenParam}`, {
+        timeoutMs: 4000,
+      });
+      const clients = Array.isArray(tcRes.data.response?.topClients)
+        ? tcRes.data.response.topClients
+        : [];
+      for (const c of clients.slice(0, 40)) {
+        const rawIpOrName = String(c.name ?? '').trim();
+        if (!rawIpOrName) continue;
+        const ip = IPV4_SIMPLE_REGEX.test(rawIpOrName) ? rawIpOrName : undefined;
+        const hostname = c.domain?.trim() || (!ip ? rawIpOrName : undefined);
+        const key = ip || (hostname ?? rawIpOrName).toLowerCase();
+        clientStatsMap.set(key, {
+          ip,
+          hostname,
+          queries: Number(c.hits ?? 0),
+          blocked: 0,
+        });
+      }
+    } catch {
+      // Optional stats endpoint
+    }
+  }
 
   for (const item of (res.data.response?.topBlocked ?? []).slice(0, 5)) {
     const domain = String(item.name ?? '').trim().toLowerCase();
-    if (!domain) continue;
+    if (!domain || insights.some((i) => i.domain === domain)) continue;
     insights.push({
       id: `dns-live-${crypto.createHash('sha1').update(domain).digest('hex').slice(0, 8)}`,
       domain,
@@ -373,12 +486,13 @@ export async function syncTechnitiumLive(
     severity: 'info',
     dataSource: 'live',
     summary: `Sincronização real (${adapterName}): ${total} consultas e ${blocked} bloqueios nas últimas 24h.`,
-    payload: { totalQueries: total, blockedQueries: blocked },
+    payload: { totalQueries: total, blockedQueries: blocked, sampledClients: clientStatsMap.size },
   };
 
   return {
     events: [event],
     insights,
+    clientStats: [...clientStatsMap.values()],
     summaryNote: `${adapterName} sincronizado (${total} consultas / ${blocked} bloqueadas).`,
   };
 }

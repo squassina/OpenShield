@@ -147,7 +147,7 @@ export function AiUsageCard({ records }: AiUsageCardProps) {
     return records.filter((r) => r.channel === filter);
   }, [records, filter]);
 
-  const usagePagination = usePagination(filteredRecords, 10);
+  const usagePagination = usePagination(filteredRecords, 10, filter);
 
   return (
     <section

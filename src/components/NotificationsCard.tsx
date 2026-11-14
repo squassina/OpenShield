@@ -16,6 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import { getIntlLocale } from '../i18n';
+import { PaginationControls, usePagination } from './PaginationControls';
 import type {
   NotificationChannelType,
   NotificationDestination,
@@ -105,6 +106,8 @@ export function NotificationsCard({
   const locale = getIntlLocale(i18n.language);
   const destinations = state.notifications ?? [];
   const history = state.notificationHistory ?? [];
+  const destPagination = usePagination(destinations, 10);
+  const historyPagination = usePagination(history, 10);
 
   const channelLabel = (type: NotificationChannelType): string => {
     if (type === 'email') return t('notifications.channelEmail');
@@ -580,8 +583,9 @@ export function NotificationsCard({
           </p>
         </div>
       ) : (
-        <div className="divide-y divide-slate-800 rounded-lg border border-slate-800 bg-[#0B1120]/50 overflow-hidden">
-          {destinations.map((dest) => {
+        <div className="rounded-lg border border-slate-800 bg-[#0B1120]/50 overflow-hidden">
+          <div className="divide-y divide-slate-800 max-h-[420px] overflow-y-auto">
+            {destPagination.pagedItems.map((dest) => {
             const isEditing = editingId === dest.id && editDraft !== null;
             const isBusy =
               busyKey === `notif-upd-${dest.id}` ||
@@ -859,17 +863,27 @@ export function NotificationsCard({
               </div>
             );
           })}
+          </div>
+          <PaginationControls
+            page={destPagination.page}
+            pageSize={destPagination.pageSize}
+            totalItems={destPagination.totalItems}
+            totalPages={destPagination.totalPages}
+            onPageChange={destPagination.setPage}
+            onPageSizeChange={destPagination.setPageSize}
+            compact
+          />
         </div>
       )}
 
       {/* Recent External Alert Dispatches */}
       {history.length > 0 && (
-        <div className="rounded-lg border border-slate-800 bg-[#0B1120]/50 p-3.5 space-y-2">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+        <div className="rounded-lg border border-slate-800 bg-[#0B1120]/50 overflow-hidden">
+          <div className="px-3.5 pt-3.5 pb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
             {t('notifications.recentDispatchesTitle', { count: history.length })}
           </div>
-          <div className="divide-y divide-slate-800/70 text-xs">
-            {history.slice(0, 5).map((rec) => (
+          <div className="px-3.5 divide-y divide-slate-800/70 text-xs max-h-[260px] overflow-y-auto">
+            {historyPagination.pagedItems.map((rec) => (
               <div
                 key={rec.id}
                 className="py-2 flex flex-wrap items-center justify-between gap-2"
@@ -899,6 +913,15 @@ export function NotificationsCard({
               </div>
             ))}
           </div>
+          <PaginationControls
+            page={historyPagination.page}
+            pageSize={historyPagination.pageSize}
+            totalItems={historyPagination.totalItems}
+            totalPages={historyPagination.totalPages}
+            onPageChange={historyPagination.setPage}
+            onPageSizeChange={historyPagination.setPageSize}
+            compact
+          />
         </div>
       )}
     </section>

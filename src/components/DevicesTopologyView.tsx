@@ -91,6 +91,19 @@ interface AggregatedDomainFlow {
   lastQueriedAt: string;
 }
 
+function normalizeIp(raw?: unknown): string {
+  if (typeof raw !== 'string') return '';
+  let val = raw.trim();
+  if (!val) return '';
+  if (val.startsWith('[') && val.includes(']')) {
+    val = val.slice(1, val.indexOf(']'));
+  }
+  if (val.toLowerCase().startsWith('::ffff:')) {
+    val = val.slice(7);
+  }
+  return val.toLowerCase();
+}
+
 function getTopDomainsForDevice(
   device: NetworkDevice,
   state: WorkspaceState,
@@ -98,6 +111,7 @@ function getTopDomainsForDevice(
 ): AggregatedDomainFlow[] {
   const byDomain = new Map<string, AggregatedDomainFlow>();
   const hostLower = device.hostname.toLowerCase();
+  const normDeviceIp = normalizeIp(device.ip);
   const hostBase =
     hostLower !== '(sem-nome)' && hostLower !== '(unnamed)' ? hostLower.split('.')[0] : '';
 
@@ -109,8 +123,8 @@ function getTopDomainsForDevice(
         : '';
     const matchesInsight =
       insight.deviceId === device.id ||
-      (Boolean(device.ip) && insight.deviceIp === device.ip) ||
-      (Boolean(device.ip) && insHostLower === device.ip.toLowerCase()) ||
+      (Boolean(normDeviceIp) && normalizeIp(insight.deviceIp) === normDeviceIp) ||
+      (Boolean(normDeviceIp) && normalizeIp(insHostLower) === normDeviceIp) ||
       (hostLower !== '(sem-nome)' && hostLower !== '(unnamed)' && insHostLower === hostLower) ||
       (Boolean(hostBase) && hostBase.length >= 2 && insHostBase === hostBase);
 
@@ -144,9 +158,11 @@ function getTopDomainsForDevice(
   for (const ev of state.events) {
     const matchesDevice =
       ev.deviceId === device.id ||
-      String(ev.payload?.srcIp ?? '') === device.ip ||
-      String(ev.payload?.clientIp ?? '') === device.ip ||
-      String(ev.payload?.deviceHostname ?? '').toLowerCase() === hostLower;
+      (Boolean(normDeviceIp) && normalizeIp(ev.payload?.srcIp) === normDeviceIp) ||
+      (Boolean(normDeviceIp) && normalizeIp(ev.payload?.clientIp) === normDeviceIp) ||
+      (hostLower !== '(sem-nome)' &&
+        hostLower !== '(unnamed)' &&
+        String(ev.payload?.deviceHostname ?? '').toLowerCase() === hostLower);
 
     if (!matchesDevice) continue;
 
@@ -329,12 +345,22 @@ export function DevicesTopologyView({
     });
   }, [siteScopedDevices, effectiveSegmentFilter, searchQuery]);
 
-  const deviceTablePagination = usePagination(scopedDevices, 10);
-  const flowPagination = usePagination(scopedDevices, 10);
+  const devicePaginationResetKey = `${state.context.profile}|${state.context.activeSiteId}|${effectiveSegmentFilter}|${searchQuery}`;
+  const deviceTablePagination = usePagination(scopedDevices, 10, devicePaginationResetKey);
+  const flowPagination = usePagination(scopedDevices, 10, devicePaginationResetKey);
 
   const relatedEvents = useMemo(() => {
     if (!selectedDevice) return [];
-    return state.events.filter((e) => e.deviceId === selectedDevice.id);
+    const normIp = normalizeIp(selectedDevice.ip);
+    const hostLower = selectedDevice.hostname.toLowerCase();
+    const hasNamedHost = hostLower !== '(sem-nome)' && hostLower !== '(unnamed)';
+    return state.events.filter(
+      (e) =>
+        e.deviceId === selectedDevice.id ||
+        (Boolean(normIp) && normalizeIp(e.payload?.srcIp) === normIp) ||
+        (Boolean(normIp) && normalizeIp(e.payload?.clientIp) === normIp) ||
+        (hasNamedHost && String(e.payload?.deviceHostname ?? '').toLowerCase() === hostLower),
+    );
   }, [selectedDevice, state.events]);
 
   const activeFlowDevice = useMemo(

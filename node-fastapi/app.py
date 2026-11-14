@@ -8,7 +8,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query, Response
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 DB_PATH = os.getenv("OPENSHIELD_NODE_DB_PATH", "/data/openshield-node.sqlite3")
@@ -76,6 +77,7 @@ class EventIn(BaseModel):
         "zeek.connection",
         "dns.query",
         "threat.ioc",
+        "router.access_attempt",
     ] = "gateway.health"
     severity: Literal["info", "low", "medium", "high", "critical"] = "info"
     deviceId: str | None = None
@@ -106,6 +108,31 @@ app = FastAPI(
 )
 
 
+@app.get("/", include_in_schema=False)
+def root(accept: str | None = Header(default=None)):
+    if accept and "text/html" in accept:
+        return HTMLResponse(
+            content="""<!DOCTYPE html>
+<html>
+<head><meta http-equiv="refresh" content="0; url=http://localhost:3000/" /></head>
+<body><p>OpenShield FastAPI Node running. Redirecting to <a href="http://localhost:3000/">OpenShield UI (port 3000)</a>...</p></body>
+</html>"""
+        )
+    return {
+        "status": "ready",
+        "service": "openshield-node-fastapi",
+        "schemaVersion": "openshield.event.v1",
+        "frontendUrl": "http://localhost:3000",
+        "health": "/health",
+        "docs": "/docs",
+    }
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    return Response(status_code=204)
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {
@@ -114,6 +141,11 @@ def health() -> dict[str, str]:
         "schemaVersion": "openshield.event.v1",
         "dbPath": DB_PATH,
     }
+
+
+@app.get("/api/health", include_in_schema=False)
+def api_health() -> dict[str, str]:
+    return health()
 
 
 @app.get("/api/v1/events")

@@ -1,5 +1,10 @@
 import crypto from 'node:crypto';
-import type { NetworkDevice, OpenShieldEventV1 } from '../../src/types/openshield.ts';
+import type {
+  EventSeverity,
+  NetworkDevice,
+  OpenShieldEventV1,
+  RouterAccessService,
+} from '../../src/types/openshield.ts';
 import { boundedFetchJson } from './httpClient.ts';
 
 interface UbusRpcResponse {
@@ -18,6 +23,18 @@ export interface DiscoveredDeviceHint {
   deviceType: NetworkDevice['deviceType'];
 }
 
+export interface ParsedRouterAccessLogEntry {
+  srcIp: string;
+  service: RouterAccessService;
+  targetPort?: number;
+  protocol?: string;
+  attemptsCount: number;
+  occurredAt: string;
+  lastMessage: string;
+  sampleLines: string[];
+  severity: EventSeverity;
+}
+
 export interface OpenWrtSyncResult {
   boardInfo: {
     model: string;
@@ -26,6 +43,8 @@ export interface OpenWrtSyncResult {
   };
   events: OpenShieldEventV1[];
   discoveredDevices: DiscoveredDeviceHint[];
+  routerAccessEntries: ParsedRouterAccessLogEntry[];
+  routerLogWarning?: string;
 }
 
 export interface Ip4NeighEntry {
@@ -233,7 +252,209 @@ function extractHostIp(endpointUrl: string): string {
   }
 }
 
-async function callUbus(
+const ROUTER_MGMT_PORTS = new Set([22, 23, 80, 443, 8080, 8443]);
+
+export function normalizeIpAddress(raw: string): string {
+  return raw.trim().replace(/^::ffff:/i, '').replace(/^\[|\]$/g, '');
+}
+
+function isUsableSourceIp(ip: string): boolean {
+  const clean = normalizeIpAddress(ip);
+  if (!clean || clean === '0.0.0.0' || clean === '127.0.0.1' || clean === '::1' || clean === '::') {
+    return false;
+  }
+  if (IPV4_REGEX.test(clean)) {
+    const octets = clean.split('.').map(Number);
+    return octets.length === 4 && octets.every((o) => Number.isInteger(o) && o >= 0 && o <= 255);
+  }
+  return /^[0-9a-fA-F:]{3,45}$/.test(clean) && clean.includes(':');
+}
+
+function stripPortSuffix(raw: string): string {
+  const trimmed = raw.trim();
+  // IPv4:port -> IPv4
+  const ipv4Port = trimmed.match(/^((?:\d{1,3}\.){3}\d{1,3}):\d+$/);
+  if (ipv4Port) return ipv4Port[1];
+  // [IPv6]:port -> IPv6
+  const ipv6Bracket = trimmed.match(/^\[([0-9a-fA-F:]+)\](?::\d+)?$/);
+  if (ipv6Bracket) return ipv6Bracket[1];
+  return normalizeIpAddress(trimmed);
+}
+
+export function parseRouterAccessLogs(
+  rawLinesInput: string | string[],
+  sourceIntegrationId: string,
+  nowIso = new Date().toISOString(),
+): { entries: ParsedRouterAccessLogEntry[]; events: OpenShieldEventV1[] } {
+  const lines = Array.isArray(rawLinesInput)
+    ? rawLinesInput
+    : rawLinesInput.split(/\r?\n/);
+
+  const grouped = new Map<string, ParsedRouterAccessLogEntry>();
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    let service: RouterAccessService | null = null;
+    let srcIp = '';
+    let targetPort: number | undefined;
+    let protocol: string | undefined;
+
+    // 1. SSH brute-force / invalid login (dropbear or sshd)
+    if (/(?:dropbear|sshd)\b/i.test(line)) {
+      const sshFailed =
+        /(?:bad password|nonexistent user|exit before auth|failed password|invalid user|authpriv\.(?:warn|err).*dropbear)/i.test(
+          line,
+        );
+      if (sshFailed) {
+        const fromMatch =
+          line.match(/\bfrom\s+<?(\[?[0-9a-fA-F:.]+\]?(?::\d+)?)>?/i) ??
+          line.match(/\bSRC=([^\s]+)/i);
+        if (fromMatch?.[1]) {
+          srcIp = stripPortSuffix(fromMatch[1]);
+          service = 'ssh';
+          targetPort = 22;
+          protocol = 'tcp';
+        }
+      }
+    }
+
+    // 2. LuCI / uhttpd unauthorized login
+    if (!service && /(?:uhttpd|luci)\b/i.test(line)) {
+      if (/(?:failed login|unauthorized|invalid password|auth failed)/i.test(line)) {
+        const fromMatch = line.match(/\bfrom\s+<?(\[?[0-9a-fA-F:.]+\]?(?::\d+)?)>?/i);
+        if (fromMatch?.[1]) {
+          srcIp = stripPortSuffix(fromMatch[1]);
+          service = 'luci';
+          targetPort = /443|https/i.test(line) ? 443 : 80;
+          protocol = 'tcp';
+        }
+      }
+    }
+
+    // 3. ubus / rpcd unauthorized call or login failure
+    if (!service && /(?:rpcd|ubus)\b/i.test(line)) {
+      if (/(?:login failed|access denied|permission denied|unauthorized|invalid session)/i.test(line)) {
+        const fromMatch =
+          line.match(/\bfrom\s+<?(\[?[0-9a-fA-F:.]+\]?(?::\d+)?)>?/i) ??
+          line.match(/\b(?:ip|src|client)=([^\s,]+)/i);
+        if (fromMatch?.[1]) {
+          srcIp = stripPortSuffix(fromMatch[1]);
+          service = 'ubus';
+          targetPort = 80;
+          protocol = 'tcp';
+        }
+      }
+    }
+
+    // 4. Kernel / fw4 WAN drop or reject targeting router management ports
+    if (!service && /(?:DROP|REJECT|fw4)/i.test(line) && /\bSRC=([^\s]+)/i.test(line)) {
+      const srcMatch = line.match(/\bSRC=([^\s]+)/i);
+      const dptMatch = line.match(/\bDPT=(\d+)/i);
+      const protoMatch = line.match(/\bPROTO=([A-Za-z0-9]+)/i);
+      const dpt = dptMatch?.[1] ? Number(dptMatch[1]) : undefined;
+      const isWanOrMgmt =
+        /\bIN=(?:wan|pppoe-wan|eth\d+|br-wan)/i.test(line) ||
+        (dpt !== undefined && ROUTER_MGMT_PORTS.has(dpt));
+      if (srcMatch?.[1] && isWanOrMgmt && (dpt === undefined || ROUTER_MGMT_PORTS.has(dpt))) {
+        srcIp = stripPortSuffix(srcMatch[1]);
+        service = 'wan_drop';
+        targetPort = dpt;
+        protocol = protoMatch?.[1]?.toLowerCase() ?? 'tcp';
+      }
+    }
+
+    if (!service || !isUsableSourceIp(srcIp)) continue;
+
+    const key = `${srcIp}|${service}`;
+    const existing = grouped.get(key);
+    if (existing) {
+      existing.attemptsCount += 1;
+      existing.lastMessage = line.slice(0, 240);
+      if (existing.sampleLines.length < 5 && !existing.sampleLines.includes(line.slice(0, 240))) {
+        existing.sampleLines.push(line.slice(0, 240));
+      }
+      if (!existing.targetPort && targetPort) existing.targetPort = targetPort;
+    } else {
+      grouped.set(key, {
+        srcIp,
+        service,
+        targetPort,
+        protocol,
+        attemptsCount: 1,
+        occurredAt: nowIso,
+        lastMessage: line.slice(0, 240),
+        sampleLines: [line.slice(0, 240)],
+        severity: 'low',
+      });
+    }
+  }
+
+  const entries: ParsedRouterAccessLogEntry[] = [];
+  const events: OpenShieldEventV1[] = [];
+
+  for (const entry of grouped.values()) {
+    let severity: EventSeverity = 'low';
+    if (entry.service === 'ssh' || entry.service === 'luci' || entry.service === 'ubus') {
+      severity =
+        entry.attemptsCount >= 6
+          ? 'critical'
+          : entry.attemptsCount >= 3
+            ? 'high'
+            : 'medium';
+    } else {
+      // wan_drop
+      severity =
+        entry.attemptsCount >= 10
+          ? 'high'
+          : entry.attemptsCount >= 4
+            ? 'medium'
+            : 'low';
+    }
+    entry.severity = severity;
+    entries.push(entry);
+
+    const svcLabel =
+      entry.service === 'ssh'
+        ? 'SSH (dropbear/sshd)'
+        : entry.service === 'luci'
+          ? 'LuCI / uhttpd'
+          : entry.service === 'ubus'
+            ? 'ubus / rpcd'
+            : `Firewall WAN drop${entry.targetPort ? ` (porta ${entry.targetPort})` : ''}`;
+
+    const bucket = Math.floor(Date.parse(nowIso) / (15 * 60 * 1000));
+    const deterministicHash = crypto
+      .createHash('sha1')
+      .update(`${sourceIntegrationId}|${entry.srcIp}|${entry.service}|${bucket}`)
+      .digest('hex')
+      .slice(0, 10);
+
+    events.push({
+      eventId: `ev-rtr-${deterministicHash}`,
+      schemaVersion: 'openshield.event.v1',
+      occurredAt: nowIso,
+      sourceIntegrationId,
+      eventType: 'router.access_attempt',
+      severity,
+      dataSource: 'live',
+      summary: `${entry.attemptsCount} tentativa(s) de acesso ${svcLabel} originada(s) de ${entry.srcIp}.`,
+      payload: {
+        srcIp: entry.srcIp,
+        service: entry.service,
+        targetPort: entry.targetPort,
+        protocol: entry.protocol,
+        attemptsCount: entry.attemptsCount,
+        lastMessage: entry.lastMessage,
+      },
+    });
+  }
+
+  return { entries, events };
+}
+
+export async function callUbus(
   ubusUrl: string,
   sessionToken: string,
   object: string,
@@ -266,12 +487,31 @@ async function callUbus(
   return resultTuple[1] ?? {};
 }
 
+export async function openwrtLogin(
+  ubusUrl: string,
+  username: string,
+  password: string,
+): Promise<string> {
+  const loginData = await callUbus(
+    ubusUrl,
+    '00000000000000000000000000000000',
+    'session',
+    'login',
+    { username, password },
+  );
+  const token = typeof loginData.ubus_rpc_session === 'string' ? loginData.ubus_rpc_session : '';
+  if (!token) {
+    throw new Error('Falha ao obter token de sessão rpcd/ubus no OpenWrt.');
+  }
+  return token;
+}
+
 export async function syncOpenWrtReadOnly(
   endpointUrl: string,
   integrationId: string,
   credentials?: { username?: string; secret?: string },
 ): Promise<OpenWrtSyncResult> {
-  const ubusUrl = endpointUrl || process.env.OPENSHIELD_OPENWRT_URL || '';
+  let ubusUrl = (endpointUrl || process.env.OPENSHIELD_OPENWRT_URL || '').trim();
   const username = credentials?.username || process.env.OPENSHIELD_OPENWRT_USERNAME;
   const password = credentials?.secret || process.env.OPENSHIELD_OPENWRT_PASSWORD;
 
@@ -279,9 +519,13 @@ export async function syncOpenWrtReadOnly(
     throw new Error('URL do gateway OpenWrt / Node não configurada.');
   }
 
-  // If URL looks like OpenShield FastAPI Node instead of raw /ubus, query Node API directly
-  if (!ubusUrl.includes('/ubus') && ubusUrl.includes('/api/v1')) {
-    const baseNode = ubusUrl.replace(/\/api\/v1.*$/, '');
+  // If URL points to OpenShield FastAPI Node, query Node API directly
+  const isNodeEndpoint =
+    !ubusUrl.includes('/ubus') &&
+    (ubusUrl.includes('/api/v1') || ubusUrl.includes(':8000') || ubusUrl.includes('openshield-node'));
+
+  if (isNodeEndpoint) {
+    const baseNode = ubusUrl.replace(/\/api\/v1.*$/, '').replace(/\/+$/, '');
     const eventsRes = await boundedFetchJson<{ events?: OpenShieldEventV1[] }>(
       `${baseNode}/api/v1/events?limit=25`,
       { timeoutMs: 5000 },
@@ -336,6 +580,7 @@ export async function syncOpenWrtReadOnly(
       },
       events: events.map((ev) => ({ ...ev, dataSource: 'live' })),
       discoveredDevices,
+      routerAccessEntries: [],
     };
   }
 
@@ -345,17 +590,11 @@ export async function syncOpenWrtReadOnly(
     );
   }
 
-  const loginData = await callUbus(
-    ubusUrl,
-    '00000000000000000000000000000000',
-    'session',
-    'login',
-    { username, password },
-  );
-  const token = typeof loginData.ubus_rpc_session === 'string' ? loginData.ubus_rpc_session : '';
-  if (!token) {
-    throw new Error('Falha ao obter token de sessão rpcd/ubus no OpenWrt.');
+  if (!ubusUrl.includes('/ubus')) {
+    ubusUrl = ubusUrl.replace(/\/+$/, '') + '/ubus';
   }
+
+  const token = await openwrtLogin(ubusUrl, username, password);
 
   const board = await callUbus(ubusUrl, token, 'system', 'board');
   const netDump = await callUbus(ubusUrl, token, 'network.interface', 'dump');
@@ -449,6 +688,42 @@ export async function syncOpenWrtReadOnly(
   }
 
   const nowIso = new Date().toISOString();
+
+  // Best-effort read of router syslog (log.read -> fallback file.exec logread -l 200)
+  let rawLogLines: string[] = [];
+  let routerLogWarning: string | undefined;
+  try {
+    const logRes = await callUbus(ubusUrl, token, 'log', 'read', { lines: 200 });
+    if (Array.isArray(logRes.log)) {
+      rawLogLines = logRes.log
+        .map((item) => {
+          if (typeof item === 'string') return item;
+          if (item && typeof item === 'object') {
+            const msg = String((item as { msg?: unknown }).msg ?? '');
+            const id = String((item as { id?: unknown }).id ?? '');
+            return id ? `${id} ${msg}` : msg;
+          }
+          return '';
+        })
+        .filter(Boolean);
+    }
+  } catch (errLogRead) {
+    try {
+      const execLog = await callUbus(ubusUrl, token, 'file', 'exec', {
+        command: 'logread',
+        params: ['-l', '200'],
+      });
+      if (typeof execLog.stdout === 'string' && execLog.stdout.trim()) {
+        rawLogLines = execLog.stdout.split(/\r?\n/).filter(Boolean);
+      }
+    } catch (errExec) {
+      const msg = errExec instanceof Error ? errExec.message : String(errLogRead);
+      routerLogWarning = `Logs do roteador indisponíveis via ubus (${msg}). Conceda ACL log.read/logread ou use POST /api/v1/ingest/router-logs.`;
+    }
+  }
+
+  const parsedLogs = parseRouterAccessLogs(rawLogLines, integrationId, nowIso);
+
   const discoveryEvent: OpenShieldEventV1 = {
     eventId: `ev-${crypto.randomUUID().slice(0, 8)}`,
     schemaVersion: 'openshield.event.v1',
@@ -463,13 +738,16 @@ export async function syncOpenWrtReadOnly(
       firmware,
       interfaces,
       discoveredCount: discoveredDevices.length,
+      routerAccessAttemptsDetected: parsedLogs.entries.length,
       readOnly: true,
     },
   };
 
   return {
     boardInfo: { model, firmware, interfaces },
-    events: [discoveryEvent],
+    events: [discoveryEvent, ...parsedLogs.events],
     discoveredDevices,
+    routerAccessEntries: parsedLogs.entries,
+    routerLogWarning,
   };
 }

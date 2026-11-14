@@ -54,19 +54,57 @@ export function OverviewView({
     return t('overview.relHour', { n: Math.floor(min / 60) });
   };
 
-  const openIncidents = state.incidents.filter(
-    (i) => i.status === 'open' || i.status === 'investigating',
-  );
-  const activeIntegrations = state.integrations.filter((i) => i.status === 'connected').length;
-  const totalBlockedDns = state.dnsInsights.reduce((acc, item) => acc + item.blockedCount, 0);
-  const activeExecutions = state.executions.filter(
-    (e) => e.status === 'verified' || e.status === 'awaiting_approval',
-  );
   const isBusiness = state.context.profile === 'business';
   const visibleDevices = isBusiness
     ? state.devices
     : state.devices.filter((d) => d.siteId === state.context.activeSiteId);
-  const incidentsPagination = usePagination(state.incidents, 10);
+  const scopedIntegrations = isBusiness
+    ? state.integrations
+    : state.integrations.filter((i) => !i.siteId || i.siteId === state.context.activeSiteId);
+  const scopedIncidents = isBusiness
+    ? state.incidents
+    : state.incidents.filter((i) => !i.siteId || i.siteId === state.context.activeSiteId);
+  const scopedDeviceIds = new Set(visibleDevices.map((d) => d.id));
+  const scopedDeviceHosts = new Set(visibleDevices.map((d) => d.hostname.toLowerCase()));
+  const scopedDnsInsights = isBusiness
+    ? state.dnsInsights
+    : state.dnsInsights.filter(
+        (ins) =>
+          scopedDeviceIds.has(ins.deviceId) ||
+          scopedDeviceHosts.has(ins.deviceHostname.toLowerCase()),
+      );
+  const scopedIncidentIds = new Set(scopedIncidents.map((i) => i.id));
+  const scopedExecutions = isBusiness
+    ? state.executions
+    : state.executions.filter((e) => scopedIncidentIds.has(e.incidentId));
+  const scopedIntegrationIds = new Set(scopedIntegrations.map((i) => i.id));
+  const scopedEvents = isBusiness
+    ? state.events
+    : state.events.filter(
+        (ev) =>
+          (ev.deviceId && scopedDeviceIds.has(ev.deviceId)) ||
+          scopedIntegrationIds.has(ev.sourceIntegrationId),
+      );
+  const scopedRouterAttempts = isBusiness
+    ? (state.routerAccessAttempts ?? [])
+    : (state.routerAccessAttempts ?? []).filter(
+        (r) => !r.siteId || r.siteId === state.context.activeSiteId,
+      );
+  const observedRouterAttempts = scopedRouterAttempts.filter((r) => r.status === 'observed');
+
+  const openIncidents = scopedIncidents.filter(
+    (i) => i.status === 'open' || i.status === 'investigating',
+  );
+  const activeIntegrations = scopedIntegrations.filter((i) => i.status === 'connected').length;
+  const totalBlockedDns = scopedDnsInsights.reduce((acc, item) => acc + item.blockedCount, 0);
+  const activeExecutions = scopedExecutions.filter(
+    (e) => e.status === 'verified' || e.status === 'awaiting_approval',
+  );
+  const incidentsPagination = usePagination(
+    scopedIncidents,
+    10,
+    `${state.context.profile}|${state.context.activeSiteId}`,
+  );
 
   return (
     <div className="space-y-6">
@@ -150,7 +188,7 @@ export function OverviewView({
           <p className="mt-1.5 text-xs text-slate-400 tabular-nums">
             {t('overview.kpiDnsSubtitle', {
               active: activeIntegrations,
-              total: state.integrations.length,
+              total: scopedIntegrations.length,
             })}
           </p>
         </div>
@@ -175,6 +213,36 @@ export function OverviewView({
           </p>
         </div>
       </div>
+
+      {/* Unauthorized Router Access Summary Banner */}
+      {observedRouterAttempts.length > 0 && (
+        <div className="rounded-xl border border-amber-500/35 bg-[#131C31] px-5 py-3.5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3 text-xs">
+            <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <div className="font-semibold text-slate-100 tabular-nums">
+                {t('overview.routerAccessTitle', { count: observedRouterAttempts.length })}
+              </div>
+              <p className="text-slate-400 tabular-nums">
+                {t('overview.routerAccessSubtitle', {
+                  ips: observedRouterAttempts
+                    .slice(0, 3)
+                    .map((a) => `${a.srcIp} (${a.service.toUpperCase()})`)
+                    .join(', '),
+                })}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => onNavigate('integrations')}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+          >
+            <span>{t('overview.routerAccessCta')}</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Network Health & Multi-Endpoint Availability */}
       <NetworkHealthCard
@@ -209,15 +277,15 @@ export function OverviewView({
           </div>
 
           <div className="divide-y divide-slate-800/80 max-h-[480px] overflow-y-auto">
-            {state.incidents.length === 0 ? (
+            {scopedIncidents.length === 0 ? (
               <div className="p-8 text-center space-y-2.5">
                 <p className="text-sm text-slate-300 font-medium">
-                  {state.integrations.length === 0
+                  {scopedIntegrations.length === 0
                     ? t('overview.noServicesYet')
                     : t('overview.noIncidentsYet')}
                 </p>
                 <p className="text-xs text-slate-400 max-w-md mx-auto">
-                  {state.integrations.length === 0
+                  {scopedIntegrations.length === 0
                     ? t('overview.noServicesHint')
                     : t('overview.noIncidentsHint')}
                 </p>
@@ -290,7 +358,7 @@ export function OverviewView({
               ))
             )}
           </div>
-          {state.incidents.length > 0 && (
+          {scopedIncidents.length > 0 && (
             <PaginationControls
               page={incidentsPagination.page}
               pageSize={incidentsPagination.pageSize}
@@ -363,10 +431,10 @@ export function OverviewView({
                 {t('overview.recentEventsTitle')}
               </div>
               <div className="space-y-2">
-                {state.events.length === 0 ? (
+                {scopedEvents.length === 0 ? (
                   <div className="text-xs text-slate-500 py-2">{t('overview.noEventsYet')}</div>
                 ) : (
-                  state.events.slice(0, 3).map((ev) => (
+                  scopedEvents.slice(0, 3).map((ev) => (
                     <div
                       key={ev.eventId}
                       className="text-xs flex items-center justify-between gap-2 py-1.5 border-b border-slate-800/60 last:border-0"

@@ -68,7 +68,7 @@ export function PoliciesAuditView({
   }, [state.auditLog, auditFilter]);
 
   const execPagination = usePagination(state.executions, 10);
-  const auditPagination = usePagination(filteredAudit, 10);
+  const auditPagination = usePagination(filteredAudit, 10, auditFilter);
 
   const handleExportAudit = async (format: 'json' | 'csv') => {
     const { entries } = await api.getAuditLog(500);
@@ -274,6 +274,29 @@ export function PoliciesAuditView({
                   </div>
 
                   <div className="font-medium text-slate-100">{exec.targetLabel}</div>
+                  {exec.enforcementMode && (
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono text-slate-400 tabular-nums">
+                      <span
+                        className={
+                          exec.enforcementMode === 'live'
+                            ? 'text-emerald-400 font-medium'
+                            : 'text-amber-300 font-medium'
+                        }
+                      >
+                        {exec.enforcementMode === 'live'
+                          ? t('policies.enforcementLive')
+                          : t('policies.enforcementSim')}
+                      </span>
+                      {exec.ruleRef && (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <span className="text-slate-300">
+                            {t('policies.ruleRefLabel')} {exec.ruleRef}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  )}
                   <p className="text-slate-400">{exec.verificationDetail}</p>
 
                   <div className="flex items-center gap-2 pt-1">

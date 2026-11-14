@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getIntlLocale } from '../i18n';
@@ -10,9 +10,14 @@ export const PAGE_SIZE_OPTIONS: readonly PageSizeOption[] = [10, 20, 50, 100];
 export function usePagination<T>(
   items: readonly T[],
   defaultSize: PageSizeOption = 10,
+  resetKey?: string | number,
 ) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSizeState] = useState<PageSizeOption>(defaultSize);
+
+  useEffect(() => {
+    setPage(1);
+  }, [resetKey]);
 
   const totalItems = items.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));

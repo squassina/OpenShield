@@ -1,33 +1,43 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
   AlertCircle,
+  Ban,
   CheckCircle2,
   Clock,
+  EyeOff,
   KeyRound,
   Pause,
   Play,
   Plus,
   RefreshCw,
   Router,
+  Search,
   Send,
   ServerOff,
   Settings,
+  ShieldAlert,
   ShieldX,
   SlidersHorizontal,
+  Terminal,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getIntlLocale } from '../i18n';
 import { api } from '../lib/api';
+import { PaginationControls, usePagination } from './PaginationControls';
 import type {
   EnvSecretStatus,
   IntegrationAdapter,
   PeriodicSyncConfig,
+  RouterAccessService,
   ServiceProviderMode,
   WorkspaceState,
 } from '../types/openshield';
 
 interface IntegrationsViewProps {
   state: WorkspaceState;
+  searchQuery?: string;
+  onBlockRouterAccessIp: (id: string, ttlSeconds?: number) => Promise<void>;
+  onUpdateRouterAccessStatus: (id: string, status: 'observed' | 'ignored') => Promise<void>;
   onSwitchMode: (id: string, mode: ServiceProviderMode, liveUrl: string) => Promise<void>;
   onSyncAdapter: (id: string) => Promise<void>;
   onSyncAll: () => Promise<void>;
@@ -73,6 +83,9 @@ function formatCountdown(msRemaining: number): string {
 
 export function IntegrationsView({
   state,
+  searchQuery = '',
+  onBlockRouterAccessIp,
+  onUpdateRouterAccessStatus,
   onSwitchMode,
   onSyncAdapter,
   onSyncAll,
@@ -100,6 +113,56 @@ export function IntegrationsView({
   const [extraKey, setExtraKey] = useState('');
   const [extraVal, setExtraVal] = useState('');
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const [serviceFilter, setServiceFilter] = useState<'all' | RouterAccessService>('all');
+  const [routerSearch, setRouterSearch] = useState('');
+
+  const isBusiness = state.context.profile === 'business';
+  const isReadOnlyAuditor = isBusiness && state.context.simulatedRole === 'auditor';
+
+  const scopedRouterAttempts = useMemo(() => {
+    const all = state.routerAccessAttempts ?? [];
+    const bySite = isBusiness
+      ? all
+      : all.filter((item) => !item.siteId || item.siteId === state.context.activeSiteId);
+    const q = (routerSearch.trim() || searchQuery.trim()).toLowerCase();
+    return bySite.filter((item) => {
+      if (serviceFilter !== 'all' && item.service !== serviceFilter) return false;
+      if (!q) return true;
+      return (
+        item.srcIp.toLowerCase().includes(q) ||
+        item.service.toLowerCase().includes(q) ||
+        item.lastMessage.toLowerCase().includes(q) ||
+        item.sourceIntegrationId.toLowerCase().includes(q)
+      );
+    });
+  }, [
+    state.routerAccessAttempts,
+    isBusiness,
+    state.context.activeSiteId,
+    routerSearch,
+    searchQuery,
+    serviceFilter,
+  ]);
+
+  const routerAccessPagination = usePagination(
+    scopedRouterAttempts,
+    10,
+    `${state.context.profile}|${state.context.activeSiteId}|${serviceFilter}|${routerSearch}|${searchQuery}`,
+  );
+  const adaptersPagination = usePagination(state.integrations, 10);
+
+  const openwrtLogWarning = useMemo(
+    () =>
+      state.integrations.find(
+        (a) =>
+          a.kind === 'openwrt-rpcd' &&
+          a.lastLiveCheckMessage &&
+          (a.lastLiveCheckMessage.includes('Aviso logs') ||
+            a.lastLiveCheckMessage.includes('ubus') ||
+            a.lastLiveCheckMessage.includes('ACL')),
+      )?.lastLiveCheckMessage ?? null,
+    [state.integrations],
+  );
 
   const periodicSync = state.context.periodicSync ?? {
     enabled: false,
@@ -139,6 +202,36 @@ export function IntegrationsView({
   const sampleCurl = `curl -X POST http://localhost:3000/api/v1/ingest/events \\
   -H "Content-Type: application/json" \\
   -d '{"events":[{"schemaVersion":"openshield.event.v1","sourceIntegrationId":"suricata-lan","eventType":"ids.alert","severity":"high","deviceId":"dev-nas-01","summary":"SMB enumeration attempt detected on LAN","payload":{"dstPort":445,"proto":"TCP"}}]}'`;
+
+  const openwrtGwId =
+    state.integrations.find((a) => a.kind === 'openwrt-rpcd')?.id ?? 'openwrt-gw-1';
+
+  const routerPushCmd = `logread -l 120 | curl -sS -X POST "http://<NODE_HOST>:3000/api/v1/ingest/router-logs?sourceIntegrationId=${openwrtGwId}" \\
+  -H "Content-Type: text/plain" --data-binary @-`;
+
+  const rpcdAclSnippet = `{
+  "openshield": {
+    "description": "OpenShield telemetry, logread & isolated nft firewall containment",
+    "read": {
+      "ubus": {
+        "system": ["board", "info"],
+        "network.interface": ["dump"],
+        "luci-rpc": ["getHostHints", "getNetworkDevices"],
+        "log": ["read"]
+      },
+      "file": {
+        "/sbin/ip": ["exec"],
+        "/sbin/logread": ["exec"],
+        "/usr/sbin/nft": ["exec"]
+      }
+    },
+    "write": {
+      "file": {
+        "/usr/sbin/nft": ["exec"]
+      }
+    }
+  }
+}`;
 
   return (
     <div className="space-y-6">
@@ -546,32 +639,293 @@ export function IntegrationsView({
         </form>
       )}
 
-      {/* Adapters List */}
-      <div className="rounded-xl border border-slate-800 bg-[#131C31] divide-y divide-slate-800">
-        {state.integrations.length === 0 ? (
-          <div className="p-10 text-center space-y-3">
-            <p className="text-sm text-slate-300 font-medium">{t('integrations.emptyTitle')}</p>
-            <p className="text-xs text-slate-400 max-w-md mx-auto">
-              {t('integrations.emptyHintPrefix')}{' '}
-              <strong>{t('integrations.emptyHintBold')}</strong>{' '}
-              {t('integrations.emptyHintSuffix')}
+      {/* Router Unauthorized Access Attempts */}
+      <section className="rounded-xl border border-slate-800 bg-[#131C31] overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-800 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
+              <h2 className="text-sm font-semibold text-slate-100">
+                {t('integrations.routerAccess.title', { count: scopedRouterAttempts.length })}
+              </h2>
+            </div>
+            <p className="text-xs text-slate-400 max-w-2xl">
+              {t('integrations.routerAccess.subtitle')}
             </p>
-            <button
-              type="button"
-              onClick={onOpenSettings}
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 cursor-pointer"
-            >
-              <Settings className="w-3.5 h-3.5" />
-              <span>{t('integrations.goToSettings')}</span>
-            </button>
           </div>
-        ) : (
-          state.integrations.map((adapter) => {
-            const currentUrl = urlDrafts[adapter.id] ?? adapter.liveEndpointUrl;
-            const isBusy =
-              busyKey === `mode-${adapter.id}` ||
-              busyKey === `handshake-${adapter.id}` ||
-              busyKey === `sync-${adapter.id}`;
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="inline-flex flex-wrap items-center gap-1 p-1 rounded-lg bg-slate-950 border border-slate-800">
+              {(
+                [
+                  { id: 'all', label: t('integrations.routerAccess.filterAll') },
+                  { id: 'ssh', label: 'SSH' },
+                  { id: 'luci', label: 'LuCI' },
+                  { id: 'ubus', label: 'ubus' },
+                  { id: 'wan_drop', label: t('integrations.routerAccess.filterWanDrop') },
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setServiceFilter(tab.id)}
+                  className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                    serviceFilter === tab.id
+                      ? 'bg-slate-800 text-slate-100'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="search"
+                value={routerSearch}
+                onChange={(e) => setRouterSearch(e.target.value)}
+                placeholder={t('integrations.routerAccess.searchPlaceholder')}
+                className="pl-8 pr-3 py-1.5 w-48 rounded-lg border border-slate-800 bg-slate-950 text-slate-100 text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        {openwrtLogWarning && (
+          <div className="mx-5 mt-4 rounded-lg border border-amber-500/30 bg-amber-950/15 px-3.5 py-2.5 flex items-start gap-2.5 text-xs text-amber-200">
+            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-medium">{t('integrations.routerAccess.aclHintTitle')}</span>{' '}
+              <span className="text-amber-200/90">{openwrtLogWarning}</span>
+            </div>
+          </div>
+        )}
+
+        <div className="divide-y divide-slate-800/80 max-h-[460px] overflow-y-auto">
+          {scopedRouterAttempts.length === 0 ? (
+            <div className="p-8 text-center space-y-1.5 text-xs">
+              <div className="text-slate-300 font-medium">
+                {t('integrations.routerAccess.emptyTitle')}
+              </div>
+              <p className="text-slate-400 max-w-lg mx-auto">
+                {t('integrations.routerAccess.emptySubtitle')}
+              </p>
+            </div>
+          ) : (
+            routerAccessPagination.pagedItems.map((attempt) => {
+              const isBusyBlock = busyKey === `rtr-block-${attempt.id}`;
+              const isBusyStatus = busyKey === `rtr-status-${attempt.id}`;
+              const serviceLabel =
+                attempt.service === 'ssh'
+                  ? 'SSH'
+                  : attempt.service === 'luci'
+                    ? 'LuCI'
+                    : attempt.service === 'ubus'
+                      ? 'ubus'
+                      : t('integrations.routerAccess.filterWanDrop');
+
+              return (
+                <div
+                  key={attempt.id}
+                  className="px-5 py-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between hover:bg-slate-900/30 transition-colors"
+                >
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400 tabular-nums">
+                      <span className="font-mono font-semibold text-slate-100">
+                        {attempt.srcIp}
+                      </span>
+                      <span aria-hidden="true">·</span>
+                      <span className="font-mono text-slate-300">
+                        {serviceLabel}
+                        {attempt.targetPort ? ` · ${attempt.targetPort}` : ''}
+                      </span>
+                      <span aria-hidden="true">·</span>
+                      <span
+                        className={
+                          attempt.severity === 'critical' || attempt.severity === 'high'
+                            ? 'text-red-400 font-medium'
+                            : attempt.severity === 'medium'
+                              ? 'text-amber-400 font-medium'
+                              : 'text-slate-300 font-medium'
+                        }
+                      >
+                        {t(`integrations.routerAccess.sev.${attempt.severity}`)}
+                      </span>
+                      <span aria-hidden="true">·</span>
+                      <span>
+                        {t('integrations.routerAccess.attemptsCount', {
+                          count: attempt.attemptsCount,
+                        })}
+                      </span>
+                      <span aria-hidden="true">·</span>
+                      <span className="font-mono text-slate-400">
+                        {new Date(attempt.lastSeenAt).toLocaleTimeString(locale)}
+                      </span>
+                      <span aria-hidden="true">·</span>
+                      <span
+                        className={
+                          attempt.status === 'blocked'
+                            ? 'text-emerald-400 font-medium'
+                            : attempt.status === 'ignored'
+                              ? 'text-slate-500 font-medium'
+                              : 'text-amber-300 font-medium'
+                        }
+                      >
+                        {attempt.status === 'blocked'
+                          ? t('integrations.routerAccess.statusBlocked', {
+                              until: attempt.blockedUntil
+                                ? new Date(attempt.blockedUntil).toLocaleTimeString(locale)
+                                : 'TTL',
+                            })
+                          : attempt.status === 'ignored'
+                            ? t('integrations.routerAccess.statusIgnored')
+                            : t('integrations.routerAccess.statusObserved')}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-slate-200 leading-relaxed">{attempt.lastMessage}</p>
+
+                    <div className="text-[11px] font-mono text-slate-500">
+                      {t('integrations.routerAccess.sourceAdapter', {
+                        id: attempt.sourceIntegrationId,
+                      })}
+                      {attempt.linkedExecutionId && (
+                        <>
+                          {' '}
+                          ·{' '}
+                          <span className="text-slate-400">
+                            {t('integrations.routerAccess.linkedExec', {
+                              id: attempt.linkedExecutionId,
+                            })}
+                          </span>
+                        </>
+                      )}
+                    </div>
+
+                    {attempt.sampleLines.length > 0 && (
+                      <details className="text-[11px] text-slate-400">
+                        <summary className="cursor-pointer text-blue-400 hover:text-blue-300 select-none">
+                          {t('integrations.routerAccess.viewRawLines', {
+                            count: attempt.sampleLines.length,
+                          })}
+                        </summary>
+                        <pre className="mt-1.5 p-2.5 rounded-lg border border-slate-800 bg-slate-950 font-mono text-[11px] text-slate-300 overflow-x-auto">
+                          {attempt.sampleLines.join('\n')}
+                        </pre>
+                      </details>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      disabled={
+                        isReadOnlyAuditor ||
+                        isBusyBlock ||
+                        state.context.killSwitchActive ||
+                        attempt.status === 'blocked'
+                      }
+                      onClick={() => onBlockRouterAccessIp(attempt.id, 900)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-800/70 bg-red-950/30 text-red-200 hover:bg-red-900/40 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-40"
+                    >
+                      <Ban className="w-3.5 h-3.5" />
+                      <span>{t('integrations.routerAccess.blockIpBtn')}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={isReadOnlyAuditor || isBusyStatus || attempt.status === 'blocked'}
+                      onClick={() =>
+                        onUpdateRouterAccessStatus(
+                          attempt.id,
+                          attempt.status === 'ignored' ? 'observed' : 'ignored',
+                        )
+                      }
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-40"
+                    >
+                      <EyeOff className="w-3.5 h-3.5" />
+                      <span>
+                        {attempt.status === 'ignored'
+                          ? t('integrations.routerAccess.reopenBtn')
+                          : t('integrations.routerAccess.ignoreBtn')}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {scopedRouterAttempts.length > 0 && (
+          <PaginationControls
+            page={routerAccessPagination.page}
+            pageSize={routerAccessPagination.pageSize}
+            totalItems={routerAccessPagination.totalItems}
+            totalPages={routerAccessPagination.totalPages}
+            onPageChange={routerAccessPagination.setPage}
+            onPageSizeChange={routerAccessPagination.setPageSize}
+            compact
+          />
+        )}
+
+        <div className="px-5 py-3.5 border-t border-slate-800 bg-slate-950/40 text-xs">
+          <details>
+            <summary className="cursor-pointer text-blue-400 hover:text-blue-300 font-medium select-none inline-flex items-center gap-1.5">
+              <Terminal className="w-3.5 h-3.5" />
+              <span>{t('integrations.routerAccess.setupGuideSummary')}</span>
+            </summary>
+            <div className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <div className="text-[11px] font-medium text-slate-300">
+                  {t('integrations.routerAccess.pushCmdTitle')}
+                </div>
+                <pre className="p-3 rounded-lg border border-slate-800 bg-slate-950 font-mono text-[11px] text-slate-300 overflow-x-auto">
+                  {routerPushCmd}
+                </pre>
+              </div>
+              <div className="space-y-1.5">
+                <div className="text-[11px] font-medium text-slate-300">
+                  {t('integrations.routerAccess.aclJsonTitle')}
+                </div>
+                <pre className="p-3 rounded-lg border border-slate-800 bg-slate-950 font-mono text-[11px] text-slate-300 overflow-x-auto">
+                  {rpcdAclSnippet}
+                </pre>
+              </div>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      {/* Adapters List */}
+      <section className="rounded-xl border border-slate-800 bg-[#131C31] overflow-hidden">
+        <div className="divide-y divide-slate-800 max-h-[580px] overflow-y-auto">
+          {state.integrations.length === 0 ? (
+            <div className="p-10 text-center space-y-3">
+              <p className="text-sm text-slate-300 font-medium">{t('integrations.emptyTitle')}</p>
+              <p className="text-xs text-slate-400 max-w-md mx-auto">
+                {t('integrations.emptyHintPrefix')}{' '}
+                <strong>{t('integrations.emptyHintBold')}</strong>{' '}
+                {t('integrations.emptyHintSuffix')}
+              </p>
+              <button
+                type="button"
+                onClick={onOpenSettings}
+                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 cursor-pointer"
+              >
+                <Settings className="w-3.5 h-3.5" />
+                <span>{t('integrations.goToSettings')}</span>
+              </button>
+            </div>
+          ) : (
+            adaptersPagination.pagedItems.map((adapter) => {
+              const currentUrl = urlDrafts[adapter.id] ?? adapter.liveEndpointUrl;
+              const isBusy =
+                busyKey === `mode-${adapter.id}` ||
+                busyKey === `handshake-${adapter.id}` ||
+                busyKey === `sync-${adapter.id}`;
 
             return (
               <div key={adapter.id} className="p-5 space-y-4">
@@ -742,7 +1096,19 @@ export function IntegrationsView({
             );
           })
         )}
-      </div>
+        </div>
+        {state.integrations.length > 0 && (
+          <PaginationControls
+            page={adaptersPagination.page}
+            pageSize={adaptersPagination.pageSize}
+            totalItems={adaptersPagination.totalItems}
+            totalPages={adaptersPagination.totalPages}
+            onPageChange={adaptersPagination.setPage}
+            onPageSizeChange={adaptersPagination.setPageSize}
+            compact
+          />
+        )}
+      </section>
     </div>
   );
 }

@@ -150,6 +150,8 @@ export const en = {
     notifRemoved: 'Alert destination "{{name}}" removed.',
     periodicSyncOn: 'Periodic auto-sync enabled (every {{interval}}).',
     periodicSyncOff: 'Periodic auto-sync paused.',
+    routerAccessBlocked: 'IP {{ip}} blocked on router ({{mode}} mode · 15m TTL).',
+    routerAccessStatusUpdated: 'Router access attempt status updated.',
   },
   overview: {
     titleBusiness: 'Office Security Posture',
@@ -212,6 +214,9 @@ export const en = {
     relSec: '{{n}}s ago',
     relMin: '{{n}}m ago',
     relHour: '{{n}}h ago',
+    routerAccessTitle: '{{count}} unauthorized router access attempt(s) detected',
+    routerAccessSubtitle: 'Recent observed sources: {{ips}}',
+    routerAccessCta: 'Review / Block IP',
   },
   networkHealth: {
     ariaLabel: 'Network Health',
@@ -396,6 +401,40 @@ export const en = {
     autoSyncStatusSuccess: 'OK',
     autoSyncStatusPartial: 'Partial',
     autoSyncStatusFailed: 'Failed',
+    routerAccess: {
+      title: 'Router Access Attempts ({{count}})',
+      subtitle:
+        'Detected via OpenWrt ubus logread or syslog/SSH push (SSH, LuCI HTTP/HTTPS, ubus RPC, and WAN drops).',
+      filterAll: 'All',
+      filterWanDrop: 'WAN Drop',
+      searchPlaceholder: 'Filter IP, service, or log...',
+      aclHintTitle: 'OpenWrt permission required for log reading:',
+      emptyTitle: 'No router access attempts recorded yet.',
+      emptySubtitle:
+        'Sync your OpenWrt adapter (ubus) or push logs via POST /api/v1/ingest/router-logs to monitor SSH, LuCI, and WAN attempts.',
+      sev: {
+        critical: 'Critical',
+        high: 'High',
+        medium: 'Medium',
+        low: 'Low',
+        info: 'Info',
+      },
+      attemptsCount: '{{count}} attempt(s)',
+      statusBlocked: 'Blocked until {{until}}',
+      statusIgnored: 'Ignored',
+      statusObserved: 'Observed',
+      sourceAdapter: 'source: {{id}}',
+      linkedExec: 'exec: {{id}}',
+      viewRawLines: 'View raw log lines ({{count}})',
+      blockIpBtn: 'Block IP (15m)',
+      reopenBtn: 'Re-observe',
+      ignoreBtn: 'Ignore',
+      setupGuideSummary:
+        'Router setup guide (syslog/logread push & OpenWrt rpcd ACL)',
+      pushCmdTitle: 'Example push command (router cron / syslog-ng / logread):',
+      aclJsonTitle:
+        'OpenWrt rpcd permissions (/usr/share/rpcd/acl.d/openshield.json):',
+    },
   },
   devices: {
     title: 'Devices & Network Topology',
@@ -745,6 +784,9 @@ export const en = {
     loadingMetrics: 'Loading operational metrics...',
     killSwitchBanner:
       'Kill Switch active: all automated executions remain suspended at L0. Use the top button to release after review.',
+    enforcementLive: 'Live Router Enforcement',
+    enforcementSim: 'Simulated (No Live Gateway)',
+    ruleRefLabel: 'Rule:',
   },
   audit: {
     title: 'Audit Logs',
@@ -836,6 +878,8 @@ export const en = {
       'workspace.demo_loaded': 'Demo Scenario Loaded',
       'workspace.reset': 'Workspace Reset',
       'workspace.restored': 'Backup Restored',
+      'router_access.detected': 'Router Access Attempt Detected',
+      'router_access.blocked': 'Router IP Blocked',
     },
   },
   notifications: {
