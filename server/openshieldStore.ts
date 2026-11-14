@@ -20,6 +20,7 @@ import type {
   OpenShieldEventV1,
   OperatingContext,
   OperatingProfile,
+  PeriodicSyncConfig,
   PolicyRule,
   ServiceProviderMode,
   SyncAdapterResult,
@@ -55,6 +56,11 @@ const DEFAULT_AI_SENSITIVITY: AiSensitivityConfig = {
   flagLowSeverityEvents: false,
 };
 
+const DEFAULT_PERIODIC_SYNC: PeriodicSyncConfig = {
+  enabled: false,
+  intervalSeconds: 60,
+};
+
 function minutesAgoIso(minutes: number): string {
   return new Date(Date.now() - minutes * 60_000).toISOString();
 }
@@ -63,6 +69,7 @@ export class OpenShieldStore {
   private persistence: SqlitePersistence;
   private state: WorkspaceState;
   private listeners: Set<() => void> = new Set();
+  private periodicSyncInFlight = false;
 
   constructor(persistence?: SqlitePersistence) {
     this.persistence = persistence ?? new SqlitePersistence();
@@ -74,6 +81,16 @@ export class OpenShieldStore {
       this.state.notificationHistory ??= [];
       this.state.aiUsageHistory ??= [];
       this.state.context.aiSensitivity ??= { ...DEFAULT_AI_SENSITIVITY };
+      this.state.context.periodicSync ??= { ...DEFAULT_PERIODIC_SYNC };
+      if (this.state.context.periodicSync.enabled) {
+        const intervalMs = Math.max(15, this.state.context.periodicSync.intervalSeconds || 60) * 1000;
+        const nextMs = this.state.context.periodicSync.nextRunAt
+          ? Date.parse(this.state.context.periodicSync.nextRunAt)
+          : NaN;
+        if (!Number.isFinite(nextMs) || nextMs <= Date.now()) {
+          this.state.context.periodicSync.nextRunAt = new Date(Date.now() + intervalMs).toISOString();
+        }
+      }
       this.state.metrics.outboxPendingTotal = this.persistence.outboxCount();
       const recentAudit = this.persistence.loadRecentAudit(200);
       if (recentAudit.length > 0) {
@@ -313,6 +330,63 @@ export class OpenShieldStore {
     for (const item of expiredDnsToRevert) {
       void this.revertLiveDnsOnExpiry(item.execId, item.domain);
     }
+
+    const periodic = this.state.context.periodicSync;
+    if (
+      periodic?.enabled &&
+      !this.periodicSyncInFlight &&
+      this.state.context.nodeAvailable &&
+      this.state.integrations.length > 0
+    ) {
+      const nextMs = periodic.nextRunAt ? Date.parse(periodic.nextRunAt) : 0;
+      if (!Number.isFinite(nextMs) || now >= nextMs) {
+        void this.runPeriodicSyncTick();
+      }
+    }
+  }
+
+  private async runPeriodicSyncTick(): Promise<void> {
+    if (this.periodicSyncInFlight) return;
+    const periodic = this.state.context.periodicSync;
+    if (!periodic?.enabled) return;
+
+    this.periodicSyncInFlight = true;
+    const intervalSec = Math.max(15, Math.min(3600, Math.round(periodic.intervalSeconds || 60)));
+    try {
+      const out = await this.syncAllIntegrations({ bypassRbac: true, trigger: 'timer' });
+      const nowIso = new Date().toISOString();
+      const okCount = out.results.length;
+      const errCount = out.errors.length;
+      this.state.context.periodicSync = {
+        ...this.state.context.periodicSync,
+        enabled: Boolean(this.state.context.periodicSync?.enabled),
+        intervalSeconds: intervalSec,
+        lastRunAt: nowIso,
+        nextRunAt: this.state.context.periodicSync?.enabled
+          ? new Date(Date.now() + intervalSec * 1000).toISOString()
+          : undefined,
+        lastRunStatus:
+          errCount === 0 ? 'success' : okCount > 0 ? 'partial' : 'failed',
+        lastRunSummary: `${okCount} OK · ${errCount} fail`,
+      };
+      this.notify();
+    } catch {
+      const nowIso = new Date().toISOString();
+      this.state.context.periodicSync = {
+        ...this.state.context.periodicSync,
+        enabled: Boolean(this.state.context.periodicSync?.enabled),
+        intervalSeconds: intervalSec,
+        lastRunAt: nowIso,
+        nextRunAt: this.state.context.periodicSync?.enabled
+          ? new Date(Date.now() + intervalSec * 1000).toISOString()
+          : undefined,
+        lastRunStatus: 'failed',
+        lastRunSummary: '0 OK · 1 fail',
+      };
+      this.notify();
+    } finally {
+      this.periodicSyncInFlight = false;
+    }
   }
 
   private async revertLiveDnsOnExpiry(execId: string, domain: string): Promise<void> {
@@ -415,6 +489,35 @@ export class OpenShieldStore {
         targetId: 'ai-anomaly-sensitivity',
         outcome: 'success',
         detail: `Sensibilidade IA atualizada (${sanitized.preset}): score>=${sanitized.minRiskScoreAlert}, rajada DNS>=${sanitized.dnsBurstThresholdPerMin}/min, latência>=${sanitized.latencySpikeFactor}x, severidade baixa=${sanitized.flagLowSeverityEvents ? 'ativa' : 'inativa'}.`,
+      });
+    }
+
+    if (patch.periodicSync) {
+      this.assertCanMutate('operator');
+      const raw = patch.periodicSync;
+      const intervalSeconds = Math.max(
+        15,
+        Math.min(3600, Math.round(Number(raw.intervalSeconds) || 60)),
+      );
+      const enabled = Boolean(raw.enabled);
+      const prev = this.state.context.periodicSync ?? { ...DEFAULT_PERIODIC_SYNC };
+      this.state.context.periodicSync = {
+        ...prev,
+        enabled,
+        intervalSeconds,
+        nextRunAt: enabled
+          ? new Date(Date.now() + intervalSeconds * 1000).toISOString()
+          : undefined,
+      };
+      this.addAudit({
+        eventType: 'context.updated',
+        actor: this.currentActor().actor,
+        role: this.currentActor().role,
+        targetId: 'periodic-sync-timer',
+        outcome: 'success',
+        detail: enabled
+          ? `Sincronização periódica ativada a cada ${intervalSeconds}s.`
+          : `Sincronização periódica pausada (intervalo configurado: ${intervalSeconds}s).`,
       });
     }
 
@@ -777,9 +880,11 @@ export class OpenShieldStore {
 
   async syncIntegration(
     id: string,
-    options?: { skipLatencySample?: boolean },
+    options?: { skipLatencySample?: boolean; bypassRbac?: boolean; actor?: string },
   ): Promise<{ result: SyncAdapterResult; state: WorkspaceState }> {
-    this.assertCanMutate('operator');
+    if (!options?.bypassRbac) {
+      this.assertCanMutate('operator');
+    }
     const adapter = this.state.integrations.find((i) => i.id === id);
     if (!adapter) {
       throw new Error(`Integração "${id}" não encontrada.`);
@@ -938,8 +1043,8 @@ export class OpenShieldStore {
 
     this.addAudit({
       eventType: 'integration.synced',
-      actor: this.currentActor().actor,
-      role: this.currentActor().role,
+      actor: options?.actor ?? this.currentActor().actor,
+      role: options?.actor ? 'system' : this.currentActor().role,
       targetId: adapter.id,
       outcome: 'success',
       detail: message,
@@ -959,18 +1064,27 @@ export class OpenShieldStore {
     };
   }
 
-  async syncAllIntegrations(): Promise<{
+  async syncAllIntegrations(options?: {
+    bypassRbac?: boolean;
+    trigger?: 'manual' | 'timer';
+  }): Promise<{
     results: SyncAdapterResult[];
     errors: { adapterId: string; name: string; error: string }[];
     state: WorkspaceState;
   }> {
-    this.assertCanMutate('operator');
+    if (!options?.bypassRbac) {
+      this.assertCanMutate('operator');
+    }
     const results: SyncAdapterResult[] = [];
     const errors: { adapterId: string; name: string; error: string }[] = [];
 
     for (const adapter of [...this.state.integrations]) {
       try {
-        const out = await this.syncIntegration(adapter.id, { skipLatencySample: true });
+        const out = await this.syncIntegration(adapter.id, {
+          skipLatencySample: true,
+          bypassRbac: options?.bypassRbac,
+          actor: options?.trigger === 'timer' ? 'openshield-sync-timer' : undefined,
+        });
         results.push(out.result);
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Falha desconhecida ao sincronizar.';

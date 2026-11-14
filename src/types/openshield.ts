@@ -244,6 +244,15 @@ export interface AiSensitivityConfig {
   flagLowSeverityEvents: boolean;
 }
 
+export interface PeriodicSyncConfig {
+  enabled: boolean;
+  intervalSeconds: number;
+  lastRunAt?: string;
+  nextRunAt?: string;
+  lastRunStatus?: 'success' | 'partial' | 'failed';
+  lastRunSummary?: string;
+}
+
 export interface OperatingContext {
   profile: OperatingProfile;
   simulatedRole: SimulatedRole;
@@ -255,6 +264,7 @@ export interface OperatingContext {
   activeSiteId: string;
   sites: { id: string; name: string; profile: OperatingProfile }[];
   aiSensitivity?: AiSensitivityConfig;
+  periodicSync?: PeriodicSyncConfig;
 }
 
 export interface EnvSecretStatus {

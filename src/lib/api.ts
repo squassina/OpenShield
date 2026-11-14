@@ -12,6 +12,7 @@ import type {
   NotificationTriggerEvent,
   OpenShieldEventV1,
   OperatingProfile,
+  PeriodicSyncConfig,
   ServiceProviderMode,
   SimulatedRole,
   SyncAdapterResult,
@@ -46,6 +47,7 @@ export const api = {
     cloudAiOptIn?: boolean;
     activeSiteId?: string;
     aiSensitivity?: AiSensitivityConfig;
+    periodicSync?: PeriodicSyncConfig;
   }) =>
     requestJson<WorkspaceState>('/api/v1/context', {
       method: 'PATCH',

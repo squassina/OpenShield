@@ -37,6 +37,7 @@ import type {
   Incident,
   IntegrationAdapter,
   OperatingProfile,
+  PeriodicSyncConfig,
   ServiceProviderMode,
   SimulatedRole,
   WorkspaceState,
@@ -525,6 +526,17 @@ export default function App() {
                 })
               }
               onSyncAll={handleSyncAll}
+              onUpdatePeriodicSync={(periodicSync: PeriodicSyncConfig) => {
+                const sec = periodicSync.intervalSeconds;
+                const label = sec >= 60 && sec % 60 === 0 ? `${sec / 60}m` : `${sec}s`;
+                return runAction(
+                  'periodic-sync',
+                  () => api.updateContext({ periodicSync }),
+                  periodicSync.enabled
+                    ? t('toasts.periodicSyncOn', { interval: label })
+                    : t('toasts.periodicSyncOff'),
+                );
+              }}
               onHandshake={(id) =>
                 runAction(
                   `handshake-${id}`,

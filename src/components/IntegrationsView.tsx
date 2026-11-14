@@ -2,7 +2,10 @@ import { useEffect, useState, type FormEvent } from 'react';
 import {
   AlertCircle,
   CheckCircle2,
+  Clock,
   KeyRound,
+  Pause,
+  Play,
   Plus,
   RefreshCw,
   Router,
@@ -18,6 +21,7 @@ import { api } from '../lib/api';
 import type {
   EnvSecretStatus,
   IntegrationAdapter,
+  PeriodicSyncConfig,
   ServiceProviderMode,
   WorkspaceState,
 } from '../types/openshield';
@@ -27,6 +31,7 @@ interface IntegrationsViewProps {
   onSwitchMode: (id: string, mode: ServiceProviderMode, liveUrl: string) => Promise<void>;
   onSyncAdapter: (id: string) => Promise<void>;
   onSyncAll: () => Promise<void>;
+  onUpdatePeriodicSync: (config: PeriodicSyncConfig) => Promise<void>;
   onHandshake: (id: string) => Promise<void>;
   onToggleOutage: (nodeAvailable: boolean) => Promise<void>;
   onTestBadProvenance: () => Promise<void>;
@@ -44,11 +49,34 @@ interface IntegrationsViewProps {
   busyKey: string | null;
 }
 
+const SYNC_INTERVAL_PRESETS = [
+  { seconds: 30, label: '30s' },
+  { seconds: 60, label: '1m' },
+  { seconds: 300, label: '5m' },
+  { seconds: 900, label: '15m' },
+  { seconds: 1800, label: '30m' },
+] as const;
+
+function formatIntervalLabel(seconds: number): string {
+  if (seconds >= 60 && seconds % 60 === 0) {
+    return `${seconds / 60}m`;
+  }
+  return `${seconds}s`;
+}
+
+function formatCountdown(msRemaining: number): string {
+  const totalSec = Math.max(0, Math.ceil(msRemaining / 1000));
+  const mins = Math.floor(totalSec / 60);
+  const secs = totalSec % 60;
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
 export function IntegrationsView({
   state,
   onSwitchMode,
   onSyncAdapter,
   onSyncAll,
+  onUpdatePeriodicSync,
   onHandshake,
   onToggleOutage,
   onTestBadProvenance,
@@ -71,6 +99,19 @@ export function IntegrationsView({
   const [manualUrl, setManualUrl] = useState('http://192.168.1.10:9167/metrics');
   const [extraKey, setExtraKey] = useState('');
   const [extraVal, setExtraVal] = useState('');
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  const periodicSync = state.context.periodicSync ?? {
+    enabled: false,
+    intervalSeconds: 60,
+  };
+
+  useEffect(() => {
+    if (!periodicSync.enabled) return;
+    setNowMs(Date.now());
+    const id = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [periodicSync.enabled, periodicSync.nextRunAt]);
 
   useEffect(() => {
     api
@@ -143,6 +184,153 @@ export function IntegrationsView({
           </button>
         </div>
       </div>
+
+      {/* Periodic Auto-Sync Timer */}
+      <section className="rounded-xl border border-slate-800 bg-[#131C31] p-5 space-y-4">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <Clock
+                className={`w-4 h-4 shrink-0 ${
+                  periodicSync.enabled ? 'text-emerald-400' : 'text-slate-400'
+                }`}
+              />
+              <h2 className="text-sm font-semibold text-slate-100">
+                {t('integrations.autoSyncTitle')}
+              </h2>
+              <span
+                className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium border tabular-nums ${
+                  periodicSync.enabled
+                    ? state.context.nodeAvailable
+                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                      : 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+                    : 'border-slate-700 bg-slate-900 text-slate-400'
+                }`}
+              >
+                {periodicSync.enabled
+                  ? state.context.nodeAvailable
+                    ? t('integrations.autoSyncActive', {
+                        interval: formatIntervalLabel(periodicSync.intervalSeconds),
+                      })
+                    : t('integrations.autoSyncNodeOffline')
+                  : t('integrations.autoSyncPaused')}
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 max-w-2xl">{t('integrations.autoSyncSubtitle')}</p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div
+              className="inline-flex items-center p-1 rounded-lg bg-slate-950 border border-slate-800"
+              role="group"
+              aria-label={t('integrations.autoSyncIntervalLabel')}
+            >
+              {SYNC_INTERVAL_PRESETS.map((preset) => {
+                const isSelected = periodicSync.intervalSeconds === preset.seconds;
+                return (
+                  <button
+                    key={preset.seconds}
+                    type="button"
+                    disabled={busyKey === 'periodic-sync'}
+                    onClick={() =>
+                      onUpdatePeriodicSync({
+                        enabled: periodicSync.enabled,
+                        intervalSeconds: preset.seconds,
+                      })
+                    }
+                    className={`px-2.5 py-1.5 text-xs font-medium font-mono rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50 ${
+                      isSelected
+                        ? 'bg-blue-600 text-white'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              disabled={busyKey === 'periodic-sync' || state.integrations.length === 0}
+              onClick={() =>
+                onUpdatePeriodicSync({
+                  enabled: !periodicSync.enabled,
+                  intervalSeconds: periodicSync.intervalSeconds,
+                })
+              }
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50 ${
+                periodicSync.enabled
+                  ? 'border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
+                  : 'bg-emerald-600 text-white hover:bg-emerald-500'
+              }`}
+            >
+              {periodicSync.enabled ? (
+                <>
+                  <Pause className="w-3.5 h-3.5" />
+                  <span>{t('integrations.autoSyncPauseBtn')}</span>
+                </>
+              ) : (
+                <>
+                  <Play className="w-3.5 h-3.5" />
+                  <span>{t('integrations.autoSyncEnableBtn')}</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-800/80 text-xs text-slate-400 tabular-nums">
+          <div className="flex flex-wrap items-center gap-2">
+            {periodicSync.lastRunAt ? (
+              <>
+                <span>
+                  {t('integrations.autoSyncLastRun')}{' '}
+                  <strong className="text-slate-200 font-medium">
+                    {new Date(periodicSync.lastRunAt).toLocaleTimeString(locale)}
+                  </strong>
+                </span>
+                {periodicSync.lastRunStatus && (
+                  <span
+                    className={
+                      periodicSync.lastRunStatus === 'success'
+                        ? 'text-emerald-400 font-medium'
+                        : periodicSync.lastRunStatus === 'partial'
+                          ? 'text-amber-400 font-medium'
+                          : 'text-red-400 font-medium'
+                    }
+                  >
+                    {periodicSync.lastRunStatus === 'success'
+                      ? t('integrations.autoSyncStatusSuccess')
+                      : periodicSync.lastRunStatus === 'partial'
+                        ? t('integrations.autoSyncStatusPartial')
+                        : t('integrations.autoSyncStatusFailed')}
+                  </span>
+                )}
+                {periodicSync.lastRunSummary && (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <span className="font-mono text-slate-300">{periodicSync.lastRunSummary}</span>
+                  </>
+                )}
+              </>
+            ) : (
+              <span>{t('integrations.autoSyncNeverRan')}</span>
+            )}
+          </div>
+
+          {periodicSync.enabled && state.context.nodeAvailable && periodicSync.nextRunAt && (
+            <div className="flex items-center gap-1.5 text-slate-300">
+              <span className="text-slate-400">{t('integrations.autoSyncNextIn')}</span>
+              <span className="font-mono font-semibold text-emerald-400">
+                {Date.parse(periodicSync.nextRunAt) > nowMs
+                  ? formatCountdown(Date.parse(periodicSync.nextRunAt) - nowMs)
+                  : t('integrations.autoSyncDueNow')}
+              </span>
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* P0 Resilience & Real Ingestion Lab */}
       <section className="rounded-xl border border-slate-800 bg-[#131C31] p-5 space-y-4">

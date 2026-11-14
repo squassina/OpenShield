@@ -14,6 +14,7 @@ import type {
   NotificationTriggerEvent,
   OpenShieldEventV1,
   OperatingProfile,
+  PeriodicSyncConfig,
   ServiceProviderMode,
   SimulatedRole,
 } from './src/types/openshield.ts';
@@ -97,6 +98,7 @@ app.patch('/api/v1/context', (req, res) => {
       cloudAiOptIn?: boolean;
       activeSiteId?: string;
       aiSensitivity?: AiSensitivityConfig;
+      periodicSync?: PeriodicSyncConfig;
     };
     const state = store.updateContext(body);
     res.json(state);
