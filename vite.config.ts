@@ -8,7 +8,42 @@ export default defineConfig(() => {
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(import.meta.dirname, '.'),
+      },
+    },
+    build: {
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            groups: [
+              {
+                name: 'react-vendor',
+                test: /node_modules[\\/](react|react-dom|scheduler)/,
+                priority: 30,
+              },
+              {
+                name: 'charts-vendor',
+                test: /node_modules[\\/](recharts|d3-|victory-vendor)/,
+                priority: 25,
+              },
+              {
+                name: 'i18n-vendor',
+                test: /node_modules[\\/](i18next|react-i18next)/,
+                priority: 20,
+              },
+              {
+                name: 'icons-vendor',
+                test: /node_modules[\\/]lucide-react/,
+                priority: 15,
+              },
+              {
+                name: 'motion-vendor',
+                test: /node_modules[\\/](motion|framer-motion)/,
+                priority: 15,
+              },
+            ],
+          },
+        },
       },
     },
     server: {

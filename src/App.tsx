@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Activity,
@@ -21,15 +21,30 @@ import {
   X,
 } from 'lucide-react';
 import { SUPPORTED_LANGUAGES } from './i18n';
-import { AuditLogsView } from './components/AuditLogsView';
-import { DevicesTopologyView } from './components/DevicesTopologyView';
-import { DnsPrivacyView } from './components/DnsPrivacyView';
-import { IncidentsAiView } from './components/IncidentsAiView';
-import { IntegrationsView } from './components/IntegrationsView';
 import { OverviewView, type NavTab } from './components/OverviewView';
-import { PoliciesAuditView } from './components/PoliciesAuditView';
-import { SettingsView } from './components/SettingsView';
 import { api } from './lib/api';
+
+const AuditLogsView = lazy(() =>
+  import('./components/AuditLogsView').then((m) => ({ default: m.AuditLogsView })),
+);
+const DevicesTopologyView = lazy(() =>
+  import('./components/DevicesTopologyView').then((m) => ({ default: m.DevicesTopologyView })),
+);
+const DnsPrivacyView = lazy(() =>
+  import('./components/DnsPrivacyView').then((m) => ({ default: m.DnsPrivacyView })),
+);
+const IncidentsAiView = lazy(() =>
+  import('./components/IncidentsAiView').then((m) => ({ default: m.IncidentsAiView })),
+);
+const IntegrationsView = lazy(() =>
+  import('./components/IntegrationsView').then((m) => ({ default: m.IntegrationsView })),
+);
+const PoliciesAuditView = lazy(() =>
+  import('./components/PoliciesAuditView').then((m) => ({ default: m.PoliciesAuditView })),
+);
+const SettingsView = lazy(() =>
+  import('./components/SettingsView').then((m) => ({ default: m.SettingsView })),
+);
 import type {
   AiSensitivityConfig,
   AutonomyLevel,
@@ -494,7 +509,14 @@ export default function App() {
 
         {/* Main Viewport */}
         <main className="flex-1 p-4 lg:p-8 max-w-[1440px] w-full mx-auto">
-          {activeTab === 'overview' && (
+          <Suspense
+            fallback={
+              <div className="rounded-xl border border-slate-800 bg-[#131C31] p-8 text-xs font-mono text-slate-400">
+                {t('header.initializing')}
+              </div>
+            }
+          >
+            {activeTab === 'overview' && (
             <OverviewView
               state={state}
               onNavigate={setActiveTab}
@@ -894,6 +916,7 @@ export default function App() {
               busyKey={busyKey}
             />
           )}
+          </Suspense>
         </main>
       </div>
 
