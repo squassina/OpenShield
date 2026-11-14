@@ -281,6 +281,24 @@ app.post('/api/v1/devices', (req, res) => {
   }
 });
 
+app.post('/api/v1/devices/import-openwrt-map', (req, res) => {
+  try {
+    const body = req.body as {
+      rawOutput?: string;
+      netDump?: unknown;
+      hostHints?: unknown;
+      ipNeighText?: string;
+      siteId?: string;
+    };
+    const result = store.importOpenWrtMapping(body);
+    res.status(200).json(result);
+  } catch (err) {
+    res.status(400).json({
+      error: err instanceof Error ? err.message : 'Falha ao importar mapeamento OpenWrt.',
+    });
+  }
+});
+
 app.patch('/api/v1/devices/:id', (req, res) => {
   try {
     const body = req.body as Partial<

@@ -639,6 +639,12 @@ export default function App() {
                   t('toasts.deviceRemoved', { hostname }),
                 )
               }
+              onImportOpenWrtMap={(payload) =>
+                runAction('import-openwrt-map', async () => {
+                  const res = await api.importOpenWrtMap(payload);
+                  return res.state;
+                }, t('toasts.openwrtMapped'))
+              }
               busyKey={busyKey}
             />
           )}

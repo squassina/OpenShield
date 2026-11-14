@@ -181,6 +181,22 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
+  importOpenWrtMap: (payload: {
+    rawOutput?: string;
+    netDump?: unknown;
+    hostHints?: unknown;
+    ipNeighText?: string;
+    siteId?: string;
+  }) =>
+    requestJson<{
+      discoveredCount: number;
+      devices: { hostname: string; ip: string; mac?: string; interfaceName?: string }[];
+      state: WorkspaceState;
+    }>('/api/v1/devices/import-openwrt-map', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
   updateDevice: (
     deviceId: string,
     patch: Partial<

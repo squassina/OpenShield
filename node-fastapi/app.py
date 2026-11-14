@@ -257,3 +257,115 @@ def upsert_device(device: DeviceIn) -> dict[str, Any]:
     )
     db.commit()
     return {"id": dev_id, "status": "saved"}
+
+
+class OpenWrtMapIn(BaseModel):
+    rawOutput: str | None = None
+    netDump: dict[str, Any] | None = None
+    hostHints: dict[str, Any] | None = None
+    ipNeighText: str | None = None
+
+
+def _infer_segment(iface: str) -> str:
+    low = iface.lower()
+    if any(k in low for k in ("iot", "guest", "convid", "dmz", "vlan20", "vlan30")):
+        return "IoT / Convidados"
+    if any(k in low for k in ("wg", "vpn", "tun", "tap", "tailscale", "office", "escritorio")):
+        return "Escritório / VPN"
+    return "LAN Confiável"
+
+
+@app.post("/api/v1/openwrt/map-devices", status_code=200)
+def map_openwrt_devices(payload: OpenWrtMapIn) -> dict[str, Any]:
+    import re
+
+    mapped: list[dict[str, str]] = []
+    if payload.ipNeighText or payload.netDump or payload.hostHints:
+        dev_to_iface: dict[str, str] = {}
+        interfaces = (payload.netDump or {}).get("interface", [])
+        if isinstance(interfaces, list):
+            for item in interfaces:
+                if isinstance(item, dict):
+                    iface = str(item.get("interface") or "").strip()
+                    l3 = str(item.get("l3_device") or "").strip()
+                    if iface and l3 and l3 not in dev_to_iface:
+                        dev_to_iface[l3] = iface
+            for item in interfaces:
+                if isinstance(item, dict):
+                    iface = str(item.get("interface") or "").strip()
+                    dev = str(item.get("device") or "").strip()
+                    if iface and dev and dev not in dev_to_iface:
+                        dev_to_iface[dev] = iface
+
+        hints = payload.hostHints or {}
+        for line in (payload.ipNeighText or "").splitlines():
+            parts = line.strip().split()
+            if not parts or not re.match(r"^(?:\d{1,3}\.){3}\d{1,3}$", parts[0]):
+                continue
+            ip = parts[0]
+            dev = ""
+            mac = ""
+            for idx, tok in enumerate(parts):
+                if tok == "dev" and idx + 1 < len(parts):
+                    dev = parts[idx + 1]
+                if tok == "lladdr" and idx + 1 < len(parts):
+                    mac = parts[idx + 1].upper()
+            if not mac or not dev:
+                continue
+            hint_entry = hints.get(mac) or hints.get(mac.lower()) or {}
+            name = str(hint_entry.get("name") or "").strip() or "(sem-nome)"
+            iface = dev_to_iface.get(dev, dev)
+            mapped.append({"hostname": name, "mac": mac, "ip": ip, "interfaceName": iface})
+    elif payload.rawOutput:
+        pattern = re.compile(
+            r"^(.*?)\s+((?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})\s+((?:\d{1,3}\.){3}\d{1,3})\s+(\S+)\s*$"
+        )
+        for line in payload.rawOutput.splitlines():
+            m = pattern.match(line.strip())
+            if not m:
+                continue
+            mapped.append(
+                {
+                    "hostname": m.group(1).strip() or "(sem-nome)",
+                    "mac": m.group(2).upper(),
+                    "ip": m.group(3).strip(),
+                    "interfaceName": m.group(4).strip(),
+                }
+            )
+
+    if not mapped:
+        raise HTTPException(
+            status_code=400,
+            detail="Nenhum dispositivo válido encontrado no mapeamento OpenWrt.",
+        )
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    for item in mapped:
+        dev_id = f"owrt-{item['mac'].lower().replace(':', '')}"
+        db.execute(
+            """
+            INSERT INTO devices (id, hostname, ip, mac, vendor, interface_name, segment, device_type, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                hostname = excluded.hostname,
+                ip = excluded.ip,
+                mac = excluded.mac,
+                interface_name = excluded.interface_name,
+                segment = excluded.segment,
+                updated_at = excluded.updated_at
+            """,
+            (
+                dev_id,
+                item["hostname"],
+                item["ip"],
+                item["mac"],
+                "Mapeado via OpenWrt (ubus + ip neigh)",
+                item["interfaceName"],
+                _infer_segment(item["interfaceName"]),
+                "workstation",
+                now_iso,
+            ),
+        )
+    db.commit()
+    return {"count": len(mapped), "devices": mapped}
+

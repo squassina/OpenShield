@@ -33,7 +33,13 @@ import {
 } from './adapters/dnsAdapters.ts';
 import { boundedFetchJson } from './adapters/httpClient.ts';
 import { runLocalOllamaInvestigation } from './adapters/ollamaAdapter.ts';
-import { syncOpenWrtReadOnly, type DiscoveredDeviceHint } from './adapters/openwrtAdapter.ts';
+import {
+  mapOpenWrtNeighbors,
+  parseIp4NeighText,
+  parseOpenWrtCommandOutput,
+  syncOpenWrtReadOnly,
+  type DiscoveredDeviceHint,
+} from './adapters/openwrtAdapter.ts';
 import { correlateEventIntoIncidents } from './correlator.ts';
 import { buildSanitizedContext, runSanitizedCloudInvestigation } from './geminiSanitizer.ts';
 import { deliverNotification, type AlertDispatchPayload } from './notifier.ts';
@@ -683,16 +689,47 @@ export class OpenShieldStore {
     const nowIso = new Date().toISOString();
 
     for (const hint of hints) {
+      const hintMacUp = hint.mac?.trim().toUpperCase();
+      const validHintMac =
+        hintMacUp && hintMacUp !== 'NÃO INFORMADO' && hintMacUp !== '00:00:00:00:00:00'
+          ? hintMacUp
+          : undefined;
+
       const existing = this.state.devices.find(
         (d) =>
           (hint.id && d.id === hint.id) ||
-          (hint.mac && d.mac.toUpperCase() === hint.mac.toUpperCase()) ||
+          (validHintMac && d.mac.toUpperCase() === validHintMac) ||
           d.ip === hint.ip,
       );
 
       if (existing) {
         existing.lastSeenAt = nowIso;
-        if (hint.vendor && existing.vendor === 'Configurado manualmente') {
+        if (validHintMac && (!existing.mac || existing.mac === 'Não informado')) {
+          existing.mac = validHintMac;
+        }
+        if (hint.ip && validHintMac && existing.mac.toUpperCase() === validHintMac) {
+          existing.ip = hint.ip;
+        }
+        if (
+          hint.hostname &&
+          hint.hostname !== '(sem-nome)' &&
+          (!existing.hostname ||
+            existing.hostname === '(sem-nome)' ||
+            existing.hostname.startsWith('host-'))
+        ) {
+          existing.hostname = hint.hostname;
+        }
+        if (hint.interfaceName) {
+          existing.interfaceName = hint.interfaceName;
+        }
+        if (hint.segment) {
+          existing.segment = hint.segment;
+        }
+        if (
+          hint.vendor &&
+          (existing.vendor === 'Configurado manualmente' ||
+            existing.vendor === 'Descoberto via Rede')
+        ) {
           existing.vendor = hint.vendor;
         }
         addedOrUpdated += 1;
@@ -704,7 +741,7 @@ export class OpenShieldStore {
           id: cleanId,
           hostname: hint.hostname,
           ip: hint.ip,
-          mac: hint.mac || 'Não informado',
+          mac: validHintMac || 'Não informado',
           vendor: hint.vendor || 'Descoberto via Rede',
           interfaceName: hint.interfaceName || 'br-lan',
           segment: hint.segment,
@@ -1153,6 +1190,85 @@ export class OpenShieldStore {
     });
     this.notify();
     return this.getState();
+  }
+
+  importOpenWrtMapping(input: {
+    rawOutput?: string;
+    netDump?: unknown;
+    hostHints?: unknown;
+    ipNeighText?: string;
+    siteId?: string;
+  }): {
+    discoveredCount: number;
+    devices: DiscoveredDeviceHint[];
+    state: WorkspaceState;
+  } {
+    this.assertCanMutate('operator');
+    const siteId = input.siteId?.trim() || this.state.context.activeSiteId;
+
+    let hints: DiscoveredDeviceHint[] = [];
+    if (input.ipNeighText || input.netDump || input.hostHints) {
+      const ipNeighRows = parseIp4NeighText(input.ipNeighText ?? '');
+      hints = mapOpenWrtNeighbors({
+        netDump: input.netDump,
+        hostHints: input.hostHints,
+        ipNeighRows,
+        defaultVendor: 'Mapeado via OpenWrt (ubus + ip neigh)',
+      });
+    } else if (input.rawOutput?.trim()) {
+      hints = parseOpenWrtCommandOutput(input.rawOutput);
+    }
+
+    if (hints.length === 0) {
+      throw new Error(
+        'Nenhum dispositivo válido encontrado na saída OpenWrt. Formato esperado: <NOME> <MAC> <IP> <INTERFACE>.',
+      );
+    }
+
+    const discoveredCount = this.upsertDiscoveredDevices(hints, siteId);
+    const interfacesFound = Array.from(
+      new Set(hints.map((h) => h.interfaceName).filter(Boolean)),
+    );
+
+    const gatewaySourceId =
+      this.state.integrations.find((i) => i.domain === 'gateway')?.id ?? 'openwrt-gateway';
+    const nowIso = new Date().toISOString();
+    const discoveryEvent: OpenShieldEventV1 = {
+      eventId: `ev-${crypto.randomUUID().slice(0, 8)}`,
+      schemaVersion: 'openshield.event.v1',
+      occurredAt: nowIso,
+      sourceIntegrationId: gatewaySourceId,
+      eventType: 'gateway.discovery',
+      severity: 'info',
+      dataSource: 'live',
+      summary: `Mapeamento OpenWrt (ubus + ip -4 neigh) aplicado: ${discoveredCount} dispositivo(s) em ${interfacesFound.join(', ') || 'br-lan'}.`,
+      payload: {
+        discoveredCount,
+        interfaces: interfacesFound,
+        mappingMethod: 'ubus_network_interface_host_hints_ip4_neigh',
+      },
+    };
+    this.persistence.persistEvent(discoveryEvent);
+    this.state.events.unshift(discoveryEvent);
+    if (this.state.events.length > 150) {
+      this.state.events.length = 150;
+    }
+
+    this.addAudit({
+      eventType: 'device.added',
+      actor: this.currentActor().actor,
+      role: this.currentActor().role,
+      targetId: siteId,
+      outcome: 'success',
+      detail: `Mapeamento OpenWrt importado: ${discoveredCount} dispositivo(s) sincronizado(s) na topologia.`,
+    });
+    this.notify();
+
+    return {
+      discoveredCount,
+      devices: hints,
+      state: this.getState(),
+    };
   }
 
   updateDevice(

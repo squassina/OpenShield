@@ -3,7 +3,9 @@ import {
   Activity,
   ArrowRight,
   Ban,
+  Check,
   CheckCircle2,
+  Copy,
   Eye,
   GitBranch,
   Globe,
@@ -15,6 +17,7 @@ import {
   Server,
   ShieldAlert,
   Smartphone,
+  Terminal,
   Trash2,
   Video,
   X,
@@ -47,10 +50,27 @@ interface DevicesTopologyViewProps {
     >,
   ) => Promise<void>;
   onRemoveDevice: (id: string, hostname: string) => Promise<void>;
+  onImportOpenWrtMap?: (payload: { rawOutput: string }) => Promise<void>;
   busyKey: string | null;
 }
 
 const SEGMENTS: NetworkDevice['segment'][] = ['LAN Confiável', 'IoT / Convidados', 'Escritório / VPN'];
+
+const OPENWRT_MAP_COMMAND = `NET=$(ubus call network.interface dump); HINTS=$(ubus call luci-rpc getHostHints); ip -4 neigh show | awk '{
+  ip=$1; dev=""; mac="";
+  for(i=1;i<=NF;i++){
+    if($i=="dev") dev=$(i+1);
+    if($i=="lladdr") mac=$(i+1);
+  }
+  if(mac!="" && dev!="") print mac, ip, dev
+}' | while read MAC IP DEV; do
+  MAC_UP=$(echo "$MAC" | awk '{print toupper($0)}')
+  NAME=$(echo "$HINTS" | jsonfilter -e "@['$MAC_UP'].name" 2>/dev/null)
+  [ -z "$NAME" ] && NAME=$(echo "$HINTS" | jsonfilter -e "@['$MAC'].name" 2>/dev/null)
+  IFACE=$(echo "$NET" | jsonfilter -e "@.interface[@.l3_device='$DEV'].interface" | head -n1)
+  [ -z "$IFACE" ] && IFACE=$(echo "$NET" | jsonfilter -e "@.interface[@.device='$DEV'].interface" | head -n1)
+  printf "%-22s %-18s %-16s %s\\n" "\${NAME:-(sem-nome)}" "$MAC" "$IP" "\${IFACE:-$DEV}"
+done`;
 
 function DeviceIcon({ type }: { type: NetworkDevice['deviceType'] }) {
   if (type === 'router') return <Router className="w-4 h-4 text-blue-400 shrink-0" />;
@@ -174,6 +194,7 @@ export function DevicesTopologyView({
   onAddDevice,
   onUpdateDevice,
   onRemoveDevice,
+  onImportOpenWrtMap,
   busyKey,
 }: DevicesTopologyViewProps) {
   const { t, i18n } = useTranslation();
@@ -184,6 +205,9 @@ export function DevicesTopologyView({
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [flowDeviceId, setFlowDeviceId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showOpenWrtMapper, setShowOpenWrtMapper] = useState(false);
+  const [openWrtRawOutput, setOpenWrtRawOutput] = useState('');
+  const [copiedCmd, setCopiedCmd] = useState(false);
 
   // Add device form state
   const [hostname, setHostname] = useState('');
@@ -394,11 +418,26 @@ export function DevicesTopologyView({
             ))}
           </div>
 
+          {onImportOpenWrtMap && (
+            <button
+              type="button"
+              onClick={() => {
+                setShowOpenWrtMapper((prev) => !prev);
+                setShowAddForm(false);
+              }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border border-slate-700 bg-[#131C31] text-slate-200 hover:border-slate-600 hover:text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              <Terminal className="w-3.5 h-3.5 text-blue-400" />
+              <span>{t('devices.mapOpenwrtBtn')}</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => {
               setSiteId(state.context.activeSiteId);
               setShowAddForm((prev) => !prev);
+              setShowOpenWrtMapper(false);
             }}
             className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
@@ -407,6 +446,104 @@ export function DevicesTopologyView({
           </button>
         </div>
       </div>
+
+      {/* OpenWrt Router Neighbor Mapping Panel */}
+      {showOpenWrtMapper && onImportOpenWrtMap && (
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!openWrtRawOutput.trim()) return;
+            await onImportOpenWrtMap({ rawOutput: openWrtRawOutput });
+            setOpenWrtRawOutput('');
+            setShowOpenWrtMapper(false);
+          }}
+          className="rounded-xl border border-slate-700 bg-[#131C31] p-5 space-y-4"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-800 pb-3">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+                <Terminal className="w-4 h-4 text-blue-400" />
+                <span>{t('devices.mapOpenwrtTitle')}</span>
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5 max-w-3xl">
+                {t('devices.mapOpenwrtSubtitle')}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowOpenWrtMapper(false)}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 cursor-pointer"
+              aria-label={t('common.close')}
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-300 font-medium">{t('devices.commandLabel')}</span>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(OPENWRT_MAP_COMMAND);
+                    setCopiedCmd(true);
+                    window.setTimeout(() => setCopiedCmd(false), 2000);
+                  } catch {
+                    // Clipboard restricted
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 text-[11px] font-medium cursor-pointer"
+              >
+                {copiedCmd ? (
+                  <>
+                    <Check className="w-3 h-3 text-emerald-400" />
+                    <span className="text-emerald-300">{t('devices.copiedCommand')}</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3 h-3 text-slate-400" />
+                    <span>{t('devices.copyCommand')}</span>
+                  </>
+                )}
+              </button>
+            </div>
+            <pre className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-[11px] font-mono text-slate-300 overflow-x-auto leading-relaxed">
+              {OPENWRT_MAP_COMMAND}
+            </pre>
+          </div>
+
+          <label className="block space-y-1.5 text-xs">
+            <span className="text-slate-300 font-medium">{t('devices.pasteOutputLabel')}</span>
+            <textarea
+              rows={5}
+              required
+              value={openWrtRawOutput}
+              onChange={(e) => setOpenWrtRawOutput(e.target.value)}
+              placeholder={t('devices.pasteOutputPlaceholder')}
+              className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs focus:outline-none focus:border-blue-500"
+            />
+          </label>
+
+          <div className="flex justify-end gap-2.5">
+            <button
+              type="button"
+              onClick={() => setShowOpenWrtMapper(false)}
+              className="px-4 py-2 text-xs font-medium rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 cursor-pointer"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              type="submit"
+              disabled={busyKey === 'import-openwrt-map' || !openWrtRawOutput.trim()}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 cursor-pointer disabled:opacity-50"
+            >
+              <Network className="w-3.5 h-3.5" />
+              <span>{t('devices.applyMapping')}</span>
+            </button>
+          </div>
+        </form>
+      )}
 
       {/* Add Device Form */}
       {showAddForm && (

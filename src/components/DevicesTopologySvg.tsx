@@ -779,6 +779,16 @@ export function DevicesTopologySvg({
             {/* Segment Hub Nodes */}
             {layout.segments.map((segNode) => {
               const sStyle = STATUS_STYLE[segNode.status];
+              const ifaceList = Array.from(
+                new Set(segNode.devices.map((d) => d.device.interfaceName).filter(Boolean)),
+              );
+              const countText = t('devices.segmentDeviceCount', {
+                count: segNode.devices.length,
+              });
+              const subtitleText =
+                ifaceList.length > 0
+                  ? truncateLabel(`${ifaceList.join(', ')} · ${countText}`, 27)
+                  : countText;
               return (
                 <g key={`seg-node-${segNode.segment}`}>
                   <rect
@@ -810,10 +820,10 @@ export function DevicesTopologySvg({
                     x={segNode.x + 16}
                     y={segNode.y + 47}
                     fill="#94a3b8"
-                    fontSize="10.5"
+                    fontSize="10"
                     fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
                   >
-                    {t('devices.segmentDeviceCount', { count: segNode.devices.length })}
+                    {subtitleText}
                   </text>
                 </g>
               );
@@ -856,13 +866,15 @@ export function DevicesTopologySvg({
                 const dStyle = STATUS_STYLE[status];
                 const isSelected = selectedDeviceId === dev.id;
                 const isHovered = hoveredDeviceId === dev.id;
+                const displayHost =
+                  dev.hostname === '(sem-nome)' ? t('devices.unnamedHost') : dev.hostname;
 
                 return (
                   <g
                     key={dev.id}
                     role="button"
                     tabIndex={0}
-                    aria-label={`${dev.hostname} (${dev.ip})`}
+                    aria-label={`${displayHost} (${dev.ip})`}
                     style={{ cursor: isDragging ? 'grabbing' : 'pointer' }}
                     onMouseEnter={() => setHoveredDeviceId(dev.id)}
                     onMouseLeave={() =>
@@ -881,6 +893,7 @@ export function DevicesTopologySvg({
                       }
                     }}
                   >
+                    <title>{`${displayHost} · ${dev.ip} · ${dev.mac} · ${dev.interfaceName}`}</title>
                     {(isSelected || isHovered) && (
                       <rect
                         x={x - 3}
@@ -930,11 +943,11 @@ export function DevicesTopologySvg({
                     <text
                       x={x + 46}
                       y={y + 22}
-                      fill="#f8fafc"
+                      fill={dev.hostname === '(sem-nome)' ? '#cbd5e1' : '#f8fafc'}
                       fontSize="11.5"
                       fontWeight="600"
                     >
-                      {truncateLabel(dev.hostname, 17)}
+                      {truncateLabel(displayHost, 17)}
                     </text>
 
                     {/* IP + Interface */}
