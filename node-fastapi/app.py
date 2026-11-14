@@ -95,7 +95,7 @@ class DeviceIn(BaseModel):
     mac: str | None = None
     vendor: str | None = None
     interfaceName: str = "br-lan"
-    segment: Literal["LAN Confiável", "IoT / Convidados", "Escritório / VPN"] = "LAN Confiável"
+    segment: str = "lan"
     deviceType: Literal["router", "workstation", "mobile", "iot", "server"] = "workstation"
 
 
@@ -267,12 +267,8 @@ class OpenWrtMapIn(BaseModel):
 
 
 def _infer_segment(iface: str) -> str:
-    low = iface.lower()
-    if any(k in low for k in ("iot", "guest", "convid", "dmz", "vlan20", "vlan30")):
-        return "IoT / Convidados"
-    if any(k in low for k in ("wg", "vpn", "tun", "tap", "tailscale", "office", "escritorio")):
-        return "Escritório / VPN"
-    return "LAN Confiável"
+    cleaned = iface.strip()
+    return cleaned if cleaned else "br-lan"
 
 
 @app.post("/api/v1/openwrt/map-devices", status_code=200)

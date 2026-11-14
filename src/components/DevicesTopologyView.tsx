@@ -54,7 +54,7 @@ interface DevicesTopologyViewProps {
   busyKey: string | null;
 }
 
-const SEGMENTS: NetworkDevice['segment'][] = ['LAN Confiável', 'IoT / Convidados', 'Escritório / VPN'];
+const DEFAULT_SEGMENTS: NetworkDevice['segment'][] = ['LAN Confiável', 'IoT / Convidados', 'Escritório / VPN'];
 
 const OPENWRT_MAP_COMMAND = `NET=$(ubus call network.interface dump); HINTS=$(ubus call luci-rpc getHostHints); ip -4 neigh show | awk '{
   ip=$1; dev=""; mac="";
@@ -269,21 +269,53 @@ export function DevicesTopologyView({
     [state.devices, selectedDeviceId],
   );
 
-  const scopedDevices = useMemo(() => {
+  const siteScopedDevices = useMemo(() => {
     const isBusiness = state.context.profile === 'business';
+    return state.devices.filter((d) => isBusiness || d.siteId === state.context.activeSiteId);
+  }, [state.devices, state.context.profile, state.context.activeSiteId]);
+
+  const availableSegments = useMemo(() => {
+    const seen = new Set<string>();
+    const list: string[] = [];
+    for (const dev of siteScopedDevices) {
+      const seg = dev.segment?.trim() || dev.interfaceName?.trim() || 'br-lan';
+      if (!seen.has(seg)) {
+        seen.add(seg);
+        list.push(seg);
+      }
+    }
+    return list;
+  }, [siteScopedDevices]);
+
+  const segmentSuggestions = useMemo(
+    () => Array.from(new Set([...availableSegments, ...DEFAULT_SEGMENTS])),
+    [availableSegments],
+  );
+
+  const effectiveSegmentFilter =
+    segmentFilter === 'all' || availableSegments.includes(segmentFilter) ? segmentFilter : 'all';
+
+  const visibleSegments = useMemo(
+    () =>
+      effectiveSegmentFilter === 'all' ? availableSegments : [effectiveSegmentFilter],
+    [availableSegments, effectiveSegmentFilter],
+  );
+
+  const scopedDevices = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return state.devices.filter((d) => {
-      if (!isBusiness && d.siteId !== state.context.activeSiteId) return false;
-      if (segmentFilter !== 'all' && d.segment !== segmentFilter) return false;
+    return siteScopedDevices.filter((d) => {
+      if (effectiveSegmentFilter !== 'all' && d.segment !== effectiveSegmentFilter) return false;
       if (!q) return true;
       return (
         d.hostname.toLowerCase().includes(q) ||
         d.ip.toLowerCase().includes(q) ||
         d.mac.toLowerCase().includes(q) ||
-        d.vendor.toLowerCase().includes(q)
+        d.vendor.toLowerCase().includes(q) ||
+        d.interfaceName.toLowerCase().includes(q) ||
+        d.segment.toLowerCase().includes(q)
       );
     });
-  }, [state.devices, state.context.profile, state.context.activeSiteId, segmentFilter, searchQuery]);
+  }, [siteScopedDevices, effectiveSegmentFilter, searchQuery]);
 
   const relatedEvents = useMemo(() => {
     if (!selectedDevice) return [];
@@ -394,23 +426,23 @@ export function DevicesTopologyView({
             </button>
           </div>
 
-          <div className="inline-flex items-center gap-1 p-1 rounded-lg bg-[#131C31] border border-slate-800">
+          <div className="inline-flex flex-wrap items-center gap-1 p-1 rounded-lg bg-[#131C31] border border-slate-800">
             <button
               type="button"
               onClick={() => setSegmentFilter('all')}
               className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                segmentFilter === 'all' ? 'bg-slate-800 text-slate-100' : 'text-slate-400 hover:text-slate-200'
+                effectiveSegmentFilter === 'all' ? 'bg-slate-800 text-slate-100' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               {t('common.all')}
             </button>
-            {SEGMENTS.map((seg) => (
+            {availableSegments.map((seg) => (
               <button
                 key={seg}
                 type="button"
                 onClick={() => setSegmentFilter(seg)}
                 className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                  segmentFilter === seg ? 'bg-slate-800 text-slate-100' : 'text-slate-400 hover:text-slate-200'
+                  effectiveSegmentFilter === seg ? 'bg-slate-800 text-slate-100' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
                 {translateSegment(seg)}
@@ -609,17 +641,14 @@ export function DevicesTopologyView({
 
             <label className="block space-y-1 text-xs">
               <span className="text-slate-300 font-medium">{t('devices.segment')}</span>
-              <select
+              <input
+                type="text"
+                required
+                list="openshield-segment-options"
                 value={segment}
-                onChange={(e) => setSegment(e.target.value as NetworkDevice['segment'])}
+                onChange={(e) => setSegment(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
-              >
-                {SEGMENTS.map((seg) => (
-                  <option key={seg} value={seg}>
-                    {translateSegment(seg)}
-                  </option>
-                ))}
-              </select>
+              />
             </label>
 
             <label className="block space-y-1 text-xs">
@@ -693,8 +722,8 @@ export function DevicesTopologyView({
 
           <DevicesTopologySvg
             devices={scopedDevices}
-            segments={SEGMENTS}
-            segmentFilter={segmentFilter}
+            segments={availableSegments}
+            segmentFilter={effectiveSegmentFilter}
             selectedDeviceId={selectedDeviceId}
             state={state}
             onSelectDevice={openDrawer}
@@ -705,8 +734,8 @@ export function DevicesTopologyView({
             <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
               {t('devices.logicalCardsTitle')}
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {SEGMENTS.map((seg) => {
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {visibleSegments.map((seg) => {
               const items = scopedDevices.filter((d) => d.segment === seg);
               return (
                 <div
@@ -817,7 +846,7 @@ export function DevicesTopologyView({
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {SEGMENTS.map((seg) => {
+                  {visibleSegments.map((seg) => {
                     const segDevices = scopedDevices.filter((d) => d.segment === seg);
                     if (segDevices.length === 0) return null;
                     return (
@@ -1241,22 +1270,19 @@ export function DevicesTopologyView({
                   </label>
                   <label className="block space-y-1">
                     <span className="text-slate-400">{t('devices.segment')}</span>
-                    <select
+                    <input
+                      type="text"
+                      required
+                      list="openshield-segment-options"
                       value={editingDevice.segment}
                       onChange={(e) =>
                         setEditingDevice({
                           ...editingDevice,
-                          segment: e.target.value as NetworkDevice['segment'],
+                          segment: e.target.value,
                         })
                       }
                       className="w-full px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-950 text-slate-100"
-                    >
-                      {SEGMENTS.map((seg) => (
-                        <option key={seg} value={seg}>
-                          {translateSegment(seg)}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   </label>
                   <label className="block space-y-1">
                     <span className="text-slate-400">{t('devices.type')}</span>
@@ -1381,6 +1407,13 @@ export function DevicesTopologyView({
           </aside>
         </div>
       )}
+      <datalist id="openshield-segment-options">
+        {segmentSuggestions.map((seg) => (
+          <option key={seg} value={seg}>
+            {translateSegment(seg)}
+          </option>
+        ))}
+      </datalist>
     </div>
   );
 }

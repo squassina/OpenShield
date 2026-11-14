@@ -41,14 +41,8 @@ export function inferSegmentFromInterface(
   ifaceName?: string,
   devName?: string,
 ): NetworkDevice['segment'] {
-  const combined = `${ifaceName ?? ''} ${devName ?? ''}`.toLowerCase();
-  if (/(iot|guest|convid|dmz|vlan20|vlan30|isolat|smart)/.test(combined)) {
-    return 'IoT / Convidados';
-  }
-  if (/(wg|wireguard|vpn|tun|tap|tailscale|office|escritorio|corp)/.test(combined)) {
-    return 'Escritório / VPN';
-  }
-  return 'LAN Confiável';
+  const resolved = ifaceName?.trim() || devName?.trim();
+  return resolved || 'br-lan';
 }
 
 export function inferDeviceTypeFromHint(
@@ -70,7 +64,7 @@ export function inferDeviceTypeFromHint(
     /(cam|camera|esp|tasmota|shelly|smart|tv|roku|chromecast|sonos|alexa|echo|bulb|sensor|plug|printer|iot|zigbee|homekit)/.test(
       host,
     ) ||
-    inferSegmentFromInterface(ifaceName) === 'IoT / Convidados'
+    /(iot|guest|convid|dmz|vlan20|vlan30|isolat|smart)/.test(iface)
   ) {
     return 'iot';
   }
@@ -302,8 +296,8 @@ export async function syncOpenWrtReadOnly(
         hostname: `openshield-node (${extractHostIp(ubusUrl)})`,
         ip: extractHostIp(ubusUrl),
         vendor: 'OpenShield Node Gateway',
-        interfaceName: 'br-lan',
-        segment: 'LAN Confiável',
+        interfaceName: 'lan',
+        segment: 'lan',
         deviceType: 'router',
       },
     ];
@@ -375,14 +369,15 @@ export async function syncOpenWrtReadOnly(
     .filter(Boolean);
 
   const routerIp = extractHostIp(ubusUrl);
+  const primaryIface = interfaces.includes('lan') ? 'lan' : interfaces[0] || 'br-lan';
   const discoveredDevices: DiscoveredDeviceHint[] = [
     {
       id: `gw-${integrationId}`,
       hostname: String(board.hostname ?? model.toLowerCase().replace(/[^a-z0-9-]/g, '-')),
       ip: routerIp,
       vendor: model,
-      interfaceName: interfaces[0] || 'br-lan',
-      segment: 'LAN Confiável',
+      interfaceName: primaryIface,
+      segment: primaryIface,
       deviceType: 'router',
     },
   ];

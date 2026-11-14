@@ -82,7 +82,7 @@ export interface NetworkDevice {
   mac: string;
   vendor: string;
   interfaceName: string;
-  segment: 'LAN Confiável' | 'IoT / Convidados' | 'Escritório / VPN';
+  segment: string;
   siteId: string;
   riskScore: number;
   status: 'nominal' | 'attention' | 'isolated';

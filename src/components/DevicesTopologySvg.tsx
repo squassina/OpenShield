@@ -780,7 +780,11 @@ export function DevicesTopologySvg({
             {layout.segments.map((segNode) => {
               const sStyle = STATUS_STYLE[segNode.status];
               const ifaceList = Array.from(
-                new Set(segNode.devices.map((d) => d.device.interfaceName).filter(Boolean)),
+                new Set(
+                  segNode.devices
+                    .map((d) => d.device.interfaceName)
+                    .filter((iface) => Boolean(iface) && iface !== segNode.segment),
+                ),
               );
               const countText = t('devices.segmentDeviceCount', {
                 count: segNode.devices.length,
