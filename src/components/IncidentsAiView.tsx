@@ -18,6 +18,7 @@ import type {
 } from '../types/openshield';
 import { getIntlLocale } from '../i18n';
 import { AiUsageCard } from './AiUsageCard';
+import { PaginationControls, usePagination } from './PaginationControls';
 
 const SENSITIVITY_PRESETS: Record<
   Exclude<SensitivityPreset, 'customizado'>,
@@ -81,6 +82,7 @@ export function IncidentsAiView({
   const locale = getIntlLocale(i18n.language);
   const activeIncident =
     state.incidents.find((i) => i.id === selectedIncidentId) ?? state.incidents[0] ?? null;
+  const incidentsPagination = usePagination(state.incidents, 10);
 
   const currentSensitivity = state.context.aiSensitivity ?? DEFAULT_SENSITIVITY;
   const [sensitivityDraft, setSensitivityDraft] =
@@ -374,62 +376,73 @@ export function IncidentsAiView({
       ) : (
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         {/* Left Queue (4 cols) */}
-        <section className="xl:col-span-4 rounded-xl border border-slate-800 bg-[#131C31] divide-y divide-slate-800">
-          <div className="px-4 py-3.5 text-xs font-semibold text-slate-300">
+        <section className="xl:col-span-4 rounded-xl border border-slate-800 bg-[#131C31] overflow-hidden">
+          <div className="px-4 py-3.5 border-b border-slate-800 text-xs font-semibold text-slate-300">
             {t('incidents.queueTitle', { count: state.incidents.length })}
           </div>
-          {state.incidents.map((inc) => {
-            const isSelected = inc.id === activeIncident.id;
-            return (
-              <button
-                key={inc.id}
-                type="button"
-                onClick={() => onSelectIncident(inc.id)}
-                className={`w-full text-left p-4 transition-colors cursor-pointer ${
-                  isSelected ? 'bg-slate-800/70' : 'hover:bg-slate-900/40'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2 text-xs tabular-nums">
-                  <span
-                    className={
-                      inc.severity === 'high' || inc.severity === 'critical'
-                        ? 'text-red-400 font-medium'
-                        : 'text-amber-400 font-medium'
-                    }
-                  >
-                    {inc.severity === 'high' || inc.severity === 'critical'
-                      ? t('incidents.riskHigh')
-                      : t('incidents.riskMedium')}{' '}
-                    · {inc.riskScore}/100
-                  </span>
-                  <span className="text-slate-400 font-mono">{inc.deviceHostname}</span>
-                </div>
-                <div className="mt-1.5 text-sm font-medium text-slate-100 leading-snug">
-                  {inc.title}
-                </div>
-                <div className="mt-1.5 text-xs text-slate-400">
-                  <span>
-                    {t('incidents.stateLabel')}{' '}
-                    {inc.status === 'contained'
-                      ? t('incidents.statusContained')
-                      : inc.status === 'false_positive'
-                        ? t('incidents.statusFalsePositive')
-                        : inc.status === 'resolved'
-                          ? t('incidents.statusResolved')
-                          : inc.status === 'investigating'
-                            ? t('incidents.statusInvestigating')
-                            : t('incidents.statusOpen')}
-                  </span>
-                  <span className="mx-1.5 text-slate-600">·</span>
-                  <span className={inc.dataSource === 'live' ? 'text-blue-400' : 'text-slate-400'}>
-                    {inc.dataSource === 'live'
-                      ? t('incidents.sourceReal')
-                      : t('incidents.sourceSimulated')}
-                  </span>
-                </div>
-              </button>
-            );
-          })}
+          <div className="divide-y divide-slate-800 max-h-[540px] overflow-y-auto">
+            {incidentsPagination.pagedItems.map((inc) => {
+              const isSelected = inc.id === activeIncident.id;
+              return (
+                <button
+                  key={inc.id}
+                  type="button"
+                  onClick={() => onSelectIncident(inc.id)}
+                  className={`w-full text-left p-4 transition-colors cursor-pointer ${
+                    isSelected ? 'bg-slate-800/70' : 'hover:bg-slate-900/40'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2 text-xs tabular-nums">
+                    <span
+                      className={
+                        inc.severity === 'high' || inc.severity === 'critical'
+                          ? 'text-red-400 font-medium'
+                          : 'text-amber-400 font-medium'
+                      }
+                    >
+                      {inc.severity === 'high' || inc.severity === 'critical'
+                        ? t('incidents.riskHigh')
+                        : t('incidents.riskMedium')}{' '}
+                      · {inc.riskScore}/100
+                    </span>
+                    <span className="text-slate-400 font-mono">{inc.deviceHostname}</span>
+                  </div>
+                  <div className="mt-1.5 text-sm font-medium text-slate-100 leading-snug">
+                    {inc.title}
+                  </div>
+                  <div className="mt-1.5 text-xs text-slate-400">
+                    <span>
+                      {t('incidents.stateLabel')}{' '}
+                      {inc.status === 'contained'
+                        ? t('incidents.statusContained')
+                        : inc.status === 'false_positive'
+                          ? t('incidents.statusFalsePositive')
+                          : inc.status === 'resolved'
+                            ? t('incidents.statusResolved')
+                            : inc.status === 'investigating'
+                              ? t('incidents.statusInvestigating')
+                              : t('incidents.statusOpen')}
+                    </span>
+                    <span className="mx-1.5 text-slate-600">·</span>
+                    <span className={inc.dataSource === 'live' ? 'text-blue-400' : 'text-slate-400'}>
+                      {inc.dataSource === 'live'
+                        ? t('incidents.sourceReal')
+                        : t('incidents.sourceSimulated')}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <PaginationControls
+            page={incidentsPagination.page}
+            pageSize={incidentsPagination.pageSize}
+            totalItems={incidentsPagination.totalItems}
+            totalPages={incidentsPagination.totalPages}
+            onPageChange={incidentsPagination.setPage}
+            onPageSizeChange={incidentsPagination.setPageSize}
+            compact
+          />
         </section>
 
         {/* Right Investigation & Policy Trigger (8 cols) */}

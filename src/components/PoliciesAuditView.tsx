@@ -13,6 +13,7 @@ import {
 import { getIntlLocale } from '../i18n';
 import { api } from '../lib/api';
 import type { AutonomyLevel, WorkspaceState } from '../types/openshield';
+import { PaginationControls, usePagination } from './PaginationControls';
 
 interface PoliciesAuditViewProps {
   state: WorkspaceState;
@@ -65,6 +66,9 @@ export function PoliciesAuditView({
     if (auditFilter === 'all') return state.auditLog;
     return state.auditLog.filter((a) => a.outcome === auditFilter);
   }, [state.auditLog, auditFilter]);
+
+  const execPagination = usePagination(state.executions, 10);
+  const auditPagination = usePagination(filteredAudit, 10);
 
   const handleExportAudit = async (format: 'json' | 'csv') => {
     const { entries } = await api.getAuditLog(500);
@@ -222,8 +226,8 @@ export function PoliciesAuditView({
             </span>
           </div>
 
-          <div className="divide-y divide-slate-800/80">
-            {state.executions.map((exec) => {
+          <div className="divide-y divide-slate-800/80 max-h-[420px] overflow-y-auto">
+            {execPagination.pagedItems.map((exec) => {
               const remainingSec = exec.expiresAt
                 ? Math.max(0, Math.ceil((Date.parse(exec.expiresAt) - nowMs) / 1000))
                 : null;
@@ -301,6 +305,17 @@ export function PoliciesAuditView({
               );
             })}
           </div>
+          {state.executions.length > 0 && (
+            <PaginationControls
+              page={execPagination.page}
+              pageSize={execPagination.pageSize}
+              totalItems={execPagination.totalItems}
+              totalPages={execPagination.totalPages}
+              onPageChange={execPagination.setPage}
+              onPageSizeChange={execPagination.setPageSize}
+              compact
+            />
+          )}
         </section>
 
         {/* Policy Rules */}
@@ -403,10 +418,10 @@ export function PoliciesAuditView({
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="m-4 rounded-lg border border-slate-800 bg-[#0B1120]/40 max-h-[440px] overflow-auto">
           <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-slate-800 text-xs font-medium text-slate-400 bg-slate-900/50">
+            <thead className="sticky top-0 z-10 bg-[#0B1120] shadow-[0_1px_0_0_rgb(30,41,59)]">
+              <tr className="text-xs font-medium text-slate-400">
                 <th className="py-2.5 px-4">{t('policies.colTimeUtc')}</th>
                 <th className="py-2.5 px-4">{t('policies.colEvent')}</th>
                 <th className="py-2.5 px-4">{t('policies.colActorRole')}</th>
@@ -415,7 +430,7 @@ export function PoliciesAuditView({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/80 text-xs">
-              {filteredAudit.slice(0, 20).map((entry) => (
+              {auditPagination.pagedItems.map((entry) => (
                 <tr key={entry.id} className="h-[40px] hover:bg-slate-900/40">
                   <td className="px-4 py-2 font-mono text-slate-400 tabular-nums whitespace-nowrap">
                     {new Date(entry.timestamp).toLocaleTimeString(locale)}
@@ -449,6 +464,14 @@ export function PoliciesAuditView({
             </tbody>
           </table>
         </div>
+        <PaginationControls
+          page={auditPagination.page}
+          pageSize={auditPagination.pageSize}
+          totalItems={auditPagination.totalItems}
+          totalPages={auditPagination.totalPages}
+          onPageChange={auditPagination.setPage}
+          onPageSizeChange={auditPagination.setPageSize}
+        />
 
         {/* Progressive disclosure for Prometheus /metrics */}
         <div className="px-5 py-3.5 border-t border-slate-800 bg-slate-950/40 text-xs">

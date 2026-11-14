@@ -3,6 +3,7 @@ import { Eye, GlobeLock, Plus, ShieldCheck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getIntlLocale } from '../i18n';
 import type { DnsInsight, WorkspaceState } from '../types/openshield';
+import { PaginationControls, usePagination } from './PaginationControls';
 
 interface DnsPrivacyViewProps {
   state: WorkspaceState;
@@ -47,6 +48,8 @@ export function DnsPrivacyView({
       );
     });
   }, [state.dnsInsights, filter, searchQuery]);
+
+  const dnsPagination = usePagination(filteredInsights, 10);
 
   const dnsAdapters = state.integrations.filter((i) => i.domain === 'dns');
   const liveDnsCount = dnsAdapters.filter((i) => i.mode === 'live').length;
@@ -243,10 +246,10 @@ export function DnsPrivacyView({
 
       {/* Domains Table */}
       <section className="rounded-xl border border-slate-800 bg-[#131C31] overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="m-4 rounded-lg border border-slate-800 bg-[#0B1120]/40 max-h-[540px] overflow-auto">
           <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-slate-800 text-xs font-medium text-slate-400 bg-slate-900/50">
+            <thead className="sticky top-0 z-10 bg-[#0B1120] shadow-[0_1px_0_0_rgb(30,41,59)]">
+              <tr className="text-xs font-medium text-slate-400">
                 <th className="py-3 px-4">{t('dns.colDomainCat')}</th>
                 <th className="py-3 px-4">{t('dns.colMainDevice')}</th>
                 <th className="py-3 px-4 text-right">{t('dns.colQueries')}</th>
@@ -274,7 +277,7 @@ export function DnsPrivacyView({
                   </td>
                 </tr>
               ) : (
-                filteredInsights.map((item) => {
+                dnsPagination.pagedItems.map((item) => {
                   const isBusy = busyKey === `dns-${item.id}`;
                   return (
                     <tr
@@ -348,6 +351,14 @@ export function DnsPrivacyView({
             </tbody>
           </table>
         </div>
+        <PaginationControls
+          page={dnsPagination.page}
+          pageSize={dnsPagination.pageSize}
+          totalItems={dnsPagination.totalItems}
+          totalPages={dnsPagination.totalPages}
+          onPageChange={dnsPagination.setPage}
+          onPageSizeChange={dnsPagination.setPageSize}
+        />
       </section>
     </div>
   );

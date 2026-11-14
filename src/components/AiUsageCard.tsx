@@ -19,6 +19,7 @@ import {
 } from 'recharts';
 import { getIntlLocale } from '../i18n';
 import type { AiUsageRecord } from '../types/openshield';
+import { PaginationControls, usePagination } from './PaginationControls';
 
 type UsageFilter = 'all' | 'local' | 'cloud';
 
@@ -145,6 +146,8 @@ export function AiUsageCard({ records }: AiUsageCardProps) {
     if (filter === 'all') return records;
     return records.filter((r) => r.channel === filter);
   }, [records, filter]);
+
+  const usagePagination = usePagination(filteredRecords, 10);
 
   return (
     <section
@@ -378,7 +381,7 @@ export function AiUsageCard({ records }: AiUsageCardProps) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/70">
-                  {filteredRecords.map((row) => (
+                  {usagePagination.pagedItems.map((row) => (
                     <tr key={row.id} className="hover:bg-slate-900/50 transition-colors">
                       <td className="py-2.5 px-3 font-mono text-[11px] text-slate-400 whitespace-nowrap tabular-nums">
                         {new Date(row.timestamp).toLocaleString(locale, {
@@ -454,6 +457,15 @@ export function AiUsageCard({ records }: AiUsageCardProps) {
                 </tbody>
               </table>
             </div>
+            <PaginationControls
+              page={usagePagination.page}
+              pageSize={usagePagination.pageSize}
+              totalItems={usagePagination.totalItems}
+              totalPages={usagePagination.totalPages}
+              onPageChange={usagePagination.setPage}
+              onPageSizeChange={usagePagination.setPageSize}
+              compact
+            />
           </div>
         </div>
       )}

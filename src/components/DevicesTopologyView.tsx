@@ -25,6 +25,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { getIntlLocale } from '../i18n';
 import { DevicesTopologySvg } from './DevicesTopologySvg';
+import { PaginationControls, usePagination } from './PaginationControls';
 import type { DnsInsight, NetworkDevice, WorkspaceState } from '../types/openshield';
 
 interface DevicesTopologyViewProps {
@@ -327,6 +328,9 @@ export function DevicesTopologyView({
       );
     });
   }, [siteScopedDevices, effectiveSegmentFilter, searchQuery]);
+
+  const deviceTablePagination = usePagination(scopedDevices, 10);
+  const flowPagination = usePagination(scopedDevices, 10);
 
   const relatedEvents = useMemo(() => {
     if (!selectedDevice) return [];
@@ -764,7 +768,7 @@ export function DevicesTopologyView({
                       {t('devices.noDevicesInSegment')}
                     </p>
                   ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
                       {items.map((dev) => (
                         <button
                           key={dev.id}
@@ -867,87 +871,99 @@ export function DevicesTopologyView({
                   {t('devices.noDevicesFlowFilter')}
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {visibleSegments.map((seg) => {
-                    const segDevices = scopedDevices.filter((d) => d.segment === seg);
-                    if (segDevices.length === 0) return null;
-                    return (
-                      <div
-                        key={seg}
-                        className="rounded-lg border border-slate-800 bg-[#0B1120]/70 p-3.5 space-y-2.5"
-                      >
-                        <div className="flex items-center justify-between text-xs border-b border-slate-800/80 pb-2">
-                          <span className="font-semibold text-slate-200 flex items-center gap-1.5">
-                            <ArrowRight className="w-3.5 h-3.5 text-blue-400" />
-                            <span>{translateSegment(seg)}</span>
-                          </span>
-                          <span className="text-[11px] text-slate-400 tabular-nums">
-                            {t('devices.dnsReqsShort', {
-                              count: segDevices
-                                .reduce((s, d) => s + d.dnsQueries24h, 0)
-                                .toLocaleString(locale),
-                            })}
-                          </span>
-                        </div>
+                <div className="rounded-lg border border-slate-800 bg-[#0B1120]/40 overflow-hidden">
+                  <div className="space-y-3 max-h-[540px] overflow-y-auto p-3">
+                    {visibleSegments.map((seg) => {
+                      const allSegDevices = scopedDevices.filter((d) => d.segment === seg);
+                      const segDevices = flowPagination.pagedItems.filter((d) => d.segment === seg);
+                      if (segDevices.length === 0) return null;
+                      return (
+                        <div
+                          key={seg}
+                          className="rounded-lg border border-slate-800 bg-[#0B1120]/70 p-3.5 space-y-2.5"
+                        >
+                          <div className="flex items-center justify-between text-xs border-b border-slate-800/80 pb-2">
+                            <span className="font-semibold text-slate-200 flex items-center gap-1.5">
+                              <ArrowRight className="w-3.5 h-3.5 text-blue-400" />
+                              <span>{translateSegment(seg)}</span>
+                            </span>
+                            <span className="text-[11px] text-slate-400 tabular-nums">
+                              {t('devices.dnsReqsShort', {
+                                count: allSegDevices
+                                  .reduce((s, d) => s + d.dnsQueries24h, 0)
+                                  .toLocaleString(locale),
+                              })}
+                            </span>
+                          </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                          {segDevices.map((dev) => {
-                            const selected = activeFlowDevice?.id === dev.id;
-                            const domainCount = getTopDomainsForDevice(dev, state, 50).length;
-                            return (
-                              <button
-                                key={dev.id}
-                                type="button"
-                                onClick={() => setFlowDeviceId(dev.id)}
-                                className={`text-left rounded-lg border p-3 transition-colors cursor-pointer space-y-2 ${
-                                  selected
-                                    ? 'border-blue-500 bg-blue-950/35'
-                                    : 'border-slate-800 bg-[#131C31]/60 hover:border-slate-700'
-                                }`}
-                              >
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <DeviceIcon type={dev.deviceType} />
-                                    <div className="min-w-0">
-                                      <div className="text-xs font-semibold text-slate-100 truncate">
-                                        {dev.hostname}
-                                      </div>
-                                      <div className="text-[11px] font-mono text-slate-400 tabular-nums">
-                                        {dev.ip} · {dev.interfaceName}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            {segDevices.map((dev) => {
+                              const selected = activeFlowDevice?.id === dev.id;
+                              const domainCount = getTopDomainsForDevice(dev, state, 50).length;
+                              return (
+                                <button
+                                  key={dev.id}
+                                  type="button"
+                                  onClick={() => setFlowDeviceId(dev.id)}
+                                  className={`text-left rounded-lg border p-3 transition-colors cursor-pointer space-y-2 ${
+                                    selected
+                                      ? 'border-blue-500 bg-blue-950/35'
+                                      : 'border-slate-800 bg-[#131C31]/60 hover:border-slate-700'
+                                  }`}
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <DeviceIcon type={dev.deviceType} />
+                                      <div className="min-w-0">
+                                        <div className="text-xs font-semibold text-slate-100 truncate">
+                                          {dev.hostname}
+                                        </div>
+                                        <div className="text-[11px] font-mono text-slate-400 tabular-nums">
+                                          {dev.ip} · {dev.interfaceName}
+                                        </div>
                                       </div>
                                     </div>
+                                    <span
+                                      className={`text-[11px] font-mono tabular-nums shrink-0 ${
+                                        dev.riskScore >= 70
+                                          ? 'text-red-400'
+                                          : dev.riskScore >= 40
+                                            ? 'text-amber-400'
+                                            : 'text-emerald-400'
+                                      }`}
+                                    >
+                                      {t('common.risk')} {dev.riskScore}
+                                    </span>
                                   </div>
-                                  <span
-                                    className={`text-[11px] font-mono tabular-nums shrink-0 ${
-                                      dev.riskScore >= 70
-                                        ? 'text-red-400'
-                                        : dev.riskScore >= 40
-                                          ? 'text-amber-400'
-                                          : 'text-emerald-400'
-                                    }`}
-                                  >
-                                    {t('common.risk')} {dev.riskScore}
-                                  </span>
-                                </div>
 
-                                <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800/70 tabular-nums">
-                                  <span>
-                                    {t('devices.queriesBlockedShort', {
-                                      queries: dev.dnsQueries24h.toLocaleString(locale),
-                                      blocked: dev.blockedQueries24h.toLocaleString(locale),
-                                    })}
-                                  </span>
-                                  <span className="text-blue-300 font-medium">
-                                    {t('devices.domainsCount', { count: domainCount })}
-                                  </span>
-                                </div>
-                              </button>
-                            );
-                          })}
+                                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800/70 tabular-nums">
+                                    <span>
+                                      {t('devices.queriesBlockedShort', {
+                                        queries: dev.dnsQueries24h.toLocaleString(locale),
+                                        blocked: dev.blockedQueries24h.toLocaleString(locale),
+                                      })}
+                                    </span>
+                                    <span className="text-blue-300 font-medium">
+                                      {t('devices.domainsCount', { count: domainCount })}
+                                    </span>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
+                  <PaginationControls
+                    page={flowPagination.page}
+                    pageSize={flowPagination.pageSize}
+                    totalItems={flowPagination.totalItems}
+                    totalPages={flowPagination.totalPages}
+                    onPageChange={flowPagination.setPage}
+                    onPageSizeChange={flowPagination.setPageSize}
+                    compact
+                  />
                 </div>
               )}
             </div>
@@ -1138,7 +1154,7 @@ export function DevicesTopologyView({
                   </td>
                 </tr>
               ) : (
-                scopedDevices.map((dev) => (
+                deviceTablePagination.pagedItems.map((dev) => (
                   <tr
                     key={dev.id}
                     className="h-[44px] hover:bg-slate-900/40 transition-colors"
@@ -1210,6 +1226,14 @@ export function DevicesTopologyView({
             </tbody>
           </table>
         </div>
+        <PaginationControls
+          page={deviceTablePagination.page}
+          pageSize={deviceTablePagination.pageSize}
+          totalItems={deviceTablePagination.totalItems}
+          totalPages={deviceTablePagination.totalPages}
+          onPageChange={deviceTablePagination.setPage}
+          onPageSizeChange={deviceTablePagination.setPageSize}
+        />
       </section>
 
       {/* Progressive Disclosure & Edit Drawer */}

@@ -20,6 +20,7 @@ import {
 import { getIntlLocale } from '../i18n';
 import { api } from '../lib/api';
 import type { AuditEntry, WorkspaceState } from '../types/openshield';
+import { PaginationControls, usePagination } from './PaginationControls';
 
 type AuditCategory = 'all' | 'propose_action' | 'kill_switch' | 'config' | 'state_change';
 type TimePreset = 'all' | '1h' | '24h' | '7d' | 'custom';
@@ -130,6 +131,8 @@ export function AuditLogsView({ state, searchQuery = '' }: AuditLogsViewProps) {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string>(new Date().toISOString());
+
+  const auditPagination = usePagination(entries, 10);
 
   const effectiveSearch = useMemo(() => {
     const local = localSearch.trim();
@@ -660,7 +663,7 @@ export function AuditLogsView({ state, searchQuery = '' }: AuditLogsViewProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/70">
-                {entries.map((entry) => (
+                {auditPagination.pagedItems.map((entry) => (
                   <tr
                     key={entry.id}
                     className="hover:bg-slate-900/50 transition-colors align-top"
@@ -706,6 +709,16 @@ export function AuditLogsView({ state, searchQuery = '' }: AuditLogsViewProps) {
               </tbody>
             </table>
           </div>
+        )}
+        {entries.length > 0 && (
+          <PaginationControls
+            page={auditPagination.page}
+            pageSize={auditPagination.pageSize}
+            totalItems={auditPagination.totalItems}
+            totalPages={auditPagination.totalPages}
+            onPageChange={auditPagination.setPage}
+            onPageSizeChange={auditPagination.setPageSize}
+          />
         )}
       </section>
     </div>

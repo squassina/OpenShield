@@ -14,6 +14,7 @@ import { getIntlLocale } from '../i18n';
 import type { WorkspaceState } from '../types/openshield';
 import { NetworkHealthCard } from './NetworkHealthCard';
 import { OverviewTopologyMap } from './OverviewTopologyMap';
+import { PaginationControls, usePagination } from './PaginationControls';
 
 export type NavTab =
   | 'overview'
@@ -65,6 +66,7 @@ export function OverviewView({
   const visibleDevices = isBusiness
     ? state.devices
     : state.devices.filter((d) => d.siteId === state.context.activeSiteId);
+  const incidentsPagination = usePagination(state.incidents, 10);
 
   return (
     <div className="space-y-6">
@@ -206,7 +208,7 @@ export function OverviewView({
             </button>
           </div>
 
-          <div className="divide-y divide-slate-800/80">
+          <div className="divide-y divide-slate-800/80 max-h-[480px] overflow-y-auto">
             {state.incidents.length === 0 ? (
               <div className="p-8 text-center space-y-2.5">
                 <p className="text-sm text-slate-300 font-medium">
@@ -237,7 +239,7 @@ export function OverviewView({
                 </div>
               </div>
             ) : (
-              state.incidents.map((incident) => (
+              incidentsPagination.pagedItems.map((incident) => (
                 <div key={incident.id} className="p-5 hover:bg-slate-900/40 transition-colors">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="space-y-1.5">
@@ -288,6 +290,17 @@ export function OverviewView({
               ))
             )}
           </div>
+          {state.incidents.length > 0 && (
+            <PaginationControls
+              page={incidentsPagination.page}
+              pageSize={incidentsPagination.pageSize}
+              totalItems={incidentsPagination.totalItems}
+              totalPages={incidentsPagination.totalPages}
+              onPageChange={incidentsPagination.setPage}
+              onPageSizeChange={incidentsPagination.setPageSize}
+              compact
+            />
+          )}
         </section>
 
         {/* Right col: Gateway Fail-Safe & Connector Health */}

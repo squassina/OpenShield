@@ -38,6 +38,14 @@ export const en = {
     yes: 'Yes',
     no: 'No',
   },
+  pagination: {
+    showing: 'Showing {{from}}–{{to}} of {{total}}',
+    empty: '0 records',
+    rowsPerPage: 'Rows:',
+    pageOf: 'Page {{page}} / {{totalPages}}',
+    prevAria: 'Previous page',
+    nextAria: 'Next page',
+  },
   nav: {
     overview: 'Overview',
     integrations: 'Gateway & Integrations',

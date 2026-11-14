@@ -38,6 +38,14 @@ export const ptBR = {
     yes: 'Sim',
     no: 'Não',
   },
+  pagination: {
+    showing: 'Exibindo {{from}}–{{to}} de {{total}}',
+    empty: '0 registros',
+    rowsPerPage: 'Linhas:',
+    pageOf: 'Página {{page}} / {{totalPages}}',
+    prevAria: 'Página anterior',
+    nextAria: 'Próxima página',
+  },
   nav: {
     overview: 'Visão Geral',
     integrations: 'Gateway e Integrações',

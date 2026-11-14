@@ -455,7 +455,7 @@ export function NetworkHealthCard({
                 </span>
               </div>
 
-              <div className="divide-y divide-slate-800/70">
+              <div className="divide-y divide-slate-800/70 max-h-[280px] overflow-y-auto">
                 {securityEndpoints.map((endpoint) => {
                   const statusMeta = getEndpointStatusMeta(endpoint.status);
                   const StatusIcon = statusMeta.Icon;
