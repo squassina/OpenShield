@@ -637,10 +637,10 @@ export function AuditLogsView({ state, searchQuery = '' }: AuditLogsViewProps) {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="m-4 rounded-lg border border-slate-800 bg-[#0B1120]/40 max-h-[540px] overflow-auto">
             <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-slate-800 bg-[#0B1120]/70 text-[11px] uppercase tracking-wider text-slate-400">
+              <thead className="sticky top-0 z-10 bg-[#0B1120] shadow-[0_1px_0_0_rgb(30,41,59)]">
+                <tr className="text-[11px] uppercase tracking-wider text-slate-400">
                   <th className="py-3 px-4 font-semibold whitespace-nowrap">
                     {t('audit.colTimestamp')}
                   </th>
