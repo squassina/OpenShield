@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { getIntlLocale } from '../i18n';
 import type { WorkspaceState } from '../types/openshield';
 import { NetworkHealthCard } from './NetworkHealthCard';
+import { OverviewTelemetryDashboard } from './OverviewTelemetryDashboard';
 import { OverviewTopologyMap } from './OverviewTopologyMap';
 import { PaginationControls, usePagination } from './PaginationControls';
 
@@ -243,6 +244,9 @@ export function OverviewView({
           </button>
         </div>
       )}
+
+      {/* Real-Time Throughput & Packet Drop Telemetry Dashboard (Recharts) */}
+      <OverviewTelemetryDashboard state={state} onNavigate={onNavigate} />
 
       {/* Network Health & Multi-Endpoint Availability */}
       <NetworkHealthCard
