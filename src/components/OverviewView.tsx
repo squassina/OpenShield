@@ -17,6 +17,7 @@ import { getIntlLocale } from '../i18n';
 import type { WorkspaceState } from '../types/openshield';
 import { NetworkHealthCard } from './NetworkHealthCard';
 import { OverviewTelemetryDashboard } from './OverviewTelemetryDashboard';
+import { OverviewThreatRadarCard } from './OverviewThreatRadarCard';
 import { OverviewTopologyMap } from './OverviewTopologyMap';
 import { PaginationControls, usePagination } from './PaginationControls';
 
@@ -288,6 +289,15 @@ export function OverviewView({
 
       {/* Real-Time Throughput & Packet Drop Telemetry Dashboard (Recharts) */}
       <OverviewTelemetryDashboard
+        state={telemetryChartState}
+        onNavigate={onNavigate}
+        livePaused={chartsPaused}
+        frozenAtMs={telemetryFrozenAtMs}
+        onToggleLivePaused={handleToggleChartsPaused}
+      />
+
+      {/* Threat Landscape Radar Chart (Recharts) */}
+      <OverviewThreatRadarCard
         state={telemetryChartState}
         onNavigate={onNavigate}
         livePaused={chartsPaused}

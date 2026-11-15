@@ -49,6 +49,12 @@ function formatVolumeKb(kb: number, locale: string): string {
   })} KB`;
 }
 
+function formatPreciseThroughput(kb: number, bytes: number, locale: string): string {
+  const formattedKb = formatVolumeKb(kb, locale);
+  if (bytes <= 0) return formattedKb;
+  return `${formattedKb} (${bytes.toLocaleString(locale)} B)`;
+}
+
 function ThroughputTooltip({ active, payload }: ChartTooltipProps) {
   const { t, i18n } = useTranslation();
   const locale = getIntlLocale(i18n.language);
@@ -57,27 +63,59 @@ function ThroughputTooltip({ active, payload }: ChartTooltipProps) {
   if (!point) return null;
 
   return (
-    <div className="rounded-lg border border-slate-700 bg-[#0B1120] px-3 py-2.5 shadow-lg text-xs space-y-1.5 min-w-[195px]">
-      <div className="font-mono text-[11px] text-slate-400 tabular-nums">
-        {point.fullTimestamp}
-      </div>
-      <div className="flex items-center justify-between gap-4 tabular-nums">
-        <span className="text-slate-300">{t('telemetryDashboard.rxSeries')}</span>
-        <span className="font-mono font-semibold text-sky-400">
-          {formatVolumeKb(point.rxKb, locale)}
+    <div className="rounded-lg border border-slate-700 bg-[#0B1120]/95 backdrop-blur-sm px-3.5 py-2.5 shadow-xl text-xs space-y-2 min-w-[245px]">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-1.5 font-mono text-[11px] text-slate-300 tabular-nums">
+        <span>
+          {point.fullTimestamp} – {point.intervalEndLabel}
         </span>
       </div>
-      <div className="flex items-center justify-between gap-4 tabular-nums">
-        <span className="text-slate-300">{t('telemetryDashboard.txSeries')}</span>
-        <span className="font-mono font-semibold text-emerald-400">
-          {formatVolumeKb(point.txKb, locale)}
-        </span>
+
+      <div className="space-y-1">
+        <div className="flex items-center justify-between gap-4 tabular-nums">
+          <span className="text-slate-300 font-medium">
+            {t('telemetryDashboard.tooltipTotalThroughput')}
+          </span>
+          <span className="font-mono font-semibold text-slate-100">
+            {formatPreciseThroughput(point.totalThroughputKb, point.totalBytes, locale)}
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-4 tabular-nums">
+          <span className="text-slate-400">{t('telemetryDashboard.rxSeries')}</span>
+          <span className="font-mono font-semibold text-sky-400">
+            {formatPreciseThroughput(point.rxKb, point.rxBytes, locale)}
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-4 tabular-nums">
+          <span className="text-slate-400">{t('telemetryDashboard.txSeries')}</span>
+          <span className="font-mono font-semibold text-emerald-400">
+            {formatPreciseThroughput(point.txKb, point.txBytes, locale)}
+          </span>
+        </div>
       </div>
-      <div className="flex items-center justify-between gap-4 border-t border-slate-800 pt-1 text-[11px] text-slate-400 tabular-nums">
-        <span>{t('telemetryDashboard.tooltipFlows')}</span>
-        <span className="font-mono text-slate-200">
-          {point.packetsOrQueries.toLocaleString(locale)}
-        </span>
+
+      <div className="border-t border-slate-800 pt-1.5 space-y-1 text-[11px] tabular-nums">
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-slate-400">{t('telemetryDashboard.tooltipTotalDrops')}</span>
+          <span className="font-mono font-semibold text-red-400">
+            {point.totalDrops.toLocaleString(locale)} ({point.dropRatioPct.toLocaleString(locale, {
+              minimumFractionDigits: 1,
+              maximumFractionDigits: 1,
+            })}
+            %)
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-4 text-slate-400">
+          <span>{t('telemetryDashboard.tooltipDropBreakdown')}</span>
+          <span className="font-mono text-slate-200">
+            {point.firewallDrops.toLocaleString(locale)} FW · {point.dnsDrops.toLocaleString(locale)} DNS
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-4 text-slate-400">
+          <span>{t('telemetryDashboard.tooltipFlows')}</span>
+          <span className="font-mono text-slate-200">
+            {point.packetsOrQueries.toLocaleString(locale)}
+          </span>
+        </div>
       </div>
     </div>
   );
@@ -91,28 +129,60 @@ function PacketDropTooltip({ active, payload }: ChartTooltipProps) {
   if (!point) return null;
 
   return (
-    <div className="rounded-lg border border-slate-700 bg-[#0B1120] px-3 py-2.5 shadow-lg text-xs space-y-1.5 min-w-[205px]">
-      <div className="font-mono text-[11px] text-slate-400 tabular-nums">
-        {point.fullTimestamp}
-      </div>
-      <div className="flex items-center justify-between gap-4 tabular-nums">
-        <span className="text-slate-300">{t('telemetryDashboard.firewallDropSeries')}</span>
-        <span className="font-mono font-semibold text-red-400">
-          {point.firewallDrops.toLocaleString(locale)}
+    <div className="rounded-lg border border-slate-700 bg-[#0B1120]/95 backdrop-blur-sm px-3.5 py-2.5 shadow-xl text-xs space-y-2 min-w-[245px]">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-1.5 font-mono text-[11px] text-slate-300 tabular-nums">
+        <span>
+          {point.fullTimestamp} – {point.intervalEndLabel}
         </span>
       </div>
-      <div className="flex items-center justify-between gap-4 tabular-nums">
-        <span className="text-slate-300">{t('telemetryDashboard.dnsDropSeries')}</span>
-        <span className="font-mono font-semibold text-amber-400">
-          {point.dnsDrops.toLocaleString(locale)}
-        </span>
-      </div>
-      {point.avgLatencyMs !== null && (
-        <div className="flex items-center justify-between gap-4 border-t border-slate-800 pt-1 text-[11px] text-slate-400 tabular-nums">
-          <span>{t('telemetryDashboard.latencySeries')}</span>
-          <span className="font-mono text-sky-300">{point.avgLatencyMs} ms</span>
+
+      <div className="space-y-1">
+        <div className="flex items-center justify-between gap-4 tabular-nums">
+          <span className="text-slate-300 font-medium">
+            {t('telemetryDashboard.tooltipTotalDrops')}
+          </span>
+          <span className="font-mono font-semibold text-red-300">
+            {point.totalDrops.toLocaleString(locale)} ({point.dropRatioPct.toLocaleString(locale, {
+              minimumFractionDigits: 1,
+              maximumFractionDigits: 1,
+            })}
+            %)
+          </span>
         </div>
-      )}
+        <div className="flex items-center justify-between gap-4 tabular-nums">
+          <span className="text-slate-400">{t('telemetryDashboard.firewallDropSeries')}</span>
+          <span className="font-mono font-semibold text-red-400">
+            {point.firewallDrops.toLocaleString(locale)}
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-4 tabular-nums">
+          <span className="text-slate-400">{t('telemetryDashboard.dnsDropSeries')}</span>
+          <span className="font-mono font-semibold text-amber-400">
+            {point.dnsDrops.toLocaleString(locale)}
+          </span>
+        </div>
+      </div>
+
+      <div className="border-t border-slate-800 pt-1.5 space-y-1 text-[11px] tabular-nums">
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-slate-400">{t('telemetryDashboard.tooltipTotalThroughput')}</span>
+          <span className="font-mono text-sky-300">
+            {formatPreciseThroughput(point.totalThroughputKb, point.totalBytes, locale)}
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-4 text-slate-400">
+          <span>{t('telemetryDashboard.tooltipFlows')}</span>
+          <span className="font-mono text-slate-200">
+            {point.packetsOrQueries.toLocaleString(locale)}
+          </span>
+        </div>
+        {point.avgLatencyMs !== null && (
+          <div className="flex items-center justify-between gap-4 text-slate-400">
+            <span>{t('telemetryDashboard.latencySeries')}</span>
+            <span className="font-mono text-sky-300">{point.avgLatencyMs} ms</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -351,6 +421,7 @@ export function OverviewTelemetryDashboard({
                 <div className="w-full min-w-0 h-[230px]">
                   <ResponsiveContainer width="100%" height={230}>
                     <AreaChart
+                      syncId="openshield-overview-telemetry"
                       data={summary.buckets}
                       margin={{ top: 8, right: 8, left: -8, bottom: 0 }}
                     >
@@ -382,7 +453,8 @@ export function OverviewTelemetryDashboard({
                         }
                       />
                       <Tooltip
-                        cursor={{ stroke: '#475569', strokeWidth: 1 }}
+                        trigger="hover"
+                        cursor={{ stroke: '#64748b', strokeWidth: 1, strokeDasharray: '3 3' }}
                         content={<ThroughputTooltip />}
                       />
                       <Area
@@ -392,6 +464,7 @@ export function OverviewTelemetryDashboard({
                         stroke="#38bdf8"
                         strokeWidth={2}
                         fill="url(#osThroughputRx)"
+                        activeDot={{ r: 4, strokeWidth: 1.5, stroke: '#0B1120', fill: '#38bdf8' }}
                         isAnimationActive={false}
                       />
                       <Area
@@ -401,6 +474,7 @@ export function OverviewTelemetryDashboard({
                         stroke="#10b981"
                         strokeWidth={2}
                         fill="url(#osThroughputTx)"
+                        activeDot={{ r: 4, strokeWidth: 1.5, stroke: '#0B1120', fill: '#10b981' }}
                         isAnimationActive={false}
                       />
                     </AreaChart>
@@ -440,6 +514,7 @@ export function OverviewTelemetryDashboard({
                 <div className="w-full min-w-0 h-[230px]">
                   <ResponsiveContainer width="100%" height={230}>
                     <ComposedChart
+                      syncId="openshield-overview-telemetry"
                       data={summary.buckets}
                       margin={{ top: 8, right: hasLatencyPoints ? 4 : 8, left: -12, bottom: 0 }}
                     >
@@ -471,6 +546,7 @@ export function OverviewTelemetryDashboard({
                         />
                       )}
                       <Tooltip
+                        trigger="hover"
                         cursor={{ fill: 'rgba(30, 41, 59, 0.45)' }}
                         content={<PacketDropTooltip />}
                       />
@@ -504,6 +580,7 @@ export function OverviewTelemetryDashboard({
                           strokeWidth={1.75}
                           strokeDasharray="4 3"
                           dot={{ r: 2.5, fill: '#38bdf8' }}
+                          activeDot={{ r: 4, strokeWidth: 1.5, stroke: '#0B1120', fill: '#38bdf8' }}
                           connectNulls
                           isAnimationActive={false}
                         />

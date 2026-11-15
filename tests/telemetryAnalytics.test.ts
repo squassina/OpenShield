@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildTelemetrySummary } from '../src/lib/telemetryAnalytics.ts';
+import { buildTelemetrySummary, buildThreatLandscape } from '../src/lib/telemetryAnalytics.ts';
 import type { WorkspaceState } from '../src/types/openshield.ts';
 
 function createBaseState(): WorkspaceState {
@@ -299,6 +299,14 @@ describe('buildTelemetrySummary', () => {
     expect(resSummary.totalDrops).toBe(96);
     expect(resSummary.activeFirewallRulesCount).toBe(1);
     expect(resSummary.latestLatencyMs).toBe(18);
+    // Verify exact byte-level and drop ratio fields populated on data points for tooltips
+    const zeekBucket = resSummary.buckets.find((b) => b.rxBytes >= 1024 * 200);
+    expect(zeekBucket).toBeDefined();
+    expect(zeekBucket?.rxBytes).toBe(1024 * 200);
+    expect(zeekBucket?.txBytes).toBe(1024 * 50);
+    expect(zeekBucket?.totalBytes).toBe(1024 * 250);
+    expect(zeekBucket?.firewallDrops).toBe(3);
+    expect(zeekBucket?.dropRatioPct).toBeGreaterThan(0);
     // Office 900 KB RX event should be excluded in residential mode
     expect(resSummary.totalRxKb).toBeLessThan(300);
 
@@ -307,5 +315,124 @@ describe('buildTelemetrySummary', () => {
     const bizSummary = buildTelemetrySummary(state, '24h', 'en-US', nowMs);
     expect(bizSummary.buckets).toHaveLength(24);
     expect(bizSummary.totalRxKb).toBeGreaterThan(1000);
+  });
+});
+
+describe('buildThreatLandscape', () => {
+  it('returns zeroed 5-axis profile when workspace has no threat signals', () => {
+    const state = createBaseState();
+    state.devices = [];
+    const landscape = buildThreatLandscape(state);
+
+    expect(landscape.hasSignals).toBe(false);
+    expect(landscape.overallScore).toBe(0);
+    expect(landscape.highestAxisId).toBeNull();
+    expect(landscape.axes).toHaveLength(5);
+    expect(landscape.axes.every((a) => a.score === 0 && a.mitigatedScore === 0)).toBe(true);
+  });
+
+  it('derives active and mitigated scores across malware, botnet, unauthorizedAccess, dnsAnomalies, and bruteForce', () => {
+    const state = createBaseState();
+    state.events = [
+      {
+        eventId: 'ev-ioc-1',
+        schemaVersion: 'openshield.event.v1',
+        occurredAt: '2026-11-15T11:55:00.000Z',
+        sourceIntegrationId: 'home-gw',
+        eventType: 'threat.ioc',
+        severity: 'high',
+        deviceId: 'dev-home-1',
+        summary: 'Malicious C2 beacon IOC 185.220.101.42 detected',
+        payload: { reputation: 'malicious', confidence: 0.95, scenario: 'crowdsecurity/ssh-bf' },
+      },
+      {
+        eventId: 'ev-ids-malware',
+        schemaVersion: 'openshield.event.v1',
+        occurredAt: '2026-11-15T11:56:00.000Z',
+        sourceIntegrationId: 'home-gw',
+        eventType: 'ids.alert',
+        severity: 'critical',
+        deviceId: 'dev-home-1',
+        summary: 'Trojan dropper payload signature matched on IoT segment',
+        payload: { signature: 'ET MALWARE Trojan.Generic' },
+      },
+    ];
+
+    state.dnsInsights = [
+      {
+        id: 'dns-dga-1',
+        domain: 'x91kzaq.bad-dga.example',
+        category: 'Suspeito / DGA',
+        classification: 'suspicious',
+        deviceId: 'dev-home-1',
+        deviceHostname: 'cam-garagem',
+        queriesCount: 90,
+        blockedCount: 0,
+        listStatus: 'monitored',
+        lastQueriedAt: '2026-11-15T11:57:00.000Z',
+      },
+      {
+        id: 'dns-trk-1',
+        domain: 'metrics.tracker.example',
+        category: 'Telemetria & Rastreador',
+        classification: 'tracker',
+        deviceId: 'dev-home-1',
+        deviceHostname: 'cam-garagem',
+        queriesCount: 200,
+        blockedCount: 200,
+        listStatus: 'blocked',
+        lastQueriedAt: '2026-11-15T11:57:00.000Z',
+      },
+    ];
+
+    state.routerAccessAttempts = [
+      {
+        id: 'rtr-ssh-bf',
+        sourceIntegrationId: 'home-gw',
+        siteId: 'site-home',
+        srcIp: '185.220.101.42',
+        service: 'ssh',
+        targetPort: 22,
+        protocol: 'tcp',
+        attemptsCount: 24,
+        firstSeenAt: '2026-11-15T11:50:00.000Z',
+        lastSeenAt: '2026-11-15T11:58:00.000Z',
+        severity: 'critical',
+        status: 'observed',
+        lastMessage: 'Bad password attempt for root',
+        sampleLines: ['Bad password attempt for root'],
+      },
+      {
+        id: 'rtr-luci-blocked',
+        sourceIntegrationId: 'home-gw',
+        siteId: 'site-home',
+        srcIp: '203.0.113.88',
+        service: 'luci',
+        targetPort: 443,
+        protocol: 'tcp',
+        attemptsCount: 7,
+        firstSeenAt: '2026-11-15T11:51:00.000Z',
+        lastSeenAt: '2026-11-15T11:58:00.000Z',
+        severity: 'high',
+        status: 'blocked',
+        lastMessage: 'luci: failed login',
+        sampleLines: ['luci: failed login'],
+      },
+    ];
+
+    const landscape = buildThreatLandscape(state);
+    expect(landscape.hasSignals).toBe(true);
+    expect(landscape.overallScore).toBeGreaterThan(30);
+    expect(landscape.highestAxisId).not.toBeNull();
+
+    const byId = Object.fromEntries(landscape.axes.map((a) => [a.id, a]));
+    expect(byId.malware.score).toBeGreaterThan(40);
+    expect(byId.botnet.score).toBeGreaterThan(25);
+    expect(byId.bruteForce.score).toBeGreaterThan(50);
+    expect(byId.dnsAnomalies.score).toBeGreaterThan(20);
+    expect(byId.dnsAnomalies.mitigatedScore).toBeGreaterThan(0);
+    // LuCI attempt is already blocked -> counts toward mitigatedScore rather than active score
+    expect(byId.unauthorizedAccess.mitigatedScore).toBeGreaterThan(25);
+    expect(byId.unauthorizedAccess.score).toBe(0);
   });
 });
