@@ -91,6 +91,8 @@ interface NetworkHealthCardProps {
   onSyncAllHealth: () => Promise<void>;
   onNavigate: (tab: NavTab) => void;
   busyKey: string | null;
+  frozenLatencyHistory?: LatencySample[];
+  frozenAtMs?: number;
 }
 
 export function NetworkHealthCard({
@@ -98,6 +100,8 @@ export function NetworkHealthCard({
   onSyncAllHealth,
   onNavigate,
   busyKey,
+  frozenLatencyHistory,
+  frozenAtMs,
 }: NetworkHealthCardProps) {
   const { t, i18n } = useTranslation();
   const locale = getIntlLocale(i18n.language);
@@ -177,8 +181,8 @@ export function NetworkHealthCard({
   const latencyFillPercent =
     avgLatencyMs === null ? 0 : Math.min(100, Math.max(8, Math.round((avgLatencyMs / 250) * 100)));
 
-  const cutoff24h = Date.now() - 24 * 60 * 60 * 1000;
-  const rawHistory = (state.latencyHistory ?? []).filter(
+  const cutoff24h = (frozenAtMs ?? Date.now()) - 24 * 60 * 60 * 1000;
+  const rawHistory = (frozenLatencyHistory ?? state.latencyHistory ?? []).filter(
     (entry) => Date.parse(entry.timestamp) >= cutoff24h,
   );
   const aggregatedSeriesSource =

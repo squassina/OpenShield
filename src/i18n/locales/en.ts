@@ -165,6 +165,8 @@ export const en = {
     simulateOutage: 'Simulate Node Outage',
     reconnectNode: 'Reconnect OpenShield Node',
     configureServices: 'Configure Services',
+    pauseCharts: 'Pause Live Charts',
+    resumeCharts: 'Resume Live Charts',
     kpiGatewayTitle: 'Gateway Forwarding',
     kpiGatewayActive: 'Active on LAN',
     kpiGatewayStopped: 'Interrupted',
@@ -229,6 +231,9 @@ export const en = {
     window_15m: '15m',
     window_1h: '1h',
     window_24h: '24h',
+    pausedAt: 'Updates paused at {{time}}',
+    pausedLabel: 'Live updates paused',
+    resumeInline: 'Resume',
     inspectDnsLink: 'DNS & Privacy',
     emptyTitle: 'No telemetry samples recorded in this window yet',
     emptyHint:

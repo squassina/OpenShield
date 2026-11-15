@@ -165,6 +165,8 @@ export const ptBR = {
     simulateOutage: 'Simular Queda do Node',
     reconnectNode: 'Reconectar OpenShield Node',
     configureServices: 'Configurar Serviços',
+    pauseCharts: 'Pausar Gráficos ao Vivo',
+    resumeCharts: 'Retomar Gráficos ao Vivo',
     kpiGatewayTitle: 'Encaminhamento do Gateway',
     kpiGatewayActive: 'Ativo na LAN',
     kpiGatewayStopped: 'Interrompido',
@@ -229,6 +231,9 @@ export const ptBR = {
     window_15m: '15m',
     window_1h: '1h',
     window_24h: '24h',
+    pausedAt: 'Atualizações pausadas às {{time}}',
+    pausedLabel: 'Atualizações ao vivo pausadas',
+    resumeInline: 'Retomar',
     inspectDnsLink: 'Privacidade e DNS',
     emptyTitle: 'Nenhuma amostra de telemetria registrada nesta janela ainda',
     emptyHint:

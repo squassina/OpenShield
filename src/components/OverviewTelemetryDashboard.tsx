@@ -25,6 +25,9 @@ import type { NavTab } from './OverviewView';
 interface OverviewTelemetryDashboardProps {
   state: WorkspaceState;
   onNavigate: (tab: NavTab) => void;
+  livePaused?: boolean;
+  frozenAtMs?: number;
+  onToggleLivePaused?: () => void;
 }
 
 interface ChartTooltipProps {
@@ -117,14 +120,17 @@ function PacketDropTooltip({ active, payload }: ChartTooltipProps) {
 export function OverviewTelemetryDashboard({
   state,
   onNavigate,
+  livePaused = false,
+  frozenAtMs,
+  onToggleLivePaused,
 }: OverviewTelemetryDashboardProps) {
   const { t, i18n } = useTranslation();
   const locale = getIntlLocale(i18n.language);
   const [windowRange, setWindowRange] = useState<TelemetryWindow>('1h');
 
   const summary = useMemo(
-    () => buildTelemetrySummary(state, windowRange, locale),
-    [state, windowRange, locale],
+    () => buildTelemetrySummary(state, windowRange, locale, frozenAtMs),
+    [state, windowRange, locale, frozenAtMs],
   );
 
   const hasLatencyPoints = useMemo(
@@ -133,6 +139,14 @@ export function OverviewTelemetryDashboard({
   );
 
   const totalThroughputKb = summary.totalRxKb + summary.totalTxKb;
+  const pausedTimeLabel =
+    livePaused && typeof frozenAtMs === 'number'
+      ? new Date(frozenAtMs).toLocaleTimeString(locale, {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        })
+      : null;
 
   return (
     <section
@@ -145,7 +159,30 @@ export function OverviewTelemetryDashboard({
           <h2 className="text-base font-semibold text-slate-100">
             {t('telemetryDashboard.title')}
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">{t('telemetryDashboard.subtitle')}</p>
+          <p className="text-xs text-slate-400 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <span>{t('telemetryDashboard.subtitle')}</span>
+            {livePaused && (
+              <>
+                <span aria-hidden="true" className="text-slate-600">
+                  ·
+                </span>
+                <span className="text-amber-300 font-medium tabular-nums">
+                  {pausedTimeLabel
+                    ? t('telemetryDashboard.pausedAt', { time: pausedTimeLabel })
+                    : t('telemetryDashboard.pausedLabel')}
+                </span>
+                {onToggleLivePaused && (
+                  <button
+                    type="button"
+                    onClick={onToggleLivePaused}
+                    className="text-blue-400 hover:text-blue-300 font-medium underline underline-offset-2 cursor-pointer"
+                  >
+                    {t('telemetryDashboard.resumeInline')}
+                  </button>
+                )}
+              </>
+            )}
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">

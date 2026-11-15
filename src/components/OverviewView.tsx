@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Activity,
   AlertTriangle,
@@ -5,6 +6,8 @@ import {
   CheckCircle2,
   Cpu,
   HardDrive,
+  Pause,
+  Play,
   Router,
   ShieldAlert,
   ShieldCheck,
@@ -46,6 +49,25 @@ export function OverviewView({
 }: OverviewViewProps) {
   const { t, i18n } = useTranslation();
   const locale = getIntlLocale(i18n.language);
+  const [chartsPaused, setChartsPaused] = useState(false);
+  const [frozenSnapshot, setFrozenSnapshot] = useState<{
+    state: WorkspaceState;
+    capturedAtMs: number;
+  } | null>(null);
+
+  const handleToggleChartsPaused = () => {
+    if (!chartsPaused) {
+      setFrozenSnapshot({ state, capturedAtMs: Date.now() });
+      setChartsPaused(true);
+    } else {
+      setChartsPaused(false);
+      setFrozenSnapshot(null);
+    }
+  };
+
+  const telemetryChartState = chartsPaused && frozenSnapshot ? frozenSnapshot.state : state;
+  const telemetryFrozenAtMs =
+    chartsPaused && frozenSnapshot ? frozenSnapshot.capturedAtMs : undefined;
 
   const formatRelativeTime = (iso: string): string => {
     const diffSec = Math.max(0, Math.floor((Date.now() - Date.parse(iso)) / 1000));
@@ -119,7 +141,26 @@ export function OverviewView({
             {isBusiness ? t('overview.subtitleBusiness') : t('overview.subtitleResidential')}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            aria-pressed={chartsPaused}
+            onClick={handleToggleChartsPaused}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+              chartsPaused
+                ? 'border-amber-500/50 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25'
+                : 'border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800'
+            }`}
+          >
+            {chartsPaused ? (
+              <Play className="w-3.5 h-3.5 shrink-0" />
+            ) : (
+              <Pause className="w-3.5 h-3.5 shrink-0" />
+            )}
+            <span>
+              {chartsPaused ? t('overview.resumeCharts') : t('overview.pauseCharts')}
+            </span>
+          </button>
           <button
             type="button"
             disabled={busyKey === 'outage'}
@@ -246,7 +287,13 @@ export function OverviewView({
       )}
 
       {/* Real-Time Throughput & Packet Drop Telemetry Dashboard (Recharts) */}
-      <OverviewTelemetryDashboard state={state} onNavigate={onNavigate} />
+      <OverviewTelemetryDashboard
+        state={telemetryChartState}
+        onNavigate={onNavigate}
+        livePaused={chartsPaused}
+        frozenAtMs={telemetryFrozenAtMs}
+        onToggleLivePaused={handleToggleChartsPaused}
+      />
 
       {/* Network Health & Multi-Endpoint Availability */}
       <NetworkHealthCard
@@ -254,6 +301,10 @@ export function OverviewView({
         onSyncAllHealth={onSyncAllHealth}
         onNavigate={onNavigate}
         busyKey={busyKey}
+        frozenLatencyHistory={
+          chartsPaused && frozenSnapshot ? frozenSnapshot.state.latencyHistory : undefined
+        }
+        frozenAtMs={telemetryFrozenAtMs}
       />
 
       {/* Interactive SVG Topology Map */}
