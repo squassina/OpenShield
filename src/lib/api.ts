@@ -7,6 +7,7 @@ import type {
   AutonomyLevel,
   DnsInsight,
   EnvSecretStatus,
+  HostSystemMetrics,
   Incident,
   IntegrationAdapter,
   NetworkDevice,
@@ -85,6 +86,8 @@ export const api = {
   getState: () => requestJson<WorkspaceState>('/api/v1/state'),
 
   getEnvStatus: () => requestJson<{ variables: EnvSecretStatus[] }>('/api/v1/system/env-status'),
+
+  getHostMetrics: () => requestJson<HostSystemMetrics>('/api/v1/system/host-metrics'),
 
   updateContext: (patch: {
     profile?: OperatingProfile;

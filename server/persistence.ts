@@ -18,12 +18,14 @@ export interface StoredCredential {
 
 export class SqlitePersistence {
   private db: DatabaseSync;
+  private dbFilePath: string;
 
   constructor(dbFilePath?: string) {
     const resolvedPath =
       dbFilePath ||
       process.env.OPENSHIELD_DB_PATH ||
       path.join(process.cwd(), '.openshield-data', 'openshield.sqlite3');
+    this.dbFilePath = resolvedPath;
 
     const dir = path.dirname(resolvedPath);
     fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
@@ -450,5 +452,9 @@ export class SqlitePersistence {
     const cleanUser = username.trim().toLowerCase();
     const res = this.db.prepare('DELETE FROM auth_users WHERE username = ?').run(cleanUser);
     return Number(res.changes ?? 0) > 0;
+  }
+
+  getDbFilePath(): string {
+    return this.dbFilePath;
   }
 }

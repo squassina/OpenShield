@@ -18,6 +18,7 @@ import type { WorkspaceState } from '../types/openshield';
 import { NetworkHealthCard } from './NetworkHealthCard';
 import { OverviewAnomalyAlertsCard } from './OverviewAnomalyAlertsCard';
 import { OverviewGeoThreatMapCard } from './OverviewGeoThreatMapCard';
+import { OverviewHostMetricsCard } from './OverviewHostMetricsCard';
 import { OverviewTelemetryDashboard } from './OverviewTelemetryDashboard';
 import { OverviewThreatRadarCard } from './OverviewThreatRadarCard';
 import { OverviewTopologyMap } from './OverviewTopologyMap';
@@ -258,6 +259,12 @@ export function OverviewView({
           </p>
         </div>
       </div>
+
+      {/* Host System Resources Mini-Dashboard (CPU, RAM, Storage) */}
+      <OverviewHostMetricsCard
+        livePaused={chartsPaused}
+        nodeAvailable={state.context.nodeAvailable}
+      />
 
       {/* Unauthorized Router Access Summary Banner */}
       {observedRouterAttempts.length > 0 && (

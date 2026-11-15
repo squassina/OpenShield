@@ -21,6 +21,7 @@ import type {
   SimulatedRole,
 } from './src/types/openshield.ts';
 import { AuthService } from './server/auth.ts';
+import { HostMetricsCollector } from './server/hostMetrics.ts';
 import { OpenShieldStore } from './server/openshieldStore.ts';
 
 dotenv.config();
@@ -29,6 +30,7 @@ const PORT = Number(process.env.PORT) || 3000;
 const app = express();
 const store = new OpenShieldStore();
 const authService = new AuthService(store.getPersistence());
+const hostMetrics = new HostMetricsCollector(store.getPersistence().getDbFilePath());
 
 function isSecureRequest(req: express.Request): boolean {
   return req.secure || req.headers['x-forwarded-proto'] === 'https';
@@ -262,6 +264,11 @@ app.get('/api/health', (_req, res) => {
 // Safe environment variable presence check (booleans only, zero secrets exposed)
 app.get('/api/v1/system/env-status', (_req, res) => {
   res.json({ variables: store.getEnvStatus() });
+});
+
+// Live host CPU, RAM, and storage utilization telemetry
+app.get('/api/v1/system/host-metrics', (_req, res) => {
+  res.json(hostMetrics.collect());
 });
 
 // Prometheus-compatible text metrics

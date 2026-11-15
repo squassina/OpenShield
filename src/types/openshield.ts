@@ -314,6 +314,38 @@ export interface EnvSecretStatus {
   configured: boolean;
 }
 
+export interface HostSystemMetrics {
+  hostname: string;
+  platform: string;
+  arch: string;
+  nodeVersion: string;
+  uptimeSeconds: number;
+  collectedAt: string;
+  cpu: {
+    usagePct: number;
+    cores: number;
+    model: string;
+    loadAvg1m: number;
+    loadAvg5m: number;
+    loadAvg15m: number;
+  };
+  memory: {
+    totalBytes: number;
+    usedBytes: number;
+    availableBytes: number;
+    usagePct: number;
+    processRssBytes: number;
+  };
+  storage: {
+    mountPath: string;
+    totalBytes: number;
+    usedBytes: number;
+    availableBytes: number;
+    usagePct: number;
+    dbFileBytes: number;
+  };
+}
+
 export interface SyncAdapterResult {
   adapterId: string;
   mode: ServiceProviderMode;
