@@ -43,6 +43,7 @@ export function parseCookies(cookieHeader: string | undefined): Record<string, s
 }
 
 export class AuthService {
+  private persistence: SqlitePersistence;
   private signingSecret: string;
 
   constructor(persistence: SqlitePersistence) {

@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { getIntlLocale } from '../i18n';
 import type { WorkspaceState } from '../types/openshield';
 import { NetworkHealthCard } from './NetworkHealthCard';
+import { OverviewGeoThreatMapCard } from './OverviewGeoThreatMapCard';
 import { OverviewTelemetryDashboard } from './OverviewTelemetryDashboard';
 import { OverviewThreatRadarCard } from './OverviewThreatRadarCard';
 import { OverviewTopologyMap } from './OverviewTopologyMap';
@@ -298,6 +299,15 @@ export function OverviewView({
 
       {/* Threat Landscape Radar Chart (Recharts) */}
       <OverviewThreatRadarCard
+        state={telemetryChartState}
+        onNavigate={onNavigate}
+        livePaused={chartsPaused}
+        frozenAtMs={telemetryFrozenAtMs}
+        onToggleLivePaused={handleToggleChartsPaused}
+      />
+
+      {/* Geographic Origin Heat Map of Blocked Connections (D3) */}
+      <OverviewGeoThreatMapCard
         state={telemetryChartState}
         onNavigate={onNavigate}
         livePaused={chartsPaused}

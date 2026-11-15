@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import type {
   AiSensitivityConfig,
+  EventSeverity,
   Incident,
   SensitivityPreset,
   WorkspaceState,
@@ -54,6 +55,58 @@ const DEFAULT_SENSITIVITY: AiSensitivityConfig = {
   latencySpikeFactor: 2.5,
   flagLowSeverityEvents: false,
 };
+
+const SEVERITY_BADGE_STYLES: Record<
+  EventSeverity,
+  { badgeClass: string; dotClass: string }
+> = {
+  critical: {
+    badgeClass: 'border-red-500/45 bg-red-500/15 text-red-300',
+    dotClass: 'bg-red-400',
+  },
+  high: {
+    badgeClass: 'border-orange-500/45 bg-orange-500/15 text-orange-300',
+    dotClass: 'bg-orange-400',
+  },
+  medium: {
+    badgeClass: 'border-amber-500/45 bg-amber-500/15 text-amber-300',
+    dotClass: 'bg-amber-400',
+  },
+  low: {
+    badgeClass: 'border-sky-500/45 bg-sky-500/15 text-sky-300',
+    dotClass: 'bg-sky-400',
+  },
+  info: {
+    badgeClass: 'border-slate-600/70 bg-slate-800/80 text-slate-300',
+    dotClass: 'bg-slate-400',
+  },
+};
+
+function SeverityBadge({
+  severity,
+  label,
+  prefix,
+}: {
+  severity: EventSeverity;
+  label: string;
+  prefix: string;
+}) {
+  const styles = SEVERITY_BADGE_STYLES[severity] ?? SEVERITY_BADGE_STYLES.info;
+  return (
+    <span
+      data-severity={severity}
+      aria-label={`${prefix}: ${label}`}
+      title={`${prefix}: ${label}`}
+      className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-semibold tracking-tight whitespace-nowrap shrink-0 ${styles.badgeClass}`}
+    >
+      <span
+        className={`w-1.5 h-1.5 rounded-full shrink-0 ${styles.dotClass}`}
+        aria-hidden="true"
+      />
+      <span>{label}</span>
+    </span>
+  );
+}
 
 interface IncidentsAiViewProps {
   state: WorkspaceState;
@@ -398,19 +451,17 @@ export function IncidentsAiView({
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2 text-xs tabular-nums">
-                    <span
-                      className={
-                        inc.severity === 'high' || inc.severity === 'critical'
-                          ? 'text-red-400 font-medium'
-                          : 'text-amber-400 font-medium'
-                      }
-                    >
-                      {inc.severity === 'high' || inc.severity === 'critical'
-                        ? t('incidents.riskHigh')
-                        : t('incidents.riskMedium')}{' '}
-                      · {inc.riskScore}/100
-                    </span>
-                    <span className="text-slate-400 font-mono">{inc.deviceHostname}</span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <SeverityBadge
+                        severity={inc.severity}
+                        label={t(`incidents.severity.${inc.severity}`)}
+                        prefix={t('incidents.severityLabel')}
+                      />
+                      <span className="text-slate-300 font-medium whitespace-nowrap">
+                        {inc.riskScore}/100
+                      </span>
+                    </div>
+                    <span className="text-slate-400 font-mono truncate">{inc.deviceHostname}</span>
                   </div>
                   <div className="mt-1.5 text-sm font-medium text-slate-100 leading-snug">
                     {inc.title}
@@ -456,7 +507,12 @@ export function IncidentsAiView({
           <div className="rounded-xl border border-slate-800 bg-[#131C31] p-5 space-y-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between border-b border-slate-800 pb-4">
               <div>
-                <div className="flex items-center gap-2 text-xs text-slate-400 font-mono tabular-nums">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400 font-mono tabular-nums">
+                  <SeverityBadge
+                    severity={activeIncident.severity}
+                    label={t(`incidents.severity.${activeIncident.severity}`)}
+                    prefix={t('incidents.severityLabel')}
+                  />
                   <span>{activeIncident.id}</span>
                   <span>·</span>
                   <span>{activeIncident.deviceHostname}</span>
