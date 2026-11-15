@@ -19,6 +19,7 @@ import { NetworkHealthCard } from './NetworkHealthCard';
 import { OverviewAnomalyAlertsCard } from './OverviewAnomalyAlertsCard';
 import { OverviewGeoThreatMapCard } from './OverviewGeoThreatMapCard';
 import { OverviewHostMetricsCard } from './OverviewHostMetricsCard';
+import { OverviewSecurityTimelineCard } from './OverviewSecurityTimelineCard';
 import { OverviewTelemetryDashboard } from './OverviewTelemetryDashboard';
 import { OverviewThreatRadarCard } from './OverviewThreatRadarCard';
 import { OverviewTopologyMap } from './OverviewTopologyMap';
@@ -325,6 +326,13 @@ export function OverviewView({
 
       {/* Real-Time Network Anomaly Alerts */}
       <OverviewAnomalyAlertsCard
+        state={state}
+        onNavigate={onNavigate}
+        onQuickInvestigate={onQuickInvestigate}
+      />
+
+      {/* Chronological Security Event Timeline */}
+      <OverviewSecurityTimelineCard
         state={state}
         onNavigate={onNavigate}
         onQuickInvestigate={onQuickInvestigate}
