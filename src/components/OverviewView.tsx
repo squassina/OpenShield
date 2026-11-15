@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { getIntlLocale } from '../i18n';
 import type { WorkspaceState } from '../types/openshield';
 import { NetworkHealthCard } from './NetworkHealthCard';
+import { OverviewAnomalyAlertsCard } from './OverviewAnomalyAlertsCard';
 import { OverviewGeoThreatMapCard } from './OverviewGeoThreatMapCard';
 import { OverviewTelemetryDashboard } from './OverviewTelemetryDashboard';
 import { OverviewThreatRadarCard } from './OverviewThreatRadarCard';
@@ -313,6 +314,13 @@ export function OverviewView({
         livePaused={chartsPaused}
         frozenAtMs={telemetryFrozenAtMs}
         onToggleLivePaused={handleToggleChartsPaused}
+      />
+
+      {/* Real-Time Network Anomaly Alerts */}
+      <OverviewAnomalyAlertsCard
+        state={state}
+        onNavigate={onNavigate}
+        onQuickInvestigate={onQuickInvestigate}
       />
 
       {/* Network Health & Multi-Endpoint Availability */}
