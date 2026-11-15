@@ -45,7 +45,8 @@ export function parseCookies(cookieHeader: string | undefined): Record<string, s
 export class AuthService {
   private signingSecret: string;
 
-  constructor(private persistence: SqlitePersistence) {
+  constructor(persistence: SqlitePersistence) {
+    this.persistence = persistence;
     const envSecret = process.env.OPENSHIELD_SESSION_SECRET?.trim();
     this.signingSecret =
       envSecret && envSecret.length >= 16
