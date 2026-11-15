@@ -25,12 +25,14 @@ import {
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { PaginationControls, usePagination } from './PaginationControls';
+import { AuthSecurityCard } from './AuthSecurityCard';
 import {
   NotificationsCard,
   type NotificationCreatePayload,
   type NotificationUpdatePayload,
 } from './NotificationsCard';
 import type {
+  AuthStatus,
   EnvSecretStatus,
   IntegrationAdapter,
   OperatingProfile,
@@ -433,6 +435,10 @@ interface SettingsViewProps {
   onUpdateNotification: (id: string, payload: NotificationUpdatePayload) => Promise<void>;
   onRemoveNotification: (id: string, name: string) => Promise<void>;
   onTestNotification: (id: string) => Promise<void>;
+  authStatus: AuthStatus | null;
+  onAuthStatusChange: (next: AuthStatus) => void;
+  onTogglePersistentUci: (enabled: boolean) => Promise<void>;
+  onNotifyToast: (kind: 'info' | 'error', message: string) => void;
   busyKey: string | null;
 }
 
@@ -482,6 +488,10 @@ export function SettingsView({
   onUpdateNotification,
   onRemoveNotification,
   onTestNotification,
+  authStatus,
+  onAuthStatusChange,
+  onTogglePersistentUci,
+  onNotifyToast,
   busyKey,
 }: SettingsViewProps) {
   const { t } = useTranslation();
@@ -1370,6 +1380,16 @@ export function SettingsView({
         onUpdateNotification={onUpdateNotification}
         onRemoveNotification={onRemoveNotification}
         onTestNotification={onTestNotification}
+        busyKey={busyKey}
+      />
+
+      {/* Box 4: Autenticação de Produção, RBAC Real & Persistência OpenWrt UCI */}
+      <AuthSecurityCard
+        authStatus={authStatus}
+        persistentUciFirewall={Boolean(state.context.persistentUciFirewall)}
+        onTogglePersistentUci={onTogglePersistentUci}
+        onAuthStatusChange={onAuthStatusChange}
+        onNotifyToast={onNotifyToast}
         busyKey={busyKey}
       />
 

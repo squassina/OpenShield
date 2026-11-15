@@ -3,7 +3,9 @@ import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import type {
   AuditEntry,
+  AuthUserSummary,
   OpenShieldEventV1,
+  SimulatedRole,
   WorkspaceState,
 } from '../src/types/openshield.ts';
 
@@ -77,6 +79,20 @@ export class SqlitePersistence {
         username TEXT NOT NULL DEFAULT '',
         secret TEXT NOT NULL DEFAULT '',
         updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS auth_users (
+        username TEXT PRIMARY KEY,
+        role TEXT NOT NULL,
+        password_hash TEXT NOT NULL,
+        salt TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS auth_meta (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
       );
     `);
 
@@ -268,14 +284,16 @@ export class SqlitePersistence {
       if (filters.category === 'kill_switch') {
         clauses.push("event_type LIKE 'kill_switch.%'");
       } else if (filters.category === 'propose_action') {
-        clauses.push("(event_type LIKE 'action.%' OR event_type = 'router_access.blocked')");
+        clauses.push(
+          "(event_type LIKE 'action.%' OR event_type = 'router_access.blocked' OR event_type = 'firewall.reconciled')",
+        );
       } else if (filters.category === 'config') {
         clauses.push(
-          "event_type IN ('integration.registered','integration.removed','integration.synced','credentials.updated','device.added','device.updated','device.removed','dns.added','dns.list_updated','site.added','site.removed','notification.added','notification.updated','notification.removed','workspace.demo_loaded','workspace.reset','workspace.restored')",
+          "event_type IN ('integration.registered','integration.removed','integration.synced','credentials.updated','device.added','device.updated','device.removed','dns.added','dns.list_updated','site.added','site.removed','notification.added','notification.updated','notification.removed','workspace.demo_loaded','workspace.reset','workspace.restored','auth.user_updated')",
         );
       } else if (filters.category === 'state_change') {
         clauses.push(
-          "event_type IN ('context.updated','gateway.connected','event.ingested','ai.investigated','authorization.denied','notification.dispatched','notification.tested','router_access.detected')",
+          "event_type IN ('context.updated','gateway.connected','event.ingested','ai.investigated','authorization.denied','notification.dispatched','notification.tested','router_access.detected','auth.login','auth.logout')",
         );
       }
     }
@@ -342,5 +360,95 @@ export class SqlitePersistence {
       totalMatched,
       eventTypes: distinctRows.map((r) => String(r.event_type)),
     };
+  }
+
+  getOrCreateAuthSigningSecret(generatedSecret: string): string {
+    const existing = this.db
+      .prepare('SELECT value FROM auth_meta WHERE key = ?')
+      .get('session_signing_secret');
+    if (existing && typeof existing.value === 'string' && existing.value.length >= 32) {
+      return existing.value;
+    }
+    this.db
+      .prepare('INSERT OR REPLACE INTO auth_meta (key, value) VALUES (?, ?)')
+      .run('session_signing_secret', generatedSecret);
+    return generatedSecret;
+  }
+
+  countAuthUsers(): number {
+    const row = this.db.prepare('SELECT COUNT(*) AS cnt FROM auth_users').get();
+    return Number(row?.cnt ?? 0);
+  }
+
+  listAuthUsers(): AuthUserSummary[] {
+    const rows = this.db
+      .prepare('SELECT username, role, created_at, updated_at FROM auth_users ORDER BY username ASC')
+      .all();
+    return rows.map((r) => ({
+      username: String(r.username),
+      role: String(r.role) as SimulatedRole,
+      createdAt: String(r.created_at),
+      updatedAt: String(r.updated_at),
+    }));
+  }
+
+  getAuthUser(username: string): {
+    username: string;
+    role: SimulatedRole;
+    passwordHash: string;
+    salt: string;
+    createdAt: string;
+    updatedAt: string;
+  } | null {
+    const row = this.db
+      .prepare(
+        'SELECT username, role, password_hash, salt, created_at, updated_at FROM auth_users WHERE username = ?',
+      )
+      .get(username.trim().toLowerCase());
+    if (!row) return null;
+    return {
+      username: String(row.username),
+      role: String(row.role) as SimulatedRole,
+      passwordHash: String(row.password_hash),
+      salt: String(row.salt),
+      createdAt: String(row.created_at),
+      updatedAt: String(row.updated_at),
+    };
+  }
+
+  upsertAuthUser(input: {
+    username: string;
+    role: SimulatedRole;
+    passwordHash: string;
+    salt: string;
+  }): AuthUserSummary {
+    const cleanUser = input.username.trim().toLowerCase();
+    const nowIso = new Date().toISOString();
+    this.db
+      .prepare(
+        `
+        INSERT INTO auth_users (username, role, password_hash, salt, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(username) DO UPDATE SET
+          role = excluded.role,
+          password_hash = excluded.password_hash,
+          salt = excluded.salt,
+          updated_at = excluded.updated_at
+        `,
+      )
+      .run(cleanUser, input.role, input.passwordHash, input.salt, nowIso, nowIso);
+    const saved = this.getAuthUser(cleanUser);
+    return {
+      username: cleanUser,
+      role: saved?.role ?? input.role,
+      createdAt: saved?.createdAt ?? nowIso,
+      updatedAt: saved?.updatedAt ?? nowIso,
+    };
+  }
+
+  deleteAuthUser(username: string): boolean {
+    const cleanUser = username.trim().toLowerCase();
+    const res = this.db.prepare('DELETE FROM auth_users WHERE username = ?').run(cleanUser);
+    return Number(res.changes ?? 0) > 0;
   }
 }

@@ -152,6 +152,8 @@ export const ptBR = {
     periodicSyncOff: 'Sincronização periódica pausada.',
     routerAccessBlocked: 'IP {{ip}} bloqueado no roteador (modo {{mode}} · TTL 15m).',
     routerAccessStatusUpdated: 'Status da tentativa de acesso atualizado.',
+    uciPersistOn: 'Persistência OpenWrt UCI ativada para novos bloqueios (além da reconciliação automática).',
+    uciPersistOff: 'Persistência OpenWrt UCI desativada; bloqueios seguem em nftables inet openshield com reconciliação automática.',
   },
   overview: {
     titleBusiness: 'Postura de Segurança do Escritório',
@@ -787,6 +789,18 @@ export const ptBR = {
     enforcementLive: 'Execução Real no Roteador',
     enforcementSim: 'Simulado (Sem Gateway Live)',
     ruleRefLabel: 'Regra:',
+    uciPersistTitle: 'Persistência OpenWrt UCI + Reconciliação Pós-Reboot',
+    uciPersistDesc: 'Reconciliação automática no sync; UCI opcional grava regras em /etc/config/firewall.',
+    uciPersistLongDesc:
+      'Durante toda sincronização com gateways OpenWrt/OPNsense, o OpenShield verifica regras ativas e reaplica automaticamente qualquer bloqueio perdido após reboot do roteador. Opcionalmente, ative também a gravação persistente em /etc/config/firewall (UCI) no OpenWrt.',
+    reconciledAtLabel: 'Reconciliado pós-reboot às {{ts}}',
+    multiGatewayFanout: 'Fanout Multi-Gateway ({{count}})',
+    gwStatus: {
+      applied: 'Aplicado',
+      reconciled: 'Reconciliado',
+      rolled_back: 'Revertido',
+      failed: 'Falhou',
+    },
   },
   audit: {
     title: 'Logs de Auditoria',
@@ -880,6 +894,10 @@ export const ptBR = {
       'workspace.restored': 'Backup Restaurado',
       'router_access.detected': 'Acesso ao Roteador Detectado',
       'router_access.blocked': 'IP Bloqueado no Roteador',
+      'firewall.reconciled': 'Regras de Firewall Reconciliadas',
+      'auth.login': 'Login no Painel',
+      'auth.logout': 'Logout do Painel',
+      'auth.user_updated': 'Usuário RBAC Atualizado',
     },
   },
   notifications: {
@@ -1135,6 +1153,37 @@ export const ptBR = {
         secretLabel: 'Token / Senha (opcional, write-only)',
       },
     },
+  },
+  auth: {
+    settingsTitle: 'Autenticação de Produção, RBAC Real & Persistência de Firewall',
+    settingsSubtitle:
+      'Configure sessões assinadas (scrypt + cookie HttpOnly/SameSite=Strict), contas RBAC reais e persistência opcional OpenWrt UCI.',
+    sessionStatusLabel: 'Estado da Autenticação:',
+    statusProtected: 'Protegido por Sessão HttpOnly + RBAC Real',
+    statusLanOpen: 'Aberto (LAN Confiável · Sem Usuários)',
+    setupCardTitle: 'Habilitar Autenticação e RBAC Real',
+    setupCardDesc:
+      'Crie o primeiro Administrador local para exigir login no painel e substituir o papel RBAC simulado por verificação real no servidor.',
+    usernameLabel: 'Usuário',
+    passwordLabel: 'Senha',
+    passwordMinLabel: 'Senha (mínimo 8 caracteres)',
+    enableAuthButton: 'Criar Administrador e Ativar Auth',
+    setupSuccess: 'Administrador "{{username}}" criado e sessão HttpOnly iniciada.',
+    activeSessionSummary: 'Sessão ativa: "{{username}}" (papel RBAC real: {{role}}).',
+    cookieHardeningNote: 'Sessões protegidas por hash scrypt e cookie assinado HttpOnly + SameSite=Strict.',
+    manageUsersTitle: 'Gerenciar Usuários RBAC (SQLite Local)',
+    roleLabel: 'Papel RBAC',
+    saveUserButton: 'Salvar Usuário',
+    userSaved: 'Usuário "{{username}}" salvo com papel {{role}}.',
+    userDeleted: 'Usuário "{{username}}" removido.',
+    currentSessionTag: 'sessão atual',
+    adminOnlyUsersNote:
+      'Apenas administradores autenticados podem criar, alterar ou remover usuários RBAC.',
+    loginSubtitle: 'Acesso Autenticado · Sessão Protegida',
+    loginButton: 'Entrar no Painel',
+    loginErrorFallback: 'Falha ao autenticar no servidor OpenShield.',
+    logoutButton: 'Sair',
+    configureAuthCta: 'Configurar Auth Real',
   },
 } as const;
 

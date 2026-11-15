@@ -22,6 +22,7 @@ interface PoliciesAuditViewProps {
   onApproveExecution: (id: string) => Promise<void>;
   onRollbackExecution: (id: string) => Promise<void>;
   onChangeAutonomy: (level: AutonomyLevel) => Promise<void>;
+  onTogglePersistentUci?: (enabled: boolean) => Promise<void>;
   busyKey: string | null;
 }
 
@@ -34,6 +35,7 @@ export function PoliciesAuditView({
   onApproveExecution,
   onRollbackExecution,
   onChangeAutonomy,
+  onTogglePersistentUci,
   busyKey,
 }: PoliciesAuditViewProps) {
   const { t, i18n } = useTranslation();
@@ -113,6 +115,27 @@ export function PoliciesAuditView({
             {t('policies.subtitle')}
           </p>
         </div>
+
+        {onTogglePersistentUci && (
+          <div className="rounded-lg border border-slate-800 bg-[#131C31] px-3.5 py-2.5 flex items-center gap-3 text-xs shrink-0">
+            <div className="min-w-0">
+              <div className="font-medium text-slate-100">{t('policies.uciPersistTitle')}</div>
+              <div className="text-[11px] text-slate-400">{t('policies.uciPersistDesc')}</div>
+            </div>
+            <button
+              type="button"
+              disabled={busyKey === 'uci-persist'}
+              onClick={() => onTogglePersistentUci(!Boolean(state.context.persistentUciFirewall))}
+              className={`px-3 py-1.5 rounded-md font-medium whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50 ${
+                state.context.persistentUciFirewall
+                  ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-700/50'
+                  : 'bg-slate-900 text-slate-300 border border-slate-700 hover:bg-slate-800'
+              }`}
+            >
+              {state.context.persistentUciFirewall ? t('common.enabled') : t('common.disabled')}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Autonomy Matrix L0-L3 */}
@@ -295,6 +318,57 @@ export function PoliciesAuditView({
                           </span>
                         </>
                       )}
+                      {exec.persistentUci && (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <span className="text-blue-300">UCI</span>
+                        </>
+                      )}
+                      {exec.reconciledAt && (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <span className="text-emerald-300">
+                            {t('policies.reconciledAtLabel', {
+                              ts: new Date(exec.reconciledAt).toLocaleTimeString(locale),
+                            })}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  )}
+                  {exec.gatewayResults && exec.gatewayResults.length > 0 && (
+                    <div className="rounded-lg border border-slate-800/90 bg-slate-950/60 px-3 py-2 space-y-1">
+                      <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500">
+                        {t('policies.multiGatewayFanout', { count: exec.gatewayResults.length })}
+                      </div>
+                      {exec.gatewayResults.map((gw) => (
+                        <div
+                          key={`${exec.id}-${gw.gatewayId}`}
+                          className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono"
+                        >
+                          <span className="text-slate-200">{gw.gatewayName}</span>
+                          <div className="flex items-center gap-2">
+                            {gw.ruleRef && (
+                              <span className="text-slate-400 truncate max-w-[200px]">
+                                {gw.ruleRef}
+                              </span>
+                            )}
+                            <span
+                              className={
+                                gw.status === 'failed'
+                                  ? 'text-red-400 font-medium'
+                                  : gw.status === 'reconciled'
+                                    ? 'text-blue-300 font-medium'
+                                    : gw.status === 'rolled_back'
+                                      ? 'text-amber-300 font-medium'
+                                      : 'text-emerald-400 font-medium'
+                              }
+                            >
+                              {t(`policies.gwStatus.${gw.status}`)}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                   <p className="text-slate-400">{exec.verificationDetail}</p>

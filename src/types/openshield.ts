@@ -159,6 +159,15 @@ export interface PolicyRule {
   enabled: boolean;
 }
 
+export interface GatewayEnforcementDetail {
+  gatewayId: string;
+  gatewayName: string;
+  enforcementMode: 'live' | 'simulated';
+  ruleRef?: string;
+  status: 'applied' | 'reconciled' | 'rolled_back' | 'failed';
+  detail: string;
+}
+
 export interface ActionExecution {
   id: string;
   incidentId: string;
@@ -169,6 +178,9 @@ export interface ActionExecution {
   targetSegment?: string;
   enforcementMode?: 'live' | 'simulated';
   ruleRef?: string;
+  gatewayResults?: GatewayEnforcementDetail[];
+  reconciledAt?: string;
+  persistentUci?: boolean;
   actionType: 'dns_block_domain' | 'nftables_temp_drop' | 'isolate_iot_segment' | 'dry_run_only';
   autonomyLevel: AutonomyLevel;
   status:
@@ -224,6 +236,10 @@ export interface AuditEntry {
     | 'notification.tested'
     | 'router_access.detected'
     | 'router_access.blocked'
+    | 'firewall.reconciled'
+    | 'auth.login'
+    | 'auth.logout'
+    | 'auth.user_updated'
     | 'context.updated';
   actor: string;
   role: string;
@@ -273,6 +289,22 @@ export interface OperatingContext {
   sites: { id: string; name: string; profile: OperatingProfile }[];
   aiSensitivity?: AiSensitivityConfig;
   periodicSync?: PeriodicSyncConfig;
+  persistentUciFirewall?: boolean;
+}
+
+export interface AuthUserSummary {
+  username: string;
+  role: SimulatedRole;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AuthStatus {
+  authConfigured: boolean;
+  authRequired: boolean;
+  authenticated: boolean;
+  envAdminEnabled: boolean;
+  user: { username: string; role: SimulatedRole } | null;
 }
 
 export interface EnvSecretStatus {

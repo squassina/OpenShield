@@ -2,6 +2,8 @@ import type {
   ActionExecution,
   AiSensitivityConfig,
   AuditEntry,
+  AuthStatus,
+  AuthUserSummary,
   AutonomyLevel,
   DnsInsight,
   EnvSecretStatus,
@@ -23,6 +25,7 @@ import type {
 
 async function requestJson<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {
+    credentials: 'same-origin',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -30,14 +33,55 @@ async function requestJson<T>(url: string, options?: RequestInit): Promise<T> {
     },
   });
 
-  const data = (await response.json().catch(() => ({}))) as T & { error?: string };
+  const data = (await response.json().catch(() => ({}))) as T & {
+    error?: string;
+    code?: string;
+  };
   if (!response.ok) {
+    if (response.status === 401 && data.code === 'AUTH_REQUIRED' && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('openshield:auth-required'));
+    }
     throw new Error(data.error || `Erro HTTP ${response.status} ao comunicar com o BFF.`);
   }
   return data;
 }
 
 export const api = {
+  getAuthStatus: () => requestJson<AuthStatus>('/api/v1/auth/status'),
+
+  setupInitialAdmin: (payload: { username: string; password: string }) =>
+    requestJson<{ user: AuthUserSummary; status: AuthStatus }>('/api/v1/auth/setup', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  login: (payload: { username: string; password: string }) =>
+    requestJson<{ status: AuthStatus }>('/api/v1/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  logout: () =>
+    requestJson<{ status: AuthStatus }>('/api/v1/auth/logout', {
+      method: 'POST',
+    }),
+
+  listAuthUsers: () => requestJson<{ users: AuthUserSummary[] }>('/api/v1/auth/users'),
+
+  upsertAuthUser: (payload: { username: string; role: SimulatedRole; password: string }) =>
+    requestJson<{ user: AuthUserSummary; users: AuthUserSummary[] }>('/api/v1/auth/users', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  deleteAuthUser: (username: string) =>
+    requestJson<{ users: AuthUserSummary[] }>(
+      `/api/v1/auth/users/${encodeURIComponent(username)}`,
+      {
+        method: 'DELETE',
+      },
+    ),
+
   getState: () => requestJson<WorkspaceState>('/api/v1/state'),
 
   getEnvStatus: () => requestJson<{ variables: EnvSecretStatus[] }>('/api/v1/system/env-status'),
@@ -50,6 +94,7 @@ export const api = {
     activeSiteId?: string;
     aiSensitivity?: AiSensitivityConfig;
     periodicSync?: PeriodicSyncConfig;
+    persistentUciFirewall?: boolean;
   }) =>
     requestJson<WorkspaceState>('/api/v1/context', {
       method: 'PATCH',
@@ -440,7 +485,7 @@ export const api = {
   },
 
   getMetricsText: async () => {
-    const res = await fetch('/metrics');
+    const res = await fetch('/metrics', { credentials: 'same-origin' });
     return res.text();
   },
 };

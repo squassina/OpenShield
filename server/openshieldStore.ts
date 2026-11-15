@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import crypto from 'node:crypto';
 import type {
   ActionExecution,
@@ -25,6 +26,7 @@ import type {
   RouterAccessAttempt,
   RouterAccessService,
   ServiceProviderMode,
+  SimulatedRole,
   SyncAdapterResult,
   WorkspaceState,
 } from '../src/types/openshield.ts';
@@ -37,6 +39,7 @@ import {
 } from './adapters/dnsAdapters.ts';
 import {
   applyFirewallRuleLive,
+  reconcileGatewayFirewallRulesLive,
   rollbackFirewallRuleLive,
 } from './adapters/firewallAdapter.ts';
 import { boundedFetchJson } from './adapters/httpClient.ts';
@@ -51,6 +54,13 @@ import {
   type DiscoveredDeviceHint,
   type ParsedRouterAccessLogEntry,
 } from './adapters/openwrtAdapter.ts';
+import {
+  syncCrowdSecLive,
+  syncSuricataLive,
+  syncUptimeKumaLive,
+  syncWazuhLive,
+  syncWireGuardLive,
+} from './adapters/secondaryAdapters.ts';
 import { correlateEventIntoIncidents } from './correlator.ts';
 import { buildSanitizedContext, runSanitizedCloudInvestigation } from './geminiSanitizer.ts';
 import { deliverNotification, type AlertDispatchPayload } from './notifier.ts';
@@ -80,6 +90,7 @@ export class OpenShieldStore {
   private state: WorkspaceState;
   private listeners: Set<() => void> = new Set();
   private periodicSyncInFlight = false;
+  private authContextStorage = new AsyncLocalStorage<{ username: string; role: SimulatedRole }>();
 
   constructor(persistence?: SqlitePersistence) {
     this.persistence = persistence ?? new SqlitePersistence();
@@ -270,7 +281,35 @@ export class OpenShieldStore {
     }
   }
 
+  getPersistence(): SqlitePersistence {
+    return this.persistence;
+  }
+
+  runWithAuthUser<T>(user: { username: string; role: SimulatedRole } | null, fn: () => T): T {
+    if (!user) return fn();
+    return this.authContextStorage.run(user, fn);
+  }
+
+  recordAuthEvent(input: {
+    eventType: 'auth.login' | 'auth.logout' | 'auth.user_updated';
+    actor: string;
+    role: string;
+    targetId: string;
+    outcome: AuditEntry['outcome'];
+    detail: string;
+  }): void {
+    this.addAudit(input);
+    this.notify();
+  }
+
   private currentActor(): { actor: string; role: string } {
+    const authUser = this.authContextStorage.getStore();
+    if (authUser) {
+      return {
+        actor: `${authUser.username} (Sessão)`,
+        role: authUser.role,
+      };
+    }
     if (this.state.context.profile === 'residential') {
       return { actor: 'lan-residencial-local', role: 'residencial-sem-auth' };
     }
@@ -286,6 +325,23 @@ export class OpenShieldStore {
   }
 
   assertCanMutate(required: 'operator' | 'admin' | 'policy_admin'): void {
+    const authUser = this.authContextStorage.getStore();
+    if (authUser) {
+      const role = authUser.role;
+      if (role === 'auditor') {
+        throw new Error('Permissão negada (RBAC): o papel Auditor possui acesso somente leitura.');
+      }
+      if (required === 'policy_admin' && role !== 'admin') {
+        throw new Error(
+          'Permissão negada (RBAC): apenas o papel Administrador pode alterar políticas de autonomia ou aprovar ações L3.',
+        );
+      }
+      if (required === 'admin' && role !== 'admin') {
+        throw new Error('Permissão negada (RBAC): esta operação exige o papel Administrador.');
+      }
+      return;
+    }
+
     if (this.state.context.profile === 'residential') {
       return;
     }
@@ -312,6 +368,8 @@ export class OpenShieldStore {
       targetIp?: string;
       ruleRef?: string;
       enforcementMode?: 'live' | 'simulated';
+      persistentUci?: boolean;
+      gatewayResults?: ActionExecution['gatewayResults'];
       siteId?: string;
     }[] = [];
 
@@ -333,6 +391,8 @@ export class OpenShieldStore {
               targetIp: exec.targetIp,
               ruleRef: exec.ruleRef,
               enforcementMode: exec.enforcementMode,
+              persistentUci: exec.persistentUci,
+              gatewayResults: exec.gatewayResults,
               siteId: inc?.siteId,
             });
             if (exec.targetIp) {
@@ -459,6 +519,8 @@ export class OpenShieldStore {
     targetIp?: string;
     ruleRef?: string;
     enforcementMode?: 'live' | 'simulated';
+    persistentUci?: boolean;
+    gatewayResults?: ActionExecution['gatewayResults'];
     siteId?: string;
   }): Promise<void> {
     if (item.enforcementMode !== 'live') return;
@@ -470,6 +532,8 @@ export class OpenShieldStore {
           targetIp: item.targetIp,
           ruleRef: item.ruleRef,
           enforcementMode: item.enforcementMode,
+          persistentUci: item.persistentUci,
+          gatewayResults: item.gatewayResults,
         },
         (id) => this.persistence.getServiceCredential(id),
         item.siteId,
@@ -477,6 +541,9 @@ export class OpenShieldStore {
       const exec = this.state.executions.find((e) => e.id === item.execId);
       if (exec) {
         exec.verificationDetail = `${exec.verificationDetail} (${res.detail})`;
+        if (res.gatewayResults) {
+          exec.gatewayResults = res.gatewayResults;
+        }
         this.notify();
       }
     } catch (err) {
@@ -490,8 +557,16 @@ export class OpenShieldStore {
   }
 
   updateContext(patch: Partial<OperatingContext>): WorkspaceState {
-    if (patch.simulatedRole && patch.simulatedRole !== this.state.context.simulatedRole) {
-      this.state.context.simulatedRole = patch.simulatedRole;
+    if (patch.simulatedRole) {
+      const authUser = this.authContextStorage.getStore();
+      if (authUser && authUser.role !== 'admin') {
+        throw new Error(
+          'Permissão negada (RBAC): apenas Administradores autenticados podem alternar o papel RBAC.',
+        );
+      }
+      if (patch.simulatedRole !== this.state.context.simulatedRole) {
+        this.state.context.simulatedRole = patch.simulatedRole;
+      }
     }
 
     if (patch.profile && patch.profile !== this.state.context.profile) {
@@ -607,6 +682,21 @@ export class OpenShieldStore {
         detail: enabled
           ? `Sincronização periódica ativada a cada ${intervalSeconds}s.`
           : `Sincronização periódica pausada (intervalo configurado: ${intervalSeconds}s).`,
+      });
+    }
+
+    if (typeof patch.persistentUciFirewall === 'boolean') {
+      this.assertCanMutate('policy_admin');
+      this.state.context.persistentUciFirewall = patch.persistentUciFirewall;
+      this.addAudit({
+        eventType: 'context.updated',
+        actor: this.currentActor().actor,
+        role: this.currentActor().role,
+        targetId: 'firewall-uci-persistence',
+        outcome: 'success',
+        detail: patch.persistentUciFirewall
+          ? 'Persistência UCI no OpenWrt (/etc/config/firewall) habilitada além da tabela inet openshield.'
+          : 'Persistência UCI desabilitada (somente tabela volátil inet openshield com reconciliação pós-reboot).',
       });
     }
 
@@ -1349,12 +1439,91 @@ export class OpenShieldStore {
         adapter.siteId,
         { additive: false },
       );
+
+      // Post-reboot firewall reconciliation on live OpenWrt gateway
+      const siteExecutions = this.state.executions.filter((exec) => {
+        const inc = this.state.incidents.find((i) => i.id === exec.incidentId);
+        return !inc || inc.siteId === adapter.siteId;
+      });
+      const rec = await reconcileGatewayFirewallRulesLive(
+        adapter,
+        siteExecutions,
+        (id) => this.persistence.getServiceCredential(id),
+        Boolean(this.state.context.persistentUciFirewall),
+      );
+      if (rec.reappliedExecutionIds.length > 0) {
+        this.addAudit({
+          eventType: 'firewall.reconciled',
+          actor: options?.actor ?? 'openshield-reconciler',
+          role: 'system',
+          targetId: adapter.id,
+          outcome: 'success',
+          detail: `Reconciliação pós-reboot (${adapter.name}): ${rec.details.join(' · ')}`,
+        });
+      }
+
       const logSuffix = owrt.routerLogWarning
         ? ` · Aviso logs: ${owrt.routerLogWarning}`
         : routerHits > 0
           ? ` · ${routerHits} tentativa(s) de acesso ao roteador`
           : '';
-      message = `OpenWrt/Node real sincronizado: ${owrt.boardInfo.model} (${discovered} dispositivo(s), ${ingested} evento(s)${logSuffix}).`;
+      const recSuffix =
+        rec.reappliedExecutionIds.length > 0
+          ? ` · ${rec.reappliedExecutionIds.length} regra(s) de firewall reconciliada(s)`
+          : '';
+      message = `OpenWrt/Node real sincronizado: ${owrt.boardInfo.model} (${discovered} dispositivo(s), ${ingested} evento(s)${logSuffix}${recSuffix}).`;
+    } else if (adapter.kind === 'opnsense-api') {
+      const key = cred?.username || process.env.OPENSHIELD_OPNSENSE_KEY || '';
+      const secret = cred?.secret || process.env.OPENSHIELD_OPNSENSE_SECRET || '';
+      const headers: Record<string, string> = {};
+      if (key && secret) {
+        headers.Authorization = `Basic ${Buffer.from(`${key}:${secret}`).toString('base64')}`;
+      }
+      const res = await boundedFetchJson<unknown>(adapter.liveEndpointUrl, {
+        headers,
+        timeoutMs: adapter.timeoutMs || 5000,
+      });
+      if (!res.ok) {
+        throw new Error(`OPNsense (${adapter.name}) retornou HTTP ${res.status}.`);
+      }
+
+      const siteExecutions = this.state.executions.filter((exec) => {
+        const inc = this.state.incidents.find((i) => i.id === exec.incidentId);
+        return !inc || inc.siteId === adapter.siteId;
+      });
+      const rec = await reconcileGatewayFirewallRulesLive(
+        adapter,
+        siteExecutions,
+        (id) => this.persistence.getServiceCredential(id),
+      );
+      if (rec.reappliedExecutionIds.length > 0) {
+        this.addAudit({
+          eventType: 'firewall.reconciled',
+          actor: options?.actor ?? 'openshield-reconciler',
+          role: 'system',
+          targetId: adapter.id,
+          outcome: 'success',
+          detail: `Reconciliação OPNsense (${adapter.name}): ${rec.details.join(' · ')}`,
+        });
+      }
+
+      const ev: OpenShieldEventV1 = {
+        eventId: `opn-${crypto.randomUUID().slice(0, 8)}`,
+        schemaVersion: 'openshield.event.v1',
+        occurredAt: nowIso,
+        sourceIntegrationId: adapter.id,
+        eventType: 'gateway.health',
+        severity: 'info',
+        dataSource: 'live',
+        summary: `OPNsense (${adapter.name}) sincronizado via API REST${rec.reappliedExecutionIds.length > 0 ? ` · ${rec.reappliedExecutionIds.length} regra(s) reconciliada(s)` : ''}.`,
+        payload:
+          res.data && typeof res.data === 'object' && !Array.isArray(res.data)
+            ? (res.data as Record<string, unknown>)
+            : { status: 'ok' },
+      };
+      this.ingestEvent(ev, { skipNotify: true });
+      ingested = 1;
+      message = ev.summary;
     } else if (adapter.kind === 'pihole-v6') {
       const pihole = await syncPiholeLive(adapter.liveEndpointUrl, adapter.id, adapter.name, {
         secret: cred?.secret,
@@ -1386,6 +1555,57 @@ export class OpenShieldStore {
       }
       this.upsertDnsInsights(tech.insights, tech.clientStats);
       message = tech.summaryNote;
+    } else if (adapter.kind === 'crowdsec-lapi') {
+      const cs = await syncCrowdSecLive(adapter.liveEndpointUrl, adapter.id, adapter.name, {
+        username: cred?.username,
+        secret: cred?.secret,
+      });
+      for (const ev of cs.events) {
+        const res = this.ingestEvent(ev, { skipNotify: true });
+        if (res.status === 'accepted') ingested += 1;
+      }
+      message = cs.summaryNote;
+    } else if (adapter.kind === 'wireguard-vpn') {
+      const wg = await syncWireGuardLive(adapter.liveEndpointUrl, adapter.id, adapter.name, {
+        username: cred?.username,
+        secret: cred?.secret,
+      });
+      discovered = this.upsertDiscoveredDevices(wg.discoveredDevices, adapter.siteId);
+      for (const ev of wg.events) {
+        const res = this.ingestEvent(ev, { skipNotify: true });
+        if (res.status === 'accepted') ingested += 1;
+      }
+      message = wg.summaryNote;
+    } else if (adapter.kind === 'uptime-kuma') {
+      const uk = await syncUptimeKumaLive(adapter.liveEndpointUrl, adapter.id, adapter.name, {
+        username: cred?.username,
+        secret: cred?.secret,
+      });
+      for (const ev of uk.events) {
+        const res = this.ingestEvent(ev, { skipNotify: true });
+        if (res.status === 'accepted') ingested += 1;
+      }
+      message = uk.summaryNote;
+    } else if (adapter.kind === 'suricata-eve') {
+      const sur = await syncSuricataLive(adapter.liveEndpointUrl, adapter.id, adapter.name, {
+        username: cred?.username,
+        secret: cred?.secret,
+      });
+      for (const ev of sur.events) {
+        const res = this.ingestEvent(ev, { skipNotify: true });
+        if (res.status === 'accepted') ingested += 1;
+      }
+      message = sur.summaryNote;
+    } else if (adapter.kind === 'wazuh-api') {
+      const waz = await syncWazuhLive(adapter.liveEndpointUrl, adapter.id, adapter.name, {
+        username: cred?.username,
+        secret: cred?.secret,
+      });
+      for (const ev of waz.events) {
+        const res = this.ingestEvent(ev, { skipNotify: true });
+        if (res.status === 'accepted') ingested += 1;
+      }
+      message = waz.summaryNote;
     } else {
       const headers: Record<string, string> = {};
       if (cred?.username && cred?.secret) {
@@ -2280,12 +2500,14 @@ export class OpenShieldStore {
       this.state.incidents.unshift(incident);
     }
 
+    const persistentUci = Boolean(this.state.context.persistentUciFirewall);
     const fwRes = await applyFirewallRuleLive(
       this.state.integrations,
       {
         executionId,
         targetIp: attempt.srcIp,
         actionType: 'nftables_temp_drop',
+        persistentUci,
       },
       (id) => this.persistence.getServiceCredential(id),
       attempt.siteId,
@@ -2300,6 +2522,8 @@ export class OpenShieldStore {
       targetIp: attempt.srcIp,
       enforcementMode: fwRes.enforcementMode,
       ruleRef: fwRes.ruleRef,
+      gatewayResults: fwRes.gatewayResults,
+      persistentUci,
       actionType: 'nftables_temp_drop',
       autonomyLevel: this.state.context.globalAutonomy === 'L3' ? 'L3' : 'L2',
       status: 'verified',
@@ -2845,6 +3069,8 @@ export class OpenShieldStore {
     let expiresAt: string | null = null;
     let enforcementMode: ActionExecution['enforcementMode'] = 'simulated';
     let ruleRef: string | undefined;
+    let gatewayResults: ActionExecution['gatewayResults'];
+    const persistentUci = Boolean(this.state.context.persistentUciFirewall);
     let verificationDetail =
       'Modo L0 (Observar): simulação concluída sem alterar firewall, DNS ou encaminhamento.';
 
@@ -2867,12 +3093,13 @@ export class OpenShieldStore {
       } else if (actionType === 'nftables_temp_drop' || actionType === 'isolate_iot_segment') {
         const fwRes = await applyFirewallRuleLive(
           this.state.integrations,
-          { executionId, targetIp, actionType },
+          { executionId, targetIp, actionType, persistentUci },
           (id) => this.persistence.getServiceCredential(id),
           incident.siteId,
         );
         enforcementMode = fwRes.enforcementMode;
         ruleRef = fwRes.ruleRef;
+        gatewayResults = fwRes.gatewayResults;
         liveNote = ` ${fwRes.detail}`;
         if (fwRes.enforcementMode === 'live' && targetIp) {
           const dev = this.state.devices.find(
@@ -2901,6 +3128,11 @@ export class OpenShieldStore {
       targetSegment,
       enforcementMode,
       ruleRef,
+      gatewayResults,
+      persistentUci:
+        actionType === 'nftables_temp_drop' || actionType === 'isolate_iot_segment'
+          ? persistentUci
+          : undefined,
       actionType,
       autonomyLevel: effectiveLevel,
       status,
@@ -2947,14 +3179,22 @@ export class OpenShieldStore {
         exec.enforcementMode = 'simulated';
       }
     } else if (exec.actionType === 'nftables_temp_drop' || exec.actionType === 'isolate_iot_segment') {
+      const persistentUci = Boolean(this.state.context.persistentUciFirewall);
       const fwRes = await applyFirewallRuleLive(
         this.state.integrations,
-        { executionId: exec.id, targetIp: exec.targetIp, actionType: exec.actionType },
+        {
+          executionId: exec.id,
+          targetIp: exec.targetIp,
+          actionType: exec.actionType,
+          persistentUci,
+        },
         (id) => this.persistence.getServiceCredential(id),
         inc?.siteId,
       );
       exec.enforcementMode = fwRes.enforcementMode;
       exec.ruleRef = fwRes.ruleRef;
+      exec.gatewayResults = fwRes.gatewayResults;
+      exec.persistentUci = persistentUci;
       liveNote = ` (${fwRes.detail})`;
       if (fwRes.enforcementMode === 'live' && exec.targetIp) {
         const dev = this.state.devices.find(
@@ -3011,11 +3251,16 @@ export class OpenShieldStore {
           targetIp: exec.targetIp,
           ruleRef: exec.ruleRef,
           enforcementMode: exec.enforcementMode,
+          persistentUci: exec.persistentUci,
+          gatewayResults: exec.gatewayResults,
         },
         (id) => this.persistence.getServiceCredential(id),
         inc?.siteId,
       );
       liveNote = ` ${fwRes.detail}`;
+      if (fwRes.gatewayResults) {
+        exec.gatewayResults = fwRes.gatewayResults;
+      }
       if (exec.targetIp) {
         const dev = this.state.devices.find(
           (d) => normalizeIpAddress(d.ip) === normalizeIpAddress(exec.targetIp ?? ''),
@@ -3083,11 +3328,16 @@ export class OpenShieldStore {
                   targetIp: exec.targetIp,
                   ruleRef: exec.ruleRef,
                   enforcementMode: exec.enforcementMode,
+                  persistentUci: exec.persistentUci,
+                  gatewayResults: exec.gatewayResults,
                 },
                 (id) => this.persistence.getServiceCredential(id),
                 inc?.siteId,
               );
               rollbackNote = ` (${fwRes.detail})`;
+              if (fwRes.gatewayResults) {
+                exec.gatewayResults = fwRes.gatewayResults;
+              }
             } catch (err) {
               const msg = err instanceof Error ? err.message : 'gateway offline';
               rollbackNote = ` (Aviso rollback gateway: ${msg})`;

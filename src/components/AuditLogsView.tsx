@@ -71,6 +71,10 @@ const KNOWN_EVENT_TYPES: string[] = [
   'site.removed',
   'router_access.detected',
   'router_access.blocked',
+  'firewall.reconciled',
+  'auth.login',
+  'auth.logout',
+  'auth.user_updated',
   'workspace.demo_loaded',
   'workspace.reset',
   'workspace.restored',
@@ -93,7 +97,7 @@ function getCategoryIcon(eventType: string) {
   if (eventType.startsWith('kill_switch.')) {
     return <OctagonAlert className="w-3.5 h-3.5 text-red-400 shrink-0" />;
   }
-  if (eventType.startsWith('action.')) {
+  if (eventType.startsWith('action.') || eventType.startsWith('firewall.') || eventType.startsWith('auth.')) {
     return <ShieldCheck className="w-3.5 h-3.5 text-blue-400 shrink-0" />;
   }
   if (

@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import express from 'express';
+import crypto from 'node:crypto';
 import { createServer } from 'node:http';
 import path from 'node:path';
 import type {
@@ -19,6 +20,7 @@ import type {
   ServiceProviderMode,
   SimulatedRole,
 } from './src/types/openshield.ts';
+import { AuthService } from './server/auth.ts';
 import { OpenShieldStore } from './server/openshieldStore.ts';
 
 dotenv.config();
@@ -26,6 +28,26 @@ dotenv.config();
 const PORT = Number(process.env.PORT) || 3000;
 const app = express();
 const store = new OpenShieldStore();
+const authService = new AuthService(store.getPersistence());
+
+function isSecureRequest(req: express.Request): boolean {
+  return req.secure || req.headers['x-forwarded-proto'] === 'https';
+}
+
+function checkIngestToken(req: express.Request): boolean {
+  const configuredToken = process.env.OPENSHIELD_INGEST_TOKEN?.trim();
+  if (!configuredToken) return true;
+  const headerToken =
+    (typeof req.headers['x-openshield-ingest-token'] === 'string'
+      ? req.headers['x-openshield-ingest-token'].trim()
+      : '') ||
+    (typeof req.headers.authorization === 'string' && req.headers.authorization.startsWith('Bearer ')
+      ? req.headers.authorization.slice(7).trim()
+      : '');
+  const a = Buffer.from(headerToken, 'utf8');
+  const b = Buffer.from(configuredToken, 'utf8');
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
 
 app.use(express.json({ limit: '1mb' }));
 
@@ -33,6 +55,193 @@ app.use(express.json({ limit: '1mb' }));
 app.use('/api', (_req, _res, next) => {
   store.recordHttpRequest();
   next();
+});
+
+// Auth endpoints (HttpOnly + SameSite=Strict signed session cookie)
+app.get('/api/v1/auth/status', (req, res) => {
+  res.json(authService.getAuthStatus(req.headers.cookie));
+});
+
+app.post('/api/v1/auth/setup', (req, res) => {
+  try {
+    const { username, password } = (req.body ?? {}) as { username?: string; password?: string };
+    const created = authService.setupInitialAdmin(String(username ?? 'admin'), String(password ?? ''));
+    res.setHeader(
+      'Set-Cookie',
+      authService.buildSessionCookieHeader({ username: created.username, role: created.role }, isSecureRequest(req)),
+    );
+    store.recordAuthEvent({
+      eventType: 'auth.user_updated',
+      actor: created.username,
+      role: created.role,
+      targetId: created.username,
+      outcome: 'success',
+      detail: `Administrador inicial "${created.username}" configurado com senha scrypt e cookie HttpOnly/SameSite=Strict.`,
+    });
+    res.status(201).json({
+      user: created,
+      status: {
+        authConfigured: true,
+        authRequired: true,
+        authenticated: true,
+        envAdminEnabled: authService.isEnvAdminConfigured(),
+        user: { username: created.username, role: created.role },
+      },
+    });
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : 'Falha ao configurar administrador.' });
+  }
+});
+
+app.post('/api/v1/auth/login', (req, res) => {
+  try {
+    const { username, password } = (req.body ?? {}) as { username?: string; password?: string };
+    const user = authService.login(String(username ?? ''), String(password ?? ''));
+    res.setHeader(
+      'Set-Cookie',
+      authService.buildSessionCookieHeader(user, isSecureRequest(req)),
+    );
+    store.recordAuthEvent({
+      eventType: 'auth.login',
+      actor: user.username,
+      role: user.role,
+      targetId: user.username,
+      outcome: 'success',
+      detail: `Sessão autenticada iniciada para "${user.username}" (${user.role}).`,
+    });
+    res.json({
+      status: {
+        authConfigured: authService.isAuthConfigured(),
+        authRequired: authService.isAuthRequired(),
+        authenticated: true,
+        envAdminEnabled: authService.isEnvAdminConfigured(),
+        user,
+      },
+    });
+  } catch (err) {
+    const attempted = typeof req.body?.username === 'string' ? req.body.username : 'desconhecido';
+    store.recordAuthEvent({
+      eventType: 'auth.login',
+      actor: attempted,
+      role: 'anonymous',
+      targetId: attempted,
+      outcome: 'denied',
+      detail: `Tentativa de login rejeitada para "${attempted}".`,
+    });
+    res.status(401).json({ error: err instanceof Error ? err.message : 'Credenciais inválidas.' });
+  }
+});
+
+app.post('/api/v1/auth/logout', (req, res) => {
+  const current = authService.authenticateFromCookie(req.headers.cookie);
+  res.setHeader('Set-Cookie', authService.buildClearCookieHeader(isSecureRequest(req)));
+  if (current) {
+    store.recordAuthEvent({
+      eventType: 'auth.logout',
+      actor: current.username,
+      role: current.role,
+      targetId: current.username,
+      outcome: 'success',
+      detail: `Sessão encerrada para "${current.username}".`,
+    });
+  }
+  res.json({
+    status: {
+      authConfigured: authService.isAuthConfigured(),
+      authRequired: authService.isAuthRequired(),
+      authenticated: false,
+      envAdminEnabled: authService.isEnvAdminConfigured(),
+      user: null,
+    },
+  });
+});
+
+// Enforce session authentication and propagate real RBAC actor into AsyncLocalStorage
+app.use('/api/v1', (req, res, next) => {
+  if (req.path.startsWith('/auth/') && !req.path.startsWith('/auth/users')) {
+    next();
+    return;
+  }
+
+  if (req.path.startsWith('/ingest/')) {
+    if (!checkIngestToken(req)) {
+      res.status(401).json({ error: 'Token de ingestão inválido ou ausente.' });
+      return;
+    }
+    next();
+    return;
+  }
+
+  const session = authService.authenticateFromCookie(req.headers.cookie);
+  if (authService.isAuthRequired() && !session) {
+    res.status(401).json({
+      error: 'Autenticação necessária: faça login no painel OpenShield.',
+      code: 'AUTH_REQUIRED',
+    });
+    return;
+  }
+
+  store.runWithAuthUser(session ? { username: session.username, role: session.role } : null, () => {
+    next();
+  });
+});
+
+app.get('/api/v1/auth/users', (_req, res) => {
+  try {
+    store.assertCanMutate('admin');
+    res.json({ users: authService.listUsers() });
+  } catch (err) {
+    res.status(403).json({ error: err instanceof Error ? err.message : 'Acesso negado.' });
+  }
+});
+
+app.post('/api/v1/auth/users', (req, res) => {
+  try {
+    store.assertCanMutate('admin');
+    const { username, role, password } = (req.body ?? {}) as {
+      username?: string;
+      role?: SimulatedRole;
+      password?: string;
+    };
+    const saved = authService.upsertUser({
+      username: String(username ?? ''),
+      role: role ?? 'operator',
+      password: String(password ?? ''),
+    });
+    const session = authService.authenticateFromCookie(req.headers.cookie);
+    store.recordAuthEvent({
+      eventType: 'auth.user_updated',
+      actor: session?.username ?? 'system',
+      role: session?.role ?? 'admin',
+      targetId: saved.username,
+      outcome: 'success',
+      detail: `Usuário "${saved.username}" salvo com papel RBAC "${saved.role}".`,
+    });
+    res.status(201).json({ user: saved, users: authService.listUsers() });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Falha ao salvar usuário.';
+    res.status(msg.includes('RBAC') ? 403 : 400).json({ error: msg });
+  }
+});
+
+app.delete('/api/v1/auth/users/:username', (req, res) => {
+  try {
+    store.assertCanMutate('admin');
+    const session = authService.authenticateFromCookie(req.headers.cookie);
+    authService.deleteUser(req.params.username, session?.username);
+    store.recordAuthEvent({
+      eventType: 'auth.user_updated',
+      actor: session?.username ?? 'system',
+      role: session?.role ?? 'admin',
+      targetId: req.params.username,
+      outcome: 'success',
+      detail: `Usuário "${req.params.username}" removido do cofre local.`,
+    });
+    res.json({ users: authService.listUsers() });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Falha ao remover usuário.';
+    res.status(msg.includes('RBAC') ? 403 : 400).json({ error: msg });
+  }
 });
 
 // Tick TTL expirations every second
@@ -100,6 +309,7 @@ app.patch('/api/v1/context', (req, res) => {
       activeSiteId?: string;
       aiSensitivity?: AiSensitivityConfig;
       periodicSync?: PeriodicSyncConfig;
+      persistentUciFirewall?: boolean;
     };
     const state = store.updateContext(body);
     res.json(state);

@@ -572,6 +572,32 @@ export async function syncOpenWrtReadOnly(
       // Optional endpoint on remote Node
     }
 
+    const routerAccessEntries: ParsedRouterAccessLogEntry[] = [];
+    for (const ev of events) {
+      if (ev.eventType === 'router.access_attempt' && ev.payload && typeof ev.payload === 'object') {
+        const p = ev.payload as Record<string, unknown>;
+        const srcIp = normalizeIpAddress(String(p.srcIp ?? ''));
+        const svcRaw = String(p.service ?? 'ssh');
+        const service: RouterAccessService =
+          svcRaw === 'luci' || svcRaw === 'ubus' || svcRaw === 'wan_drop' ? svcRaw : 'ssh';
+        if (srcIp && isUsableSourceIp(srcIp)) {
+          routerAccessEntries.push({
+            srcIp,
+            service,
+            targetPort: typeof p.targetPort === 'number' ? p.targetPort : undefined,
+            protocol: typeof p.protocol === 'string' ? p.protocol : undefined,
+            attemptsCount: Math.max(1, Number(p.attemptsCount) || 1),
+            occurredAt: ev.occurredAt,
+            lastMessage: ev.summary,
+            sampleLines: Array.isArray(p.sampleLines)
+              ? (p.sampleLines as unknown[]).map(String).slice(0, 5)
+              : [ev.summary],
+            severity: ev.severity,
+          });
+        }
+      }
+    }
+
     return {
       boardInfo: {
         model: 'OpenShield Node (FastAPI Sincronizado)',
@@ -580,7 +606,7 @@ export async function syncOpenWrtReadOnly(
       },
       events: events.map((ev) => ({ ...ev, dataSource: 'live' })),
       discoveredDevices,
-      routerAccessEntries: [],
+      routerAccessEntries,
     };
   }
 

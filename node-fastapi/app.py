@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sqlite3
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import FastAPI, Header, HTTPException, Query, Response
+from fastapi import FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
@@ -228,6 +229,236 @@ def ingest_events(body: EventIn | EventBatchIn) -> dict[str, Any]:
     items = body.events if isinstance(body, EventBatchIn) else [body]
     statuses = _store_events(items)
     return {"count": len(statuses), "statuses": statuses}
+
+
+ROUTER_MGMT_PORTS = {22, 23, 80, 443, 8080, 8443}
+
+
+def _normalize_ip(raw: str) -> str:
+    cleaned = raw.strip()
+    if cleaned.lower().startswith("::ffff:"):
+        cleaned = cleaned[7:]
+    cleaned = cleaned.strip("<>[]")
+    # Strip trailing :port for IPv4:port
+    m_v4 = re.match(r"^((?:\d{1,3}\.){3}\d{1,3})(?::\d+)?$", cleaned)
+    if m_v4:
+        return m_v4.group(1)
+    return cleaned
+
+
+def _is_usable_source_ip(ip: str) -> bool:
+    if not ip or ip in {"0.0.0.0", "127.0.0.1", "::1", "::"}:
+        return False
+    if re.match(r"^(?:\d{1,3}\.){3}\d{1,3}$", ip):
+        octets = ip.split(".")
+        return all(0 <= int(o) <= 255 for o in octets)
+    return ":" in ip and bool(re.match(r"^[0-9a-fA-F:]{3,45}$", ip))
+
+
+def _parse_router_access_lines(
+    raw_log: str,
+    now_iso: str,
+) -> list[dict[str, Any]]:
+    grouped: dict[tuple[str, str], dict[str, Any]] = {}
+
+    for raw_line in raw_log.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+
+        service: str | None = None
+        src_ip = ""
+        target_port: int | None = None
+        protocol: str | None = None
+
+        if re.search(r"\b(?:dropbear|sshd)\b", line, re.I) and re.search(
+            r"(?:bad password|nonexistent user|exit before auth|failed password|invalid user|authpriv\.(?:warn|err).*dropbear)",
+            line,
+            re.I,
+        ):
+            m = re.search(r"\bfrom\s+<?(\[?[0-9a-fA-F:.]+\]?(?::\d+)?)>?", line, re.I) or re.search(
+                r"\bSRC=([^\s]+)", line, re.I
+            )
+            if m:
+                src_ip = _normalize_ip(m.group(1))
+                service = "ssh"
+                target_port = 22
+                protocol = "tcp"
+
+        if not service and re.search(r"\b(?:uhttpd|luci)\b", line, re.I) and re.search(
+            r"(?:failed login|unauthorized|invalid password|auth failed)", line, re.I
+        ):
+            m = re.search(r"\bfrom\s+<?(\[?[0-9a-fA-F:.]+\]?(?::\d+)?)>?", line, re.I)
+            if m:
+                src_ip = _normalize_ip(m.group(1))
+                service = "luci"
+                target_port = 443 if re.search(r"443|https", line, re.I) else 80
+                protocol = "tcp"
+
+        if not service and re.search(r"\b(?:rpcd|ubus)\b", line, re.I) and re.search(
+            r"(?:login failed|access denied|permission denied|unauthorized|invalid session)",
+            line,
+            re.I,
+        ):
+            m = re.search(r"\bfrom\s+<?(\[?[0-9a-fA-F:.]+\]?(?::\d+)?)>?", line, re.I) or re.search(
+                r"\b(?:ip|src|client)=([^\s,]+)", line, re.I
+            )
+            if m:
+                src_ip = _normalize_ip(m.group(1))
+                service = "ubus"
+                target_port = 80
+                protocol = "tcp"
+
+        if (
+            not service
+            and re.search(r"(?:DROP|REJECT|fw4)", line, re.I)
+            and re.search(r"\bSRC=([^\s]+)", line, re.I)
+        ):
+            src_m = re.search(r"\bSRC=([^\s]+)", line, re.I)
+            dpt_m = re.search(r"\bDPT=(\d+)", line, re.I)
+            proto_m = re.search(r"\bPROTO=([A-Za-z0-9]+)", line, re.I)
+            dpt = int(dpt_m.group(1)) if dpt_m else None
+            is_wan_or_mgmt = bool(
+                re.search(r"\bIN=(?:wan|pppoe-wan|eth\d+|br-wan)", line, re.I)
+                or (dpt is not None and dpt in ROUTER_MGMT_PORTS)
+            )
+            if src_m and is_wan_or_mgmt and (dpt is None or dpt in ROUTER_MGMT_PORTS):
+                src_ip = _normalize_ip(src_m.group(1))
+                service = "wan_drop"
+                target_port = dpt
+                protocol = proto_m.group(1).lower() if proto_m else "tcp"
+
+        if not service or not _is_usable_source_ip(src_ip):
+            continue
+
+        key = (src_ip, service)
+        existing = grouped.get(key)
+        snippet = line[:240]
+        if existing:
+            existing["attemptsCount"] += 1
+            existing["lastMessage"] = snippet
+            if len(existing["sampleLines"]) < 5 and snippet not in existing["sampleLines"]:
+                existing["sampleLines"].append(snippet)
+            if not existing["targetPort"] and target_port:
+                existing["targetPort"] = target_port
+        else:
+            grouped[key] = {
+                "srcIp": src_ip,
+                "service": service,
+                "targetPort": target_port,
+                "protocol": protocol,
+                "attemptsCount": 1,
+                "occurredAt": now_iso,
+                "lastMessage": snippet,
+                "sampleLines": [snippet],
+            }
+
+    return list(grouped.values())
+
+
+@app.post("/api/v1/ingest/router-logs", status_code=202)
+async def ingest_router_logs(
+    request: Request,
+    sourceIntegrationId: str | None = Query(default=None),
+) -> dict[str, Any]:
+    content_type = (request.headers.get("content-type") or "").lower()
+    raw_body = await request.body()
+    if len(raw_body) > 1_048_576:
+        raise HTTPException(status_code=413, detail="Payload excede limite de 1 MiB.")
+
+    resolved_source = (sourceIntegrationId or "").strip()
+    raw_log: str | None = None
+    explicit_entries: list[dict[str, Any]] = []
+
+    if "text/plain" in content_type or (raw_body and not raw_body.lstrip().startswith(b"{")):
+        raw_log = raw_body.decode("utf-8", errors="replace")
+    elif raw_body:
+        try:
+            body_json = json.loads(raw_body.decode("utf-8"))
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=400, detail=f"JSON inválido: {exc}") from exc
+        if isinstance(body_json, dict):
+            if isinstance(body_json.get("sourceIntegrationId"), str) and body_json["sourceIntegrationId"].strip():
+                resolved_source = body_json["sourceIntegrationId"].strip()
+            if isinstance(body_json.get("rawLog"), str):
+                raw_log = body_json["rawLog"]
+            if isinstance(body_json.get("entries"), list):
+                explicit_entries = [e for e in body_json["entries"] if isinstance(e, dict)]
+
+    if not resolved_source:
+        resolved_source = "openwrt-node"
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    parsed_entries: list[dict[str, Any]] = []
+    if raw_log and raw_log.strip():
+        parsed_entries.extend(_parse_router_access_lines(raw_log, now_iso))
+
+    for item in explicit_entries:
+        clean_ip = _normalize_ip(str(item.get("srcIp") or ""))
+        if not _is_usable_source_ip(clean_ip):
+            continue
+        svc = str(item.get("service") or "ssh")
+        if svc not in {"ssh", "luci", "ubus", "wan_drop"}:
+            svc = "ssh"
+        attempts = max(1, int(item.get("attemptsCount") or 1))
+        msg = str(item.get("message") or f"Tentativa {svc.upper()} de {clean_ip}")[:240]
+        parsed_entries.append(
+            {
+                "srcIp": clean_ip,
+                "service": svc,
+                "targetPort": item.get("targetPort"),
+                "protocol": item.get("protocol") or "tcp",
+                "attemptsCount": attempts,
+                "occurredAt": str(item.get("occurredAt") or now_iso),
+                "lastMessage": msg,
+                "sampleLines": [msg],
+            }
+        )
+
+    events_to_store: list[EventIn] = []
+    for entry in parsed_entries:
+        count = int(entry["attemptsCount"])
+        svc = entry["service"]
+        if svc == "wan_drop":
+            severity: Literal["info", "low", "medium", "high", "critical"] = (
+                "high" if count >= 10 else "medium" if count >= 4 else "low"
+            )
+        else:
+            severity = "critical" if count >= 6 else "high" if count >= 3 else "medium"
+        svc_label = {
+            "ssh": "SSH (dropbear/sshd)",
+            "luci": "LuCI HTTP/HTTPS",
+            "ubus": "ubus RPC",
+            "wan_drop": "Firewall WAN Drop",
+        }.get(svc, svc)
+        events_to_store.append(
+            EventIn(
+                eventId=f"rtr-{uuid.uuid4().hex[:8]}",
+                schemaVersion="openshield.event.v1",
+                occurredAt=entry["occurredAt"],
+                sourceIntegrationId=resolved_source,
+                eventType="router.access_attempt",
+                severity=severity,
+                dataSource="live",
+                summary=f"Tentativa de acesso ao roteador em {svc_label} a partir de {entry['srcIp']} ({count} tentativa(s)).",
+                payload={
+                    "srcIp": entry["srcIp"],
+                    "service": svc,
+                    "targetPort": entry.get("targetPort"),
+                    "protocol": entry.get("protocol"),
+                    "attemptsCount": count,
+                    "sampleLines": entry.get("sampleLines", []),
+                },
+            )
+        )
+
+    statuses = _store_events(events_to_store) if events_to_store else []
+    return {
+        "acceptedEntries": len(parsed_entries),
+        "eventsIngested": sum(1 for s in statuses if s["status"] == "accepted"),
+        "sourceIntegrationId": resolved_source,
+        "statuses": statuses,
+    }
 
 
 @app.get("/api/v1/devices")
