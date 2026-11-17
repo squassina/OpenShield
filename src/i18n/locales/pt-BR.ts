@@ -85,6 +85,11 @@ export const ptBR = {
     nodeConnected: 'Node Conectado',
     nodeOffline: 'Node Offline (Gateway Ativo)',
     languageLabel: 'Idioma:',
+    themeLabel: 'Tema:',
+    themeLight: 'Claro',
+    themeDark: 'Escuro',
+    themeSwitchToLight: 'Alternar para tema claro',
+    themeSwitchToDark: 'Alternar para tema escuro',
     businessBannerTitle: 'Simulação de Perfil Pequeno Escritório (RBAC):',
     businessBannerBody:
       'O modo Residencial opera sem autenticação apenas em LAN confiável. Antes de implantar o perfil Escritório em produção ou multi-site, habilite identidade, credenciais de gateway e RBAC reais no OpenShield Node.',

@@ -139,10 +139,10 @@ export function OverviewView({
       {/* Header summary */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-50 text-balance">
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-50 text-balance">
             {isBusiness ? t('overview.titleBusiness') : t('overview.titleResidential')}
           </h1>
-          <p className="mt-1 text-sm text-slate-400 max-w-2xl">
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-2xl">
             {isBusiness ? t('overview.subtitleBusiness') : t('overview.subtitleResidential')}
           </p>
         </div>
@@ -153,8 +153,8 @@ export function OverviewView({
             onClick={handleToggleChartsPaused}
             className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
               chartsPaused
-                ? 'border-amber-500/50 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25'
-                : 'border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800'
+                ? 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-500/50 dark:bg-amber-500/15 dark:text-amber-300 dark:hover:bg-amber-500/25'
+                : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
             }`}
           >
             {chartsPaused ? (
@@ -170,7 +170,7 @@ export function OverviewView({
             type="button"
             disabled={busyKey === 'outage'}
             onClick={() => onToggleNodeOutage(!state.context.nodeAvailable)}
-            className="px-4 py-2 text-xs font-medium rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+            className="px-4 py-2 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
           >
             {state.context.nodeAvailable
               ? t('overview.simulateOutage')
@@ -179,7 +179,7 @@ export function OverviewView({
           <button
             type="button"
             onClick={() => onNavigate('settings')}
-            className="px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="px-4 py-2 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
             {t('overview.configureServices')}
           </button>
@@ -188,17 +188,17 @@ export function OverviewView({
 
       {/* 4-column KPI strip */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div className="rounded-xl border border-slate-800 bg-[#131C31] p-5">
-          <div className="flex items-center justify-between text-xs text-slate-400">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31] p-5 shadow-xs dark:shadow-none">
+          <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
             <span>{t('overview.kpiGatewayTitle')}</span>
-            <Router className="w-4 h-4 text-emerald-500" />
+            <Router className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
           </div>
-          <div className="mt-2 text-xl font-semibold text-slate-50">
+          <div className="mt-2 text-xl font-semibold text-slate-900 dark:text-slate-50">
             {state.context.gatewayForwardingActive
               ? t('overview.kpiGatewayActive')
               : t('overview.kpiGatewayStopped')}
           </div>
-          <p className="mt-1.5 text-xs text-slate-400 tabular-nums">
+          <p className="mt-1.5 text-xs text-slate-600 dark:text-slate-400 tabular-nums">
             {state.context.nodeAvailable
               ? t('overview.kpiGatewayNodeOnline')
               : t('overview.kpiGatewayNodeOffline', {
@@ -207,32 +207,34 @@ export function OverviewView({
           </p>
         </div>
 
-        <div className="rounded-xl border border-slate-800 bg-[#131C31] p-5">
-          <div className="flex items-center justify-between text-xs text-slate-400">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31] p-5 shadow-xs dark:shadow-none">
+          <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
             <span>{t('overview.kpiIncidentsTitle')}</span>
             <ShieldAlert
               className={`w-4 h-4 ${
-                openIncidents.length > 0 ? 'text-amber-500' : 'text-emerald-500'
+                openIncidents.length > 0
+                  ? 'text-amber-600 dark:text-amber-500'
+                  : 'text-emerald-600 dark:text-emerald-500'
               }`}
             />
           </div>
-          <div className="mt-2 text-xl font-semibold text-slate-50 tabular-nums">
+          <div className="mt-2 text-xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums">
             {openIncidents.length}
           </div>
-          <p className="mt-1.5 text-xs text-slate-400 tabular-nums">
+          <p className="mt-1.5 text-xs text-slate-600 dark:text-slate-400 tabular-nums">
             {t('overview.kpiIncidentsSubtitle', { count: visibleDevices.length })}
           </p>
         </div>
 
-        <div className="rounded-xl border border-slate-800 bg-[#131C31] p-5">
-          <div className="flex items-center justify-between text-xs text-slate-400">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31] p-5 shadow-xs dark:shadow-none">
+          <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
             <span>{t('overview.kpiDnsTitle')}</span>
-            <ShieldCheck className="w-4 h-4 text-blue-400" />
+            <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <div className="mt-2 text-xl font-semibold text-slate-50 tabular-nums">
+          <div className="mt-2 text-xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums">
             {totalBlockedDns.toLocaleString(locale)}
           </div>
-          <p className="mt-1.5 text-xs text-slate-400 tabular-nums">
+          <p className="mt-1.5 text-xs text-slate-600 dark:text-slate-400 tabular-nums">
             {t('overview.kpiDnsSubtitle', {
               active: activeIntegrations,
               total: scopedIntegrations.length,
@@ -240,12 +242,12 @@ export function OverviewView({
           </p>
         </div>
 
-        <div className="rounded-xl border border-slate-800 bg-[#131C31] p-5">
-          <div className="flex items-center justify-between text-xs text-slate-400">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31] p-5 shadow-xs dark:shadow-none">
+          <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
             <span>{t('overview.kpiAutonomyTitle')}</span>
-            <Activity className="w-4 h-4 text-slate-400" />
+            <Activity className="w-4 h-4 text-slate-500 dark:text-slate-400" />
           </div>
-          <div className="mt-2 text-xl font-semibold text-slate-50 tabular-nums">
+          <div className="mt-2 text-xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums">
             {state.context.killSwitchActive
               ? t('overview.kpiAutonomyKillSwitch')
               : t('overview.kpiAutonomyActiveCount', {
@@ -253,7 +255,7 @@ export function OverviewView({
                   count: activeExecutions.length,
                 })}
           </div>
-          <p className="mt-1.5 text-xs text-slate-400">
+          <p className="mt-1.5 text-xs text-slate-600 dark:text-slate-400">
             {state.context.globalAutonomy === 'L0'
               ? t('overview.kpiAutonomyL0Hint')
               : t('overview.kpiAutonomyActiveHint')}
@@ -269,14 +271,14 @@ export function OverviewView({
 
       {/* Unauthorized Router Access Summary Banner */}
       {observedRouterAttempts.length > 0 && (
-        <div className="rounded-xl border border-amber-500/35 bg-[#131C31] px-5 py-3.5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="rounded-xl border border-amber-200 dark:border-amber-500/35 bg-amber-50/70 dark:bg-[#131C31] px-5 py-3.5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3 text-xs">
-            <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <div className="space-y-0.5">
-              <div className="font-semibold text-slate-100 tabular-nums">
+              <div className="font-semibold text-slate-900 dark:text-slate-100 tabular-nums">
                 {t('overview.routerAccessTitle', { count: observedRouterAttempts.length })}
               </div>
-              <p className="text-slate-400 tabular-nums">
+              <p className="text-slate-700 dark:text-slate-400 tabular-nums">
                 {t('overview.routerAccessSubtitle', {
                   ips: observedRouterAttempts
                     .slice(0, 3)
@@ -289,7 +291,7 @@ export function OverviewView({
           <button
             type="button"
             onClick={() => onNavigate('integrations')}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-lg border border-amber-300 bg-amber-100/80 text-amber-900 hover:bg-amber-200/70 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/20 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
             <span>{t('overview.routerAccessCta')}</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -356,33 +358,33 @@ export function OverviewView({
       {/* Main 2-column operational grid */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Left 2 cols: Priority incidents */}
-        <section className="xl:col-span-2 rounded-xl border border-slate-800 bg-[#131C31] overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+        <section className="xl:col-span-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31] overflow-hidden shadow-xs dark:shadow-none">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800">
             <div>
-              <h2 className="text-base font-semibold text-slate-100">
+              <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
                 {t('overview.incidentsTitle')}
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">{t('overview.incidentsSubtitle')}</p>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">{t('overview.incidentsSubtitle')}</p>
             </div>
             <button
               type="button"
               onClick={() => onNavigate('incidents')}
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-400 hover:text-blue-300 whitespace-nowrap shrink-0 cursor-pointer"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 whitespace-nowrap shrink-0 cursor-pointer"
             >
               <span>{t('overview.openFullQueue')}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          <div className="divide-y divide-slate-800/80 max-h-[480px] overflow-y-auto">
+          <div className="divide-y divide-slate-200 dark:divide-slate-800/80 max-h-[480px] overflow-y-auto">
             {scopedIncidents.length === 0 ? (
               <div className="p-8 text-center space-y-2.5">
-                <p className="text-sm text-slate-300 font-medium">
+                <p className="text-sm text-slate-800 dark:text-slate-300 font-medium">
                   {scopedIntegrations.length === 0
                     ? t('overview.noServicesYet')
                     : t('overview.noIncidentsYet')}
                 </p>
-                <p className="text-xs text-slate-400 max-w-md mx-auto">
+                <p className="text-xs text-slate-600 dark:text-slate-400 max-w-md mx-auto">
                   {scopedIntegrations.length === 0
                     ? t('overview.noServicesHint')
                     : t('overview.noIncidentsHint')}
@@ -391,14 +393,14 @@ export function OverviewView({
                   <button
                     type="button"
                     onClick={() => onNavigate('settings')}
-                    className="px-3.5 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 cursor-pointer"
+                    className="px-3.5 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 cursor-pointer"
                   >
                     {t('overview.configureServices')}
                   </button>
                   <button
                     type="button"
                     onClick={() => onNavigate('devices')}
-                    className="px-3.5 py-1.5 text-xs font-medium rounded-lg border border-slate-700 text-slate-200 hover:bg-slate-800 cursor-pointer"
+                    className="px-3.5 py-1.5 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-transparent text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                   >
                     {t('overview.addDevices')}
                   </button>
@@ -406,15 +408,15 @@ export function OverviewView({
               </div>
             ) : (
               incidentsPagination.pagedItems.map((incident) => (
-                <div key={incident.id} className="p-5 hover:bg-slate-900/40 transition-colors">
+                <div key={incident.id} className="p-5 hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="space-y-1.5">
-                      <div className="flex items-center gap-2 text-xs text-slate-400 tabular-nums">
+                      <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400 tabular-nums">
                         <span
                           className={
                             incident.severity === 'high' || incident.severity === 'critical'
-                              ? 'text-red-400 font-medium'
-                              : 'text-amber-400 font-medium'
+                              ? 'text-red-700 dark:text-red-400 font-medium'
+                              : 'text-amber-700 dark:text-amber-400 font-medium'
                           }
                         >
                           {incident.severity === 'high' || incident.severity === 'critical'
@@ -422,7 +424,7 @@ export function OverviewView({
                             : t('overview.riskMedium')}
                         </span>
                         <span aria-hidden="true">·</span>
-                        <span className="font-mono">{incident.deviceHostname}</span>
+                        <span className="font-mono text-slate-700 dark:text-slate-300">{incident.deviceHostname}</span>
                         <span aria-hidden="true">·</span>
                         <span>
                           {t('common.score')} {incident.riskScore}/100
@@ -438,15 +440,15 @@ export function OverviewView({
                                 : t('overview.statusOpen')}
                         </span>
                       </div>
-                      <h3 className="text-sm font-semibold text-slate-100">{incident.title}</h3>
-                      <p className="text-xs text-slate-400 leading-relaxed">{incident.summary}</p>
+                      <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{incident.title}</h3>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{incident.summary}</p>
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
                       <button
                         type="button"
                         onClick={() => onQuickInvestigate(incident.id)}
-                        className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                        className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                       >
                         {t('overview.inspectAi')}
                       </button>
@@ -470,51 +472,53 @@ export function OverviewView({
         </section>
 
         {/* Right col: Gateway Fail-Safe & Connector Health */}
-        <section className="rounded-xl border border-slate-800 bg-[#131C31] overflow-hidden flex flex-col">
-          <div className="px-5 py-4 border-b border-slate-800">
-            <h2 className="text-base font-semibold text-slate-100">{t('overview.archTitle')}</h2>
-            <p className="text-xs text-slate-400 mt-0.5">{t('overview.archSubtitle')}</p>
+        <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31] overflow-hidden flex flex-col shadow-xs dark:shadow-none">
+          <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+            <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">{t('overview.archTitle')}</h2>
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">{t('overview.archSubtitle')}</p>
           </div>
 
           <div className="p-5 space-y-4 flex-1">
             <div className="space-y-3 text-xs">
-              <div className="flex items-start justify-between gap-3 py-2 border-b border-slate-800/80">
-                <div className="flex items-center gap-2.5 text-slate-200">
-                  <Router className="w-4 h-4 text-emerald-400 shrink-0" />
+              <div className="flex items-start justify-between gap-3 py-2 border-b border-slate-200 dark:border-slate-800/80">
+                <div className="flex items-center gap-2.5 text-slate-800 dark:text-slate-200">
+                  <Router className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <div>
                     <div className="font-medium">{t('overview.gwTitle')}</div>
-                    <div className="text-slate-400">{t('overview.gwSub')}</div>
+                    <div className="text-slate-600 dark:text-slate-400">{t('overview.gwSub')}</div>
                   </div>
                 </div>
-                <span className="text-emerald-400 font-medium whitespace-nowrap">
+                <span className="text-emerald-700 dark:text-emerald-400 font-medium whitespace-nowrap">
                   {t('overview.gwStatus')}
                 </span>
               </div>
 
-              <div className="flex items-start justify-between gap-3 py-2 border-b border-slate-800/80">
-                <div className="flex items-center gap-2.5 text-slate-200">
-                  <HardDrive className="w-4 h-4 text-blue-400 shrink-0" />
+              <div className="flex items-start justify-between gap-3 py-2 border-b border-slate-200 dark:border-slate-800/80">
+                <div className="flex items-center gap-2.5 text-slate-800 dark:text-slate-200">
+                  <HardDrive className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <div>
                     <div className="font-medium">{t('overview.outboxTitle')}</div>
-                    <div className="text-slate-400 tabular-nums">{t('overview.outboxCap')}</div>
+                    <div className="text-slate-600 dark:text-slate-400 tabular-nums">{t('overview.outboxCap')}</div>
                   </div>
                 </div>
-                <span className="font-mono text-slate-200 tabular-nums whitespace-nowrap">
+                <span className="font-mono text-slate-800 dark:text-slate-200 tabular-nums whitespace-nowrap">
                   {t('overview.outboxPending', { count: state.metrics.outboxPendingTotal })}
                 </span>
               </div>
 
-              <div className="flex items-start justify-between gap-3 py-2 border-b border-slate-800/80">
-                <div className="flex items-center gap-2.5 text-slate-200">
-                  <Cpu className="w-4 h-4 text-slate-300 shrink-0" />
+              <div className="flex items-start justify-between gap-3 py-2 border-b border-slate-200 dark:border-slate-800/80">
+                <div className="flex items-center gap-2.5 text-slate-800 dark:text-slate-200">
+                  <Cpu className="w-4 h-4 text-slate-500 dark:text-slate-300 shrink-0" />
                   <div>
                     <div className="font-medium">{t('overview.nodeTitle')}</div>
-                    <div className="text-slate-400">{t('overview.nodeSub')}</div>
+                    <div className="text-slate-600 dark:text-slate-400">{t('overview.nodeSub')}</div>
                   </div>
                 </div>
                 <span
                   className={`font-medium whitespace-nowrap ${
-                    state.context.nodeAvailable ? 'text-emerald-400' : 'text-amber-400'
+                    state.context.nodeAvailable
+                      ? 'text-emerald-700 dark:text-emerald-400'
+                      : 'text-amber-700 dark:text-amber-400'
                   }`}
                 >
                   {state.context.nodeAvailable
@@ -525,7 +529,7 @@ export function OverviewView({
             </div>
 
             <div className="pt-2">
-              <div className="text-xs font-medium text-slate-300 mb-2">
+              <div className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">
                 {t('overview.recentEventsTitle')}
               </div>
               <div className="space-y-2">
@@ -535,11 +539,11 @@ export function OverviewView({
                   scopedEvents.slice(0, 3).map((ev) => (
                     <div
                       key={ev.eventId}
-                      className="text-xs flex items-center justify-between gap-2 py-1.5 border-b border-slate-800/60 last:border-0"
+                      className="text-xs flex items-center justify-between gap-2 py-1.5 border-b border-slate-200 dark:border-slate-800/60 last:border-0"
                     >
-                      <div className="truncate text-slate-300">
-                        <span className="font-mono text-slate-400">{ev.eventType}</span>
-                        <span className="mx-1.5 text-slate-600">·</span>
+                      <div className="truncate text-slate-700 dark:text-slate-300">
+                        <span className="font-mono text-slate-600 dark:text-slate-400">{ev.eventType}</span>
+                        <span className="mx-1.5 text-slate-400 dark:text-slate-600">·</span>
                         <span>{ev.sourceIntegrationId}</span>
                       </div>
                       <span className="text-slate-500 tabular-nums whitespace-nowrap">
@@ -552,12 +556,12 @@ export function OverviewView({
             </div>
           </div>
 
-          <div className="px-5 py-3.5 border-t border-slate-800 bg-slate-900/40 flex items-center justify-between text-xs">
-            <span className="text-slate-400 flex items-center gap-1.5">
+          <div className="px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 flex items-center justify-between text-xs">
+            <span className="text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
               {state.context.nodeAvailable ? (
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-500" />
               ) : (
-                <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-500" />
               )}
               <span>
                 {state.context.nodeAvailable
@@ -568,7 +572,7 @@ export function OverviewView({
             <button
               type="button"
               onClick={() => onNavigate('policies')}
-              className="text-blue-400 hover:text-blue-300 font-medium whitespace-nowrap cursor-pointer"
+              className="text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 font-medium whitespace-nowrap cursor-pointer"
             >
               {t('overview.auditLink')}
             </button>

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getIntlLocale } from '../i18n';
+import { useTheme } from '../lib/theme';
 import type { IntegrationAdapter, NetworkDevice, WorkspaceState } from '../types/openshield';
 import type { NavTab } from './OverviewView';
 
@@ -34,7 +35,7 @@ interface SelectedNodeInfo {
   targetTabLabel: string;
 }
 
-const STATUS_STYLE: Record<
+const DARK_STATUS_STYLE: Record<
   NodeStatusKind,
   { stroke: string; fill: string; text: string; edge: string; dot: string }
 > = {
@@ -61,6 +62,33 @@ const STATUS_STYLE: Record<
   },
 };
 
+const LIGHT_STATUS_STYLE: Record<
+  NodeStatusKind,
+  { stroke: string; fill: string; text: string; edge: string; dot: string }
+> = {
+  online: {
+    stroke: '#059669',
+    fill: '#ffffff',
+    text: '#047857',
+    edge: '#059669',
+    dot: '#059669',
+  },
+  degraded: {
+    stroke: '#d97706',
+    fill: '#ffffff',
+    text: '#b45309',
+    edge: '#d97706',
+    dot: '#d97706',
+  },
+  offline: {
+    stroke: '#dc2626',
+    fill: '#ffffff',
+    text: '#b91c1c',
+    edge: '#dc2626',
+    dot: '#dc2626',
+  },
+};
+
 function truncateLabel(text: string, maxLen: number): string {
   if (text.length <= maxLen) return text;
   return `${text.slice(0, maxLen - 1)}…`;
@@ -73,8 +101,22 @@ function cubicPath(x1: number, y1: number, x2: number, y2: number): string {
 
 export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapProps) {
   const { t, i18n } = useTranslation();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  const STATUS_STYLE = isDark ? DARK_STATUS_STYLE : LIGHT_STATUS_STYLE;
   const locale = getIntlLocale(i18n.language);
   const [selectedId, setSelectedId] = useState<string>('openshield-node');
+
+  const nodeBaseFill = isDark ? '#0f172a' : '#ffffff';
+  const selectedNodeFill = isDark ? '#064e3b' : '#ecfdf5';
+  const selectedNodeStroke = isDark ? '#10b981' : '#059669';
+  const headerTextColor = isDark ? '#94a3b8' : '#475569';
+  const primaryTextColor = isDark ? '#f8fafc' : '#0f172a';
+  const itemTextColor = isDark ? '#f1f5f9' : '#0f172a';
+  const secondaryTextColor = isDark ? '#94a3b8' : '#475569';
+  const emptyTitleColor = isDark ? '#cbd5e1' : '#334155';
+  const emptyDashStroke = isDark ? '#334155' : '#cbd5e1';
+  const ctaLinkColor = isDark ? '#34d399' : '#059669';
 
   const getClientStatus = (dev: NetworkDevice): { status: NodeStatusKind; label: string } => {
     if (dev.status === 'isolated') {
@@ -314,37 +356,39 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
   return (
     <section
       aria-label={t('topologyMap.ariaLabel')}
-      className="rounded-xl border border-slate-800 bg-[#131C31] overflow-hidden"
+      className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31] shadow-xs dark:shadow-none overflow-hidden"
     >
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-5 py-4 border-b border-slate-800">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <h2 className="text-base font-semibold text-slate-100 flex items-center gap-2">
-            <Network className="w-4 h-4 text-blue-400 shrink-0" />
+          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <Network className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span>{t('topologyMap.title')}</span>
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">{t('topologyMap.subtitle')}</p>
+          <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+            {t('topologyMap.subtitle')}
+          </p>
         </div>
 
         {/* Legend */}
-        <div className="flex flex-wrap items-center gap-4 text-[11px] text-slate-300 shrink-0">
+        <div className="flex flex-wrap items-center gap-4 text-[11px] text-slate-700 dark:text-slate-300 shrink-0">
           <span className="inline-flex items-center gap-1.5">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
             <span>{t('topologyMap.legendOnline')}</span>
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
             <span>{t('topologyMap.legendDegraded')}</span>
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <ShieldAlert className="w-3.5 h-3.5 text-red-400" />
+            <ShieldAlert className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
             <span>{t('topologyMap.legendOffline')}</span>
           </span>
         </div>
       </div>
 
       {/* SVG Topology Canvas */}
-      <div className="p-4 bg-[#0B1120]/70 overflow-x-auto">
+      <div className="p-4 bg-slate-50 dark:bg-[#0B1120]/70 overflow-x-auto">
         <svg
           viewBox={`0 0 1000 ${svgHeight}`}
           role="img"
@@ -352,16 +396,44 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
           className="w-full min-w-[760px] h-auto select-none"
         >
           {/* Tier Column Headers */}
-          <text x="122" y="22" textAnchor="middle" fill="#94a3b8" fontSize="11" fontWeight="600">
+          <text
+            x="122"
+            y="22"
+            textAnchor="middle"
+            fill={headerTextColor}
+            fontSize="11"
+            fontWeight="600"
+          >
             {t('topologyMap.colClients', { count: totalScopedClientsCount })}
           </text>
-          <text x="379" y="22" textAnchor="middle" fill="#94a3b8" fontSize="11" fontWeight="600">
+          <text
+            x="379"
+            y="22"
+            textAnchor="middle"
+            fill={headerTextColor}
+            fontSize="11"
+            fontWeight="600"
+          >
             {t('topologyMap.colGateway')}
           </text>
-          <text x="621" y="22" textAnchor="middle" fill="#94a3b8" fontSize="11" fontWeight="600">
+          <text
+            x="621"
+            y="22"
+            textAnchor="middle"
+            fill={headerTextColor}
+            fontSize="11"
+            fontWeight="600"
+          >
             {t('topologyMap.colNode')}
           </text>
-          <text x="878" y="22" textAnchor="middle" fill="#94a3b8" fontSize="11" fontWeight="600">
+          <text
+            x="878"
+            y="22"
+            textAnchor="middle"
+            fill={headerTextColor}
+            fontSize="11"
+            fontWeight="600"
+          >
             {t('topologyMap.colServices', { count: totalOtherServicesCount })}
           </text>
 
@@ -390,7 +462,7 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
             <path
               d={cubicPath(220, centerY, gwBox.x, gwBox.y + gwBox.h / 2)}
               fill="none"
-              stroke="#334155"
+              stroke={emptyDashStroke}
               strokeWidth={1.5}
               strokeDasharray="4 4"
             />
@@ -447,7 +519,7 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
             <path
               d={cubicPath(nodeBox.x + nodeBox.w, nodeBox.y + nodeBox.h / 2, 780, centerY)}
               fill="none"
-              stroke="#334155"
+              stroke={emptyDashStroke}
               strokeWidth={1.5}
               strokeDasharray="4 4"
             />
@@ -462,21 +534,21 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
                 width={196}
                 height={52}
                 rx={8}
-                fill="#0f172a"
-                stroke="#334155"
+                fill={nodeBaseFill}
+                stroke={emptyDashStroke}
                 strokeDasharray="4 4"
               />
               <text
                 x={122}
                 y={centerY - 4}
                 textAnchor="middle"
-                fill="#cbd5e1"
+                fill={emptyTitleColor}
                 fontSize="11"
                 fontWeight="600"
               >
                 {t('topologyMap.noClientsYet')}
               </text>
-              <text x={122} y={centerY + 13} textAnchor="middle" fill="#60a5fa" fontSize="10">
+              <text x={122} y={centerY + 13} textAnchor="middle" fill={ctaLinkColor} fontSize="10">
                 {t('topologyMap.addDevicesCta')}
               </text>
             </g>
@@ -498,8 +570,8 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
                     width={w}
                     height={h}
                     rx={8}
-                    fill={isSelected ? '#172554' : colors.fill}
-                    stroke={isSelected ? '#3b82f6' : colors.stroke}
+                    fill={isSelected ? selectedNodeFill : colors.fill}
+                    stroke={isSelected ? selectedNodeStroke : colors.stroke}
                     strokeWidth={isSelected ? 2 : 1.2}
                     strokeOpacity={isSelected ? 1 : 0.75}
                   />
@@ -507,7 +579,7 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
                   <text
                     x={x + 24}
                     y={y + 19}
-                    fill="#f1f5f9"
+                    fill={itemTextColor}
                     fontSize="11.5"
                     fontWeight="600"
                   >
@@ -516,7 +588,7 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
                   <text
                     x={x + 24}
                     y={y + 34}
-                    fill="#94a3b8"
+                    fill={secondaryTextColor}
                     fontSize="10"
                     fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
                   >
@@ -532,7 +604,7 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
               x={122}
               y={svgHeight - 8}
               textAnchor="middle"
-              fill="#60a5fa"
+              fill={ctaLinkColor}
               fontSize="10"
               className="cursor-pointer"
               onClick={() => onNavigate('devices')}
@@ -551,10 +623,10 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
               width={gwBox.w}
               height={gwBox.h}
               rx={10}
-              fill={selectedId === 'openwrt-gateway' ? '#172554' : '#0f172a'}
+              fill={selectedId === 'openwrt-gateway' ? selectedNodeFill : nodeBaseFill}
               stroke={
                 selectedId === 'openwrt-gateway'
-                  ? '#3b82f6'
+                  ? selectedNodeStroke
                   : STATUS_STYLE[gatewayStatus.status].stroke
               }
               strokeWidth={selectedId === 'openwrt-gateway' ? 2.2 : 1.6}
@@ -568,13 +640,13 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
             <text
               x={gwBox.x + 27}
               y={gwBox.y + 26}
-              fill="#f8fafc"
+              fill={primaryTextColor}
               fontSize="12"
               fontWeight="700"
             >
               {truncateLabel(gatewayAdapter?.name ?? t('topologyMap.gwDefaultTitle'), 17)}
             </text>
-            <text x={gwBox.x + 14} y={gwBox.y + 44} fill="#94a3b8" fontSize="10">
+            <text x={gwBox.x + 14} y={gwBox.y + 44} fill={secondaryTextColor} fontSize="10">
               {gatewayAdapter?.boardInfo?.model
                 ? truncateLabel(gatewayAdapter.boardInfo.model, 24)
                 : t('topologyMap.gwDataPlane')}
@@ -598,10 +670,10 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
               width={nodeBox.w}
               height={nodeBox.h}
               rx={10}
-              fill={selectedId === 'openshield-node' ? '#172554' : '#0f172a'}
+              fill={selectedId === 'openshield-node' ? selectedNodeFill : nodeBaseFill}
               stroke={
                 selectedId === 'openshield-node'
-                  ? '#3b82f6'
+                  ? selectedNodeStroke
                   : STATUS_STYLE[coreNodeStatus.status].stroke
               }
               strokeWidth={selectedId === 'openshield-node' ? 2.2 : 1.6}
@@ -615,13 +687,13 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
             <text
               x={nodeBox.x + 27}
               y={nodeBox.y + 26}
-              fill="#f8fafc"
+              fill={primaryTextColor}
               fontSize="12"
               fontWeight="700"
             >
               {t('topologyMap.nodeTitle')}
             </text>
-            <text x={nodeBox.x + 14} y={nodeBox.y + 44} fill="#94a3b8" fontSize="10">
+            <text x={nodeBox.x + 14} y={nodeBox.y + 44} fill={secondaryTextColor} fontSize="10">
               {t('topologyMap.nodeSubtitle')}
             </text>
             <text
@@ -644,21 +716,21 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
                 width={196}
                 height={52}
                 rx={8}
-                fill="#0f172a"
-                stroke="#334155"
+                fill={nodeBaseFill}
+                stroke={emptyDashStroke}
                 strokeDasharray="4 4"
               />
               <text
                 x={878}
                 y={centerY - 4}
                 textAnchor="middle"
-                fill="#cbd5e1"
+                fill={emptyTitleColor}
                 fontSize="11"
                 fontWeight="600"
               >
                 {t('topologyMap.noExtraServices')}
               </text>
-              <text x={878} y={centerY + 13} textAnchor="middle" fill="#60a5fa" fontSize="10">
+              <text x={878} y={centerY + 13} textAnchor="middle" fill={ctaLinkColor} fontSize="10">
                 {t('topologyMap.configureServicesCta')}
               </text>
             </g>
@@ -679,8 +751,8 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
                     width={w}
                     height={h}
                     rx={8}
-                    fill={isSelected ? '#172554' : colors.fill}
-                    stroke={isSelected ? '#3b82f6' : colors.stroke}
+                    fill={isSelected ? selectedNodeFill : colors.fill}
+                    stroke={isSelected ? selectedNodeStroke : colors.stroke}
                     strokeWidth={isSelected ? 2 : 1.2}
                     strokeOpacity={isSelected ? 1 : 0.75}
                   />
@@ -688,7 +760,7 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
                   <text
                     x={x + 24}
                     y={y + 19}
-                    fill="#f1f5f9"
+                    fill={itemTextColor}
                     fontSize="11.5"
                     fontWeight="600"
                   >
@@ -713,7 +785,7 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
               x={878}
               y={svgHeight - 8}
               textAnchor="middle"
-              fill="#60a5fa"
+              fill={ctaLinkColor}
               fontSize="10"
               className="cursor-pointer"
               onClick={() => onNavigate('integrations')}
@@ -728,21 +800,23 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
 
       {/* Interactive Node Detail Footer Strip */}
       {selectedInfo && (
-        <div className="px-5 py-3.5 border-t border-slate-800 bg-slate-900/50 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs">
+        <div className="px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs">
           <div className="flex items-start gap-2.5 min-w-0">
             {selectedInfo.kind === 'gateway' ? (
-              <Router className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+              <Router className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
             ) : selectedInfo.kind === 'node' ? (
-              <Cpu className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+              <Cpu className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
             ) : selectedInfo.kind === 'client' ? (
-              <Laptop className="w-4 h-4 text-slate-300 shrink-0 mt-0.5" />
+              <Laptop className="w-4 h-4 text-slate-600 dark:text-slate-300 shrink-0 mt-0.5" />
             ) : (
-              <Server className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+              <Server className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
             )}
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-semibold text-slate-100">{selectedInfo.title}</span>
-                <span aria-hidden="true" className="text-slate-600">
+                <span className="font-semibold text-slate-900 dark:text-slate-100">
+                  {selectedInfo.title}
+                </span>
+                <span aria-hidden="true" className="text-slate-400 dark:text-slate-600">
                   ·
                 </span>
                 <span
@@ -751,19 +825,23 @@ export function OverviewTopologyMap({ state, onNavigate }: OverviewTopologyMapPr
                 >
                   {selectedInfo.statusLabel}
                 </span>
-                <span aria-hidden="true" className="text-slate-600">
+                <span aria-hidden="true" className="text-slate-400 dark:text-slate-600">
                   ·
                 </span>
-                <span className="font-mono text-slate-400 truncate">{selectedInfo.subtitle}</span>
+                <span className="font-mono text-slate-600 dark:text-slate-400 truncate">
+                  {selectedInfo.subtitle}
+                </span>
               </div>
-              <p className="text-slate-400 mt-0.5 truncate">{selectedInfo.detail}</p>
+              <p className="text-slate-600 dark:text-slate-400 mt-0.5 truncate">
+                {selectedInfo.detail}
+              </p>
             </div>
           </div>
 
           <button
             type="button"
             onClick={() => onNavigate(selectedInfo.targetTab)}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-400 hover:text-blue-300 whitespace-nowrap shrink-0 cursor-pointer self-start sm:self-auto"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 whitespace-nowrap shrink-0 cursor-pointer self-start sm:self-auto"
           >
             <span>{selectedInfo.targetTabLabel}</span>
             <ArrowRight className="w-3.5 h-3.5" />

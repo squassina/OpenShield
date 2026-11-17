@@ -76,9 +76,9 @@ const TRIGGER_IDS: NotificationTriggerEvent[] = [
 ];
 
 function ChannelIcon({ type }: { type: NotificationChannelType }) {
-  if (type === 'email') return <Mail className="w-4 h-4 text-blue-400 shrink-0" />;
-  if (type === 'telegram') return <Send className="w-4 h-4 text-sky-400 shrink-0" />;
-  return <Webhook className="w-4 h-4 text-emerald-400 shrink-0" />;
+  if (type === 'email') return <Mail className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />;
+  if (type === 'telegram') return <Send className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />;
+  return <Webhook className="w-4 h-4 text-emerald-700 dark:text-emerald-300 shrink-0" />;
 }
 
 function formatTime(iso: string | undefined, locale: string): string {
@@ -267,20 +267,20 @@ export function NotificationsCard({
   const activeCount = destinations.filter((d) => d.enabled).length;
 
   return (
-    <section className="rounded-xl border border-slate-800 bg-[#131C31] p-5 space-y-5">
+    <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31] shadow-xs dark:shadow-none p-5 space-y-5">
       {/* Header */}
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between border-b border-slate-800 pb-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
         <div>
-          <h2 className="text-base font-semibold text-slate-100 flex items-center gap-2">
-            <BellRing className="w-4 h-4 text-blue-400 shrink-0" />
+          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <BellRing className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span>{t('notifications.title')}</span>
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5 max-w-3xl">
+          <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5 max-w-3xl">
             {t('notifications.subtitle')}
           </p>
         </div>
 
-        <div className="text-xs text-slate-300 tabular-nums shrink-0">
+        <div className="text-xs text-slate-700 dark:text-slate-300 tabular-nums shrink-0">
           {t('notifications.activeSummary', {
             active: activeCount,
             total: destinations.length,
@@ -291,15 +291,15 @@ export function NotificationsCard({
       {/* Add Notification Destination Form */}
       <form
         onSubmit={handleCreateSubmit}
-        className="rounded-lg border border-slate-800 bg-slate-950/60 p-4 space-y-4"
+        className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 p-4 space-y-4"
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
-            <Plus className="w-3.5 h-3.5 text-blue-400" />
+          <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+            <Plus className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
             <span>{t('notifications.addDestinationTitle')}</span>
           </div>
 
-          <div className="inline-flex flex-wrap items-center gap-1 p-1 rounded-lg bg-[#0B1120] border border-slate-800">
+          <div className="inline-flex flex-wrap items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-[#0B1120] border border-slate-200 dark:border-slate-800">
             {(['webhook', 'email', 'telegram'] as NotificationChannelType[]).map((type) => {
               const active = channelType === type;
               return (
@@ -308,7 +308,9 @@ export function NotificationsCard({
                   type="button"
                   onClick={() => resetFormFields(type)}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                    active ? 'bg-slate-800 text-slate-100' : 'text-slate-400 hover:text-slate-200'
+                    active
+                      ? 'bg-emerald-600 text-white'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-900'
                   }`}
                 >
                   <ChannelIcon type={type} />
@@ -321,7 +323,7 @@ export function NotificationsCard({
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 text-xs">
           <label className="space-y-1">
-            <span className="text-slate-300 font-medium">{t('notifications.destName')}</span>
+            <span className="text-slate-700 dark:text-slate-300 font-medium">{t('notifications.destName')}</span>
             <input
               type="text"
               required
@@ -334,27 +336,27 @@ export function NotificationsCard({
                     ? t('notifications.destNameTelegramPh')
                     : t('notifications.destNameWebhookPh')
               }
-              className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 text-xs focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 text-xs focus:outline-none focus:border-emerald-500"
             />
           </label>
 
           {channelType === 'webhook' && (
             <>
               <label className="space-y-1 md:col-span-2">
-                <span className="text-slate-300 font-medium">{t('notifications.webhookUrl')}</span>
+                <span className="text-slate-700 dark:text-slate-300 font-medium">{t('notifications.webhookUrl')}</span>
                 <input
                   type="url"
                   required
                   value={target}
                   onChange={(e) => setTarget(e.target.value)}
                   placeholder="https://hooks.slack.com/services/... | https://discord.com/api/webhooks/..."
-                  className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 font-mono text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 font-mono text-xs placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
                 />
               </label>
 
               <div className="grid grid-cols-2 gap-2">
                 <label className="space-y-1">
-                  <span className="text-slate-300 font-medium">
+                  <span className="text-slate-700 dark:text-slate-300 font-medium">
                     {t('notifications.formatLabel')}
                   </span>
                   <select
@@ -364,7 +366,7 @@ export function NotificationsCard({
                         e.target.value as 'openshield_json' | 'slack' | 'discord',
                       )
                     }
-                    className="w-full px-2.5 py-2 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 text-xs focus:outline-none focus:border-blue-500"
+                    className="w-full px-2.5 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
                   >
                     <option value="openshield_json">
                       {t('notifications.formatOpenShieldJson')}
@@ -375,13 +377,13 @@ export function NotificationsCard({
                 </label>
 
                 <label className="space-y-1">
-                  <span className="text-slate-300 font-medium">
+                  <span className="text-slate-700 dark:text-slate-300 font-medium">
                     {t('notifications.methodLabel')}
                   </span>
                   <select
                     value={webhookMethod}
                     onChange={(e) => setWebhookMethod(e.target.value as 'POST' | 'PUT')}
-                    className="w-full px-2.5 py-2 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 font-mono text-xs focus:outline-none focus:border-blue-500"
+                    className="w-full px-2.5 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 font-mono text-xs focus:outline-none focus:border-emerald-500"
                   >
                     <option value="POST">POST</option>
                     <option value="PUT">PUT</option>
@@ -390,7 +392,7 @@ export function NotificationsCard({
               </div>
 
               <label className="space-y-1 md:col-span-2">
-                <span className="text-slate-300 font-medium">
+                <span className="text-slate-700 dark:text-slate-300 font-medium">
                   {t('notifications.webhookSecretLabel')}
                 </span>
                 <input
@@ -399,7 +401,7 @@ export function NotificationsCard({
                   value={secret}
                   onChange={(e) => setSecret(e.target.value)}
                   placeholder={t('notifications.webhookSecretPh')}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 font-mono text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 font-mono text-xs placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
                 />
               </label>
             </>
@@ -408,7 +410,7 @@ export function NotificationsCard({
           {channelType === 'email' && (
             <>
               <label className="space-y-1">
-                <span className="text-slate-300 font-medium">
+                <span className="text-slate-700 dark:text-slate-300 font-medium">
                   {t('notifications.emailRecipient')}
                 </span>
                 <input
@@ -417,77 +419,77 @@ export function NotificationsCard({
                   value={target}
                   onChange={(e) => setTarget(e.target.value)}
                   placeholder="security@company.com"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 font-mono text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 font-mono text-xs placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
                 />
               </label>
 
               <label className="space-y-1">
-                <span className="text-slate-300 font-medium">{t('notifications.smtpHost')}</span>
+                <span className="text-slate-700 dark:text-slate-300 font-medium">{t('notifications.smtpHost')}</span>
                 <input
                   type="text"
                   required
                   value={smtpHost}
                   onChange={(e) => setSmtpHost(e.target.value)}
                   placeholder="smtp.gmail.com / 192.168.1.10"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 font-mono text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 font-mono text-xs placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
                 />
               </label>
 
               <div className="grid grid-cols-2 gap-2">
                 <label className="space-y-1">
-                  <span className="text-slate-300 font-medium">{t('notifications.smtpPort')}</span>
+                  <span className="text-slate-700 dark:text-slate-300 font-medium">{t('notifications.smtpPort')}</span>
                   <input
                     type="number"
                     min={1}
                     max={65535}
                     value={smtpPort}
                     onChange={(e) => setSmtpPort(e.target.value)}
-                    className="w-full px-2.5 py-2 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 font-mono text-xs focus:outline-none focus:border-blue-500"
+                    className="w-full px-2.5 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 font-mono text-xs focus:outline-none focus:border-emerald-500"
                   />
                 </label>
 
-                <label className="flex items-center gap-2 pt-5 cursor-pointer text-slate-300">
+                <label className="flex items-center gap-2 pt-5 cursor-pointer text-slate-700 dark:text-slate-300">
                   <input
                     type="checkbox"
                     checked={smtpSecure}
                     onChange={(e) => setSmtpSecure(e.target.checked)}
-                    className="rounded border-slate-700 bg-[#0B1120] text-blue-500"
+                    className="rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B1120] text-emerald-600 focus:ring-emerald-500"
                   />
                   <span>{t('notifications.smtpTls')}</span>
                 </label>
               </div>
 
               <label className="space-y-1">
-                <span className="text-slate-300 font-medium">{t('notifications.emailFrom')}</span>
+                <span className="text-slate-700 dark:text-slate-300 font-medium">{t('notifications.emailFrom')}</span>
                 <input
                   type="email"
                   value={emailFrom}
                   onChange={(e) => setEmailFrom(e.target.value)}
                   placeholder="openshield@network.local"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 font-mono text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 font-mono text-xs placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
                 />
               </label>
 
               <label className="space-y-1">
-                <span className="text-slate-300 font-medium">{t('notifications.smtpUser')}</span>
+                <span className="text-slate-700 dark:text-slate-300 font-medium">{t('notifications.smtpUser')}</span>
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder={t('notifications.smtpUserPh')}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 font-mono text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 font-mono text-xs placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
                 />
               </label>
 
               <label className="space-y-1">
-                <span className="text-slate-300 font-medium">{t('notifications.smtpPass')}</span>
+                <span className="text-slate-700 dark:text-slate-300 font-medium">{t('notifications.smtpPass')}</span>
                 <input
                   type="password"
                   autoComplete="new-password"
                   value={secret}
                   onChange={(e) => setSecret(e.target.value)}
                   placeholder={t('notifications.smtpPassPh')}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 font-mono text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 font-mono text-xs placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
                 />
               </label>
             </>
@@ -496,7 +498,7 @@ export function NotificationsCard({
           {channelType === 'telegram' && (
             <>
               <label className="space-y-1">
-                <span className="text-slate-300 font-medium">
+                <span className="text-slate-700 dark:text-slate-300 font-medium">
                   {t('notifications.telegramChatId')}
                 </span>
                 <input
@@ -505,12 +507,12 @@ export function NotificationsCard({
                   value={target}
                   onChange={(e) => setTarget(e.target.value)}
                   placeholder="-1001987654321"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 font-mono text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 font-mono text-xs placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
                 />
               </label>
 
               <label className="space-y-1 md:col-span-2">
-                <span className="text-slate-300 font-medium">
+                <span className="text-slate-700 dark:text-slate-300 font-medium">
                   {t('notifications.telegramBotToken')}
                 </span>
                 <input
@@ -520,18 +522,18 @@ export function NotificationsCard({
                   value={secret}
                   onChange={(e) => setSecret(e.target.value)}
                   placeholder="7123456789:AAF..."
-                  className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 font-mono text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 font-mono text-xs placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
                 />
               </label>
             </>
           )}
 
           <label className="space-y-1">
-            <span className="text-slate-300 font-medium">{t('notifications.minSeverity')}</span>
+            <span className="text-slate-700 dark:text-slate-300 font-medium">{t('notifications.minSeverity')}</span>
             <select
               value={minSeverity}
               onChange={(e) => setMinSeverity(e.target.value as NotificationSeverityThreshold)}
-              className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 text-xs focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
             >
               <option value="critical">{t('notifications.sevCritical')}</option>
               <option value="high">{t('notifications.sevHigh')}</option>
@@ -541,19 +543,19 @@ export function NotificationsCard({
         </div>
 
         {/* Trigger Checkboxes + Save Button */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/80">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200 dark:border-slate-800/80">
           <div className="flex flex-wrap items-center gap-3 text-xs">
-            <span className="text-slate-400 font-medium">{t('notifications.autoTriggers')}</span>
+            <span className="text-slate-600 dark:text-slate-400 font-medium">{t('notifications.autoTriggers')}</span>
             {TRIGGER_IDS.map((triggerId) => (
               <label
                 key={triggerId}
-                className="inline-flex items-center gap-1.5 text-slate-300 cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-slate-700 dark:text-slate-300 cursor-pointer"
               >
                 <input
                   type="checkbox"
                   checked={triggers.includes(triggerId)}
                   onChange={() => toggleTrigger(triggers, setTriggers, triggerId)}
-                  className="rounded border-slate-700 bg-[#0B1120] text-blue-500"
+                  className="rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B1120] text-emerald-600 focus:ring-emerald-500"
                 />
                 <span>{triggerLabel(triggerId)}</span>
               </label>
@@ -563,7 +565,7 @@ export function NotificationsCard({
           <button
             type="submit"
             disabled={busyKey === 'notif-add'}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>{t('notifications.saveDestination')}</span>
@@ -573,9 +575,9 @@ export function NotificationsCard({
 
       {/* Configured Destinations List */}
       {destinations.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-slate-800 bg-[#0B1120]/60 p-6 text-center space-y-1.5">
-          <BellRing className="w-6 h-6 text-slate-600 mx-auto" />
-          <div className="text-xs font-medium text-slate-300">
+        <div className="rounded-lg border border-dashed border-slate-300 dark:border-slate-800 bg-slate-50 dark:bg-[#0B1120]/60 p-6 text-center space-y-1.5">
+          <BellRing className="w-6 h-6 text-slate-400 dark:text-slate-600 mx-auto" />
+          <div className="text-xs font-medium text-slate-700 dark:text-slate-300">
             {t('notifications.emptyTitle')}
           </div>
           <p className="text-[11px] text-slate-500 max-w-lg mx-auto">
@@ -583,8 +585,8 @@ export function NotificationsCard({
           </p>
         </div>
       ) : (
-        <div className="rounded-lg border border-slate-800 bg-[#0B1120]/50 overflow-hidden">
-          <div className="divide-y divide-slate-800 max-h-[420px] overflow-y-auto">
+        <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-[#0B1120]/50 overflow-hidden">
+          <div className="divide-y divide-slate-200 dark:divide-slate-800 max-h-[420px] overflow-y-auto">
             {destPagination.pagedItems.map((dest) => {
             const isEditing = editingId === dest.id && editDraft !== null;
             const isBusy =
@@ -598,12 +600,12 @@ export function NotificationsCard({
                   <div className="space-y-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2 text-xs">
                       <ChannelIcon type={dest.type} />
-                      <span className="text-sm font-semibold text-slate-100">{dest.name}</span>
-                      <span className="text-slate-500">·</span>
-                      <span className="text-slate-300">{channelLabel(dest.type)}</span>
-                      <span className="text-slate-500">·</span>
+                      <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{dest.name}</span>
+                      <span className="text-slate-400 dark:text-slate-500">·</span>
+                      <span className="text-slate-700 dark:text-slate-300">{channelLabel(dest.type)}</span>
+                      <span className="text-slate-400 dark:text-slate-500">·</span>
                       {dest.enabled ? (
-                        <span className="inline-flex items-center gap-1 text-emerald-400 font-medium">
+                        <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-medium">
                           <CheckCircle2 className="w-3.5 h-3.5" />
                           <span>{t('common.active')}</span>
                         </span>
@@ -615,8 +617,8 @@ export function NotificationsCard({
                       )}
                       {dest.hasSecret && (
                         <>
-                          <span className="text-slate-500">·</span>
-                          <span className="inline-flex items-center gap-1 text-emerald-400">
+                          <span className="text-slate-400 dark:text-slate-500">·</span>
+                          <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
                             <ShieldCheck className="w-3.5 h-3.5" />
                             <span>{t('notifications.secretInVault')}</span>
                           </span>
@@ -624,8 +626,8 @@ export function NotificationsCard({
                       )}
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-400">
-                      <span className="font-mono text-slate-300 truncate max-w-md">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-600 dark:text-slate-400">
+                      <span className="font-mono text-slate-800 dark:text-slate-300 truncate max-w-md">
                         {dest.target}
                       </span>
                       {dest.type === 'email' && dest.smtpHost && (
@@ -658,15 +660,15 @@ export function NotificationsCard({
                     {dest.lastDispatchMessage && (
                       <div className="text-[11px] flex items-center gap-1.5 pt-0.5">
                         {dest.lastDispatchStatus === 'sent' ? (
-                          <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
                         ) : (
-                          <AlertCircle className="w-3 h-3 text-amber-400 shrink-0" />
+                          <AlertCircle className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
                         )}
                         <span
                           className={
                             dest.lastDispatchStatus === 'sent'
-                              ? 'text-emerald-300'
-                              : 'text-amber-300'
+                              ? 'text-emerald-700 dark:text-emerald-300'
+                              : 'text-amber-700 dark:text-amber-300'
                           }
                         >
                           {dest.lastDispatchMessage}
@@ -685,16 +687,16 @@ export function NotificationsCard({
                       onClick={() =>
                         void onUpdateNotification(dest.id, { enabled: !dest.enabled })
                       }
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
                     >
                       {dest.enabled ? (
                         <>
-                          <Pause className="w-3.5 h-3.5 text-amber-400" />
+                          <Pause className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                           <span>{t('notifications.pause')}</span>
                         </>
                       ) : (
                         <>
-                          <Play className="w-3.5 h-3.5 text-emerald-400" />
+                          <Play className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                           <span>{t('notifications.activate')}</span>
                         </>
                       )}
@@ -704,7 +706,7 @@ export function NotificationsCard({
                       type="button"
                       disabled={isBusy}
                       onClick={() => void onTestNotification(dest.id)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-800/70 bg-blue-950/30 text-blue-200 hover:bg-blue-900/40 whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-700/60 dark:bg-emerald-950/40 dark:text-emerald-200 dark:hover:bg-emerald-900/40 whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
                     >
                       <Send className="w-3.5 h-3.5" />
                       <span>{t('notifications.testDispatch')}</span>
@@ -714,7 +716,7 @@ export function NotificationsCard({
                       type="button"
                       disabled={isBusy}
                       onClick={() => startEdit(dest)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
                     >
                       {isEditing ? <X className="w-3.5 h-3.5" /> : <Edit3 className="w-3.5 h-3.5" />}
                       <span>{isEditing ? t('common.close') : t('common.edit')}</span>
@@ -724,7 +726,7 @@ export function NotificationsCard({
                       type="button"
                       disabled={isBusy}
                       onClick={() => void onRemoveNotification(dest.id, dest.name)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-900/60 text-red-300 hover:bg-red-950/40 whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-200 text-red-700 hover:bg-red-50 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/40 whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                       <span>{t('common.remove')}</span>
@@ -734,10 +736,10 @@ export function NotificationsCard({
 
                 {/* Inline Edit Panel */}
                 {isEditing && editDraft && (
-                  <div className="rounded-lg border border-slate-700 bg-slate-950/80 p-4 space-y-3 text-xs">
+                  <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950/80 p-4 space-y-3 text-xs">
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
                       <label className="space-y-1">
-                        <span className="text-slate-300 font-medium">
+                        <span className="text-slate-700 dark:text-slate-300 font-medium">
                           {t('notifications.editName')}
                         </span>
                         <input
@@ -746,12 +748,12 @@ export function NotificationsCard({
                           onChange={(e) =>
                             setEditDraft({ ...editDraft, name: e.target.value })
                           }
-                          className="w-full px-3 py-1.5 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 text-xs"
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
                         />
                       </label>
 
                       <label className="space-y-1">
-                        <span className="text-slate-300 font-medium">
+                        <span className="text-slate-700 dark:text-slate-300 font-medium">
                           {dest.type === 'email'
                             ? t('notifications.emailRecipient')
                             : dest.type === 'telegram'
@@ -764,12 +766,12 @@ export function NotificationsCard({
                           onChange={(e) =>
                             setEditDraft({ ...editDraft, target: e.target.value })
                           }
-                          className="w-full px-3 py-1.5 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 font-mono text-xs"
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 font-mono text-xs focus:outline-none focus:border-emerald-500"
                         />
                       </label>
 
                       <label className="space-y-1">
-                        <span className="text-slate-300 font-medium">
+                        <span className="text-slate-700 dark:text-slate-300 font-medium">
                           {t('notifications.minSeverity')}
                         </span>
                         <select
@@ -780,7 +782,7 @@ export function NotificationsCard({
                               minSeverity: e.target.value as NotificationSeverityThreshold,
                             })
                           }
-                          className="w-full px-3 py-1.5 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 text-xs"
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
                         >
                           <option value="critical">{t('notifications.sevCritical')}</option>
                           <option value="high">{t('notifications.sevHigh')}</option>
@@ -789,7 +791,7 @@ export function NotificationsCard({
                       </label>
 
                       <label className="space-y-1">
-                        <span className="text-slate-300 font-medium">
+                        <span className="text-slate-700 dark:text-slate-300 font-medium">
                           {dest.type === 'telegram'
                             ? t('notifications.replaceBotToken')
                             : dest.type === 'email'
@@ -808,17 +810,17 @@ export function NotificationsCard({
                           onChange={(e) =>
                             setEditDraft({ ...editDraft, secret: e.target.value })
                           }
-                          className="w-full px-3 py-1.5 rounded-lg border border-slate-700 bg-[#0B1120] text-slate-100 font-mono text-xs"
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 font-mono text-xs focus:outline-none focus:border-emerald-500"
                         />
                       </label>
                     </div>
 
-                    <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800">
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200 dark:border-slate-800">
                       <div className="flex flex-wrap items-center gap-3">
                         {TRIGGER_IDS.map((triggerId) => (
                           <label
                             key={triggerId}
-                            className="inline-flex items-center gap-1.5 text-slate-300 cursor-pointer"
+                            className="inline-flex items-center gap-1.5 text-slate-700 dark:text-slate-300 cursor-pointer"
                           >
                             <input
                               type="checkbox"
@@ -830,7 +832,7 @@ export function NotificationsCard({
                                   triggerId,
                                 )
                               }
-                              className="rounded border-slate-700 bg-[#0B1120] text-blue-500"
+                              className="rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B1120] text-emerald-600 focus:ring-emerald-500"
                             />
                             <span>{triggerLabel(triggerId)}</span>
                           </label>
@@ -844,7 +846,7 @@ export function NotificationsCard({
                             onClick={() =>
                               void onUpdateNotification(dest.id, { clearSecret: true })
                             }
-                            className="px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 cursor-pointer whitespace-nowrap"
+                            className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer whitespace-nowrap"
                           >
                             {t('notifications.clearSecret')}
                           </button>
@@ -852,7 +854,7 @@ export function NotificationsCard({
                         <button
                           type="button"
                           onClick={() => void saveEdit(dest)}
-                          className="px-3.5 py-1.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-500 cursor-pointer whitespace-nowrap"
+                          className="px-3.5 py-1.5 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-500 cursor-pointer whitespace-nowrap"
                         >
                           {t('common.saveChanges')}
                         </button>
@@ -878,11 +880,11 @@ export function NotificationsCard({
 
       {/* Recent External Alert Dispatches */}
       {history.length > 0 && (
-        <div className="rounded-lg border border-slate-800 bg-[#0B1120]/50 overflow-hidden">
-          <div className="px-3.5 pt-3.5 pb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+        <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-[#0B1120]/50 overflow-hidden">
+          <div className="px-3.5 pt-3.5 pb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
             {t('notifications.recentDispatchesTitle', { count: history.length })}
           </div>
-          <div className="px-3.5 divide-y divide-slate-800/70 text-xs max-h-[260px] overflow-y-auto">
+          <div className="px-3.5 divide-y divide-slate-200 dark:divide-slate-800/70 text-xs max-h-[260px] overflow-y-auto">
             {historyPagination.pagedItems.map((rec) => (
               <div
                 key={rec.id}
@@ -890,16 +892,16 @@ export function NotificationsCard({
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <ChannelIcon type={rec.channelType} />
-                  <span className="font-medium text-slate-200 truncate">{rec.title}</span>
-                  <span className="text-slate-500">→</span>
-                  <span className="text-slate-400 truncate">{rec.destinationName}</span>
+                  <span className="font-medium text-slate-900 dark:text-slate-200 truncate">{rec.title}</span>
+                  <span className="text-slate-400 dark:text-slate-500">→</span>
+                  <span className="text-slate-600 dark:text-slate-400 truncate">{rec.destinationName}</span>
                 </div>
                 <div className="flex items-center gap-3 text-[11px] shrink-0">
                   <span
                     className={
                       rec.status === 'sent'
-                        ? 'text-emerald-400 font-medium'
-                        : 'text-amber-300 font-medium'
+                        ? 'text-emerald-700 dark:text-emerald-400 font-medium'
+                        : 'text-amber-700 dark:text-amber-300 font-medium'
                     }
                   >
                     {rec.status === 'sent'

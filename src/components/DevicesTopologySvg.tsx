@@ -10,6 +10,7 @@ import {
 import { Maximize2, Minus, Plus, RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getIntlLocale } from '../i18n';
+import { useTheme } from '../lib/theme';
 import type { NetworkDevice, WorkspaceState } from '../types/openshield';
 
 interface DevicesTopologySvgProps {
@@ -24,7 +25,7 @@ interface DevicesTopologySvgProps {
 
 type NodeStatusKind = 'nominal' | 'attention' | 'isolated';
 
-const STATUS_STYLE: Record<
+const DARK_STATUS_STYLE: Record<
   NodeStatusKind,
   { stroke: string; edge: string; text: string; dot: string; badgeBg: string }
 > = {
@@ -48,6 +49,33 @@ const STATUS_STYLE: Record<
     text: '#f87171',
     dot: '#ef4444',
     badgeBg: '#7f1d1d',
+  },
+};
+
+const LIGHT_STATUS_STYLE: Record<
+  NodeStatusKind,
+  { stroke: string; edge: string; text: string; dot: string; badgeBg: string }
+> = {
+  nominal: {
+    stroke: '#059669',
+    edge: '#059669',
+    text: '#047857',
+    dot: '#059669',
+    badgeBg: '#ecfdf5',
+  },
+  attention: {
+    stroke: '#d97706',
+    edge: '#d97706',
+    text: '#b45309',
+    dot: '#d97706',
+    badgeBg: '#fef3c7',
+  },
+  isolated: {
+    stroke: '#dc2626',
+    edge: '#dc2626',
+    text: '#b91c1c',
+    dot: '#dc2626',
+    badgeBg: '#fee2e2',
   },
 };
 
@@ -121,7 +149,23 @@ export function DevicesTopologySvg({
   translateSegment,
 }: DevicesTopologySvgProps) {
   const { t, i18n } = useTranslation();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  const STATUS_STYLE = isDark ? DARK_STATUS_STYLE : LIGHT_STATUS_STYLE;
   const locale = getIntlLocale(i18n.language);
+
+  const nodeBaseFill = isDark ? '#0f172a' : '#ffffff';
+  const nodeHoverFill = isDark ? '#1e293b' : '#f1f5f9';
+  const selectedNodeFill = isDark ? '#064e3b' : '#ecfdf5';
+  const selectedNodeStroke = isDark ? '#34d399' : '#059669';
+  const colHeaderColor = isDark ? '#94a3b8' : '#475569';
+  const primaryTitleColor = isDark ? '#f8fafc' : '#0f172a';
+  const itemTitleColor = isDark ? '#f1f5f9' : '#0f172a';
+  const unnamedTitleColor = isDark ? '#cbd5e1' : '#334155';
+  const secondaryTextColor = isDark ? '#94a3b8' : '#475569';
+  const emptyStrokeColor = isDark ? '#334155' : '#cbd5e1';
+  const badgeBgColor = isDark ? '#1e293b' : '#e2e8f0';
+  const badgeTextColor = isDark ? '#94a3b8' : '#475569';
 
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const [viewportSize, setViewportSize] = useState<{ width: number; height: number }>({
@@ -485,23 +529,25 @@ export function DevicesTopologySvg({
       {/* Header + Status Legend */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-3">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
             {t('devices.svgTopologyTitle')}
           </h3>
-          <span className="text-[11px] text-slate-400">{t('devices.panZoomHint')}</span>
+          <span className="text-[11px] text-slate-600 dark:text-slate-400">
+            {t('devices.panZoomHint')}
+          </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4 text-[11px] text-slate-300">
+        <div className="flex flex-wrap items-center gap-4 text-[11px] text-slate-700 dark:text-slate-300">
           <span className="inline-flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400" />
             <span>{t('devices.legendNominal')}</span>
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-amber-400" />
+            <span className="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-400" />
             <span>{t('devices.legendAttention')}</span>
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-red-400" />
+            <span className="w-2 h-2 rounded-full bg-red-500 dark:bg-red-400" />
             <span>{t('devices.legendIsolated')}</span>
           </span>
         </div>
@@ -518,14 +564,14 @@ export function DevicesTopologySvg({
         onPointerCancel={handlePointerUpOrCancel}
         style={{ touchAction: 'none' }}
         aria-label={t('devices.svgTopologyAria')}
-        className={`relative w-full h-[460px] rounded-xl border border-slate-800 bg-[#0B1120] overflow-hidden select-none focus:outline-none focus:ring-1 focus:ring-blue-500/70 ${
+        className={`relative w-full h-[460px] rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B1120] overflow-hidden select-none focus:outline-none focus:ring-1 focus:ring-emerald-500/70 ${
           isDragging ? 'cursor-grabbing' : 'cursor-grab'
         }`}
       >
         {/* Floating Zoom & Pan Toolbar */}
         <div
           data-topology-control="true"
-          className="absolute top-3 right-3 z-10 inline-flex items-center gap-1 rounded-lg border border-slate-700/90 bg-[#0F172A]/95 p-1 shadow-lg backdrop-blur-sm"
+          className="absolute top-3 right-3 z-10 inline-flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700/90 bg-white/95 dark:bg-[#0F172A]/95 p-1 shadow-lg backdrop-blur-sm"
         >
           <button
             type="button"
@@ -533,7 +579,7 @@ export function DevicesTopologySvg({
             disabled={transform.scale <= MIN_SCALE + 0.01}
             aria-label={t('devices.zoomOut')}
             title={t('devices.zoomOut')}
-            className="p-1.5 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            className="p-1.5 rounded-md text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Minus className="w-3.5 h-3.5" />
           </button>
@@ -542,7 +588,7 @@ export function DevicesTopologySvg({
             type="button"
             onClick={resetZoom100}
             title={t('devices.resetZoom')}
-            className="px-2 py-1 min-w-[50px] text-center font-mono text-[11px] font-medium text-slate-200 hover:text-white hover:bg-slate-800 rounded-md tabular-nums transition-colors cursor-pointer"
+            className="px-2 py-1 min-w-[50px] text-center font-mono text-[11px] font-medium text-slate-800 dark:text-slate-200 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md tabular-nums transition-colors cursor-pointer"
           >
             {zoomPercent}%
           </button>
@@ -553,19 +599,19 @@ export function DevicesTopologySvg({
             disabled={transform.scale >= MAX_SCALE - 0.01}
             aria-label={t('devices.zoomIn')}
             title={t('devices.zoomIn')}
-            className="p-1.5 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            className="p-1.5 rounded-md text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Plus className="w-3.5 h-3.5" />
           </button>
 
-          <div className="w-px h-4 bg-slate-700 mx-0.5" />
+          <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-0.5" />
 
           <button
             type="button"
             onClick={fitToView}
             aria-label={t('devices.fitToView')}
             title={t('devices.fitToView')}
-            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <Maximize2 className="w-3 h-3" />
             <span>{t('devices.fitShort')}</span>
@@ -576,7 +622,7 @@ export function DevicesTopologySvg({
             onClick={resetZoom100}
             aria-label={t('devices.resetZoom')}
             title={t('devices.resetZoom')}
-            className="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+            className="p-1.5 rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <RotateCcw className="w-3 h-3" />
           </button>
@@ -597,7 +643,7 @@ export function DevicesTopologySvg({
               height="24"
               patternUnits="userSpaceOnUse"
             >
-              <circle cx="1" cy="1" r="1" fill="#1e293b" />
+              <circle cx="1" cy="1" r="1" fill={isDark ? '#1e293b' : '#cbd5e1'} />
             </pattern>
           </defs>
 
@@ -616,7 +662,7 @@ export function DevicesTopologySvg({
               x={layout.gateway.x + layout.gateway.w / 2}
               y={18}
               textAnchor="middle"
-              fill="#94a3b8"
+              fill={colHeaderColor}
               fontSize="10"
               fontWeight="600"
               letterSpacing="0.06em"
@@ -627,7 +673,7 @@ export function DevicesTopologySvg({
               x={274 + 96}
               y={18}
               textAnchor="middle"
-              fill="#94a3b8"
+              fill={colHeaderColor}
               fontSize="10"
               fontWeight="600"
               letterSpacing="0.06em"
@@ -638,7 +684,7 @@ export function DevicesTopologySvg({
               x={layout.contentWidth > 850 ? 778 : 650}
               y={18}
               textAnchor="middle"
-              fill="#94a3b8"
+              fill={colHeaderColor}
               fontSize="10"
               fontWeight="600"
               letterSpacing="0.06em"
@@ -688,7 +734,7 @@ export function DevicesTopologySvg({
                         segNode.emptyBox.y + segNode.emptyBox.h / 2,
                       )}
                       fill="none"
-                      stroke="#334155"
+                      stroke={emptyStrokeColor}
                       strokeWidth={1.3}
                       strokeDasharray="4 4"
                     />
@@ -735,7 +781,7 @@ export function DevicesTopologySvg({
                 width={layout.gateway.w}
                 height={layout.gateway.h}
                 rx={12}
-                fill="#0f172a"
+                fill={nodeBaseFill}
                 stroke={gatewayStyle.stroke}
                 strokeWidth={2}
               />
@@ -748,7 +794,7 @@ export function DevicesTopologySvg({
               <text
                 x={layout.gateway.x + 30}
                 y={layout.gateway.y + 26}
-                fill="#f8fafc"
+                fill={primaryTitleColor}
                 fontSize="12.5"
                 fontWeight="700"
               >
@@ -768,7 +814,7 @@ export function DevicesTopologySvg({
               <text
                 x={layout.gateway.x + 16}
                 y={layout.gateway.y + 66}
-                fill="#94a3b8"
+                fill={secondaryTextColor}
                 fontSize="10"
                 fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
               >
@@ -801,20 +847,20 @@ export function DevicesTopologySvg({
                     width={segNode.w}
                     height={segNode.h}
                     rx={10}
-                    fill="#0f172a"
-                    stroke={segNode.devices.length > 0 ? sStyle.stroke : '#334155'}
+                    fill={nodeBaseFill}
+                    stroke={segNode.devices.length > 0 ? sStyle.stroke : emptyStrokeColor}
                     strokeWidth={1.6}
                   />
                   <circle
                     cx={segNode.x + 16}
                     cy={segNode.y + 23}
                     r={4.5}
-                    fill={segNode.devices.length > 0 ? sStyle.dot : '#475569'}
+                    fill={segNode.devices.length > 0 ? sStyle.dot : '#64748b'}
                   />
                   <text
                     x={segNode.x + 28}
                     y={segNode.y + 27}
-                    fill="#f1f5f9"
+                    fill={itemTitleColor}
                     fontSize="12"
                     fontWeight="600"
                   >
@@ -823,7 +869,7 @@ export function DevicesTopologySvg({
                   <text
                     x={segNode.x + 16}
                     y={segNode.y + 47}
-                    fill="#94a3b8"
+                    fill={secondaryTextColor}
                     fontSize="10"
                     fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
                   >
@@ -844,9 +890,9 @@ export function DevicesTopologySvg({
                       width={segNode.emptyBox.w}
                       height={segNode.emptyBox.h}
                       rx={8}
-                      fill="#0f172a"
-                      fillOpacity={0.5}
-                      stroke="#334155"
+                      fill={nodeBaseFill}
+                      fillOpacity={0.65}
+                      stroke={emptyStrokeColor}
                       strokeDasharray="4 4"
                       strokeWidth={1.2}
                     />
@@ -906,7 +952,7 @@ export function DevicesTopologySvg({
                         height={h + 6}
                         rx={12}
                         fill="none"
-                        stroke={isSelected ? '#60a5fa' : dStyle.stroke}
+                        stroke={isSelected ? selectedNodeStroke : dStyle.stroke}
                         strokeOpacity={0.45}
                         strokeWidth={2}
                       />
@@ -917,8 +963,8 @@ export function DevicesTopologySvg({
                       width={w}
                       height={h}
                       rx={9}
-                      fill={isSelected ? '#172554' : isHovered ? '#1e293b' : '#0f172a'}
-                      stroke={isSelected ? '#60a5fa' : dStyle.stroke}
+                      fill={isSelected ? selectedNodeFill : isHovered ? nodeHoverFill : nodeBaseFill}
+                      stroke={isSelected ? selectedNodeStroke : dStyle.stroke}
                       strokeWidth={isSelected || isHovered ? 2 : 1.4}
                     />
 
@@ -929,13 +975,13 @@ export function DevicesTopologySvg({
                       width={30}
                       height={16}
                       rx={4}
-                      fill="#1e293b"
+                      fill={badgeBgColor}
                     />
                     <text
                       x={x + 25}
                       y={y + 21}
                       textAnchor="middle"
-                      fill="#94a3b8"
+                      fill={badgeTextColor}
                       fontSize="9"
                       fontWeight="700"
                       fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
@@ -947,7 +993,7 @@ export function DevicesTopologySvg({
                     <text
                       x={x + 46}
                       y={y + 22}
-                      fill={dev.hostname === '(sem-nome)' ? '#cbd5e1' : '#f8fafc'}
+                      fill={dev.hostname === '(sem-nome)' ? unnamedTitleColor : primaryTitleColor}
                       fontSize="11.5"
                       fontWeight="600"
                     >
@@ -958,7 +1004,7 @@ export function DevicesTopologySvg({
                     <text
                       x={x + 10}
                       y={y + 42}
-                      fill="#94a3b8"
+                      fill={secondaryTextColor}
                       fontSize="10"
                       fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
                     >
@@ -987,7 +1033,7 @@ export function DevicesTopologySvg({
 
         {devices.length === 0 && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="rounded-lg border border-slate-800 bg-[#0F172A]/90 px-4 py-2.5 text-xs text-slate-400">
+            <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-[#0F172A]/90 px-4 py-2.5 text-xs text-slate-600 dark:text-slate-400">
               {t('devices.emptyTopology')}
             </div>
           </div>

@@ -71,7 +71,7 @@ export function PaginationControls({
 
   return (
     <div
-      className={`flex flex-wrap items-center justify-between gap-3 border-t border-slate-800/80 bg-[#0B1120]/50 text-xs text-slate-400 tabular-nums ${
+      className={`flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/90 dark:bg-[#0B1120]/50 text-xs text-slate-600 dark:text-slate-400 tabular-nums ${
         compact ? 'px-3.5 py-2.5' : 'px-5 py-3'
       }`}
     >
@@ -88,7 +88,7 @@ export function PaginationControls({
 
         <div className="inline-flex items-center gap-1.5">
           <span className="text-[11px] text-slate-500">{t('pagination.rowsPerPage')}</span>
-          <div className="inline-flex items-center p-0.5 rounded-md border border-slate-800 bg-slate-950">
+          <div className="inline-flex items-center p-0.5 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
             {PAGE_SIZE_OPTIONS.map((opt) => (
               <button
                 key={opt}
@@ -96,8 +96,8 @@ export function PaginationControls({
                 onClick={() => onPageSizeChange(opt)}
                 className={`px-2 py-0.5 text-[11px] font-mono rounded transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                   pageSize === opt
-                    ? 'bg-blue-600 text-white font-medium'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? 'bg-emerald-600 text-white font-medium'
+                    : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
                 }`}
               >
                 {opt}
@@ -108,7 +108,7 @@ export function PaginationControls({
       </div>
 
       <div className="flex items-center gap-2">
-        <span className="text-[11px] font-mono text-slate-400 whitespace-nowrap">
+        <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap">
           {t('pagination.pageOf', {
             page: page.toLocaleString(locale),
             totalPages: totalPages.toLocaleString(locale),
@@ -120,7 +120,7 @@ export function PaginationControls({
             disabled={page <= 1}
             aria-label={t('pagination.prevAria')}
             onClick={() => onPageChange(page - 1)}
-            className="p-1.5 rounded-md border border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            className="p-1.5 rounded-md border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
           </button>
@@ -129,7 +129,7 @@ export function PaginationControls({
             disabled={page >= totalPages}
             aria-label={t('pagination.nextAria')}
             onClick={() => onPageChange(page + 1)}
-            className="p-1.5 rounded-md border border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            className="p-1.5 rounded-md border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
           >
             <ChevronRight className="w-3.5 h-3.5" />
           </button>

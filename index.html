@@ -1,8 +1,31 @@
 <!doctype html>
-<html lang="pt-BR" class="dark">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('openshield-theme');
+          var theme =
+            saved === 'light' || saved === 'dark'
+              ? saved
+              : window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches
+                ? 'light'
+                : 'dark';
+          var root = document.documentElement;
+          if (theme === 'dark') {
+            root.classList.add('dark');
+            root.style.colorScheme = 'dark';
+          } else {
+            root.classList.remove('dark');
+            root.style.colorScheme = 'light';
+          }
+        } catch (e) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
     <title>OpenShield — Inteligência em Segurança de Rede e Privacidade</title>
     <meta name="description" content="Plataforma autônoma e auto-hospedada de inteligência em segurança de rede e privacidade para residências e pequenos escritórios." />
     <meta property="og:title" content="OpenShield — Inteligência em Segurança de Rede e Privacidade" />
@@ -13,7 +36,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..600;1,9..40,400..500&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet" />
   </head>
-  <body class="bg-[#0B1120] text-slate-100 antialiased selection:bg-blue-500/30 selection:text-blue-100">
+  <body class="bg-slate-50 text-slate-900 dark:bg-[#0B1120] dark:text-slate-100 antialiased selection:bg-emerald-500/30 selection:text-emerald-950 dark:selection:text-emerald-100">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

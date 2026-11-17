@@ -74,11 +74,11 @@ const OPENWRT_MAP_COMMAND = `NET=$(ubus call network.interface dump); HINTS=$(ub
 done`;
 
 function DeviceIcon({ type }: { type: NetworkDevice['deviceType'] }) {
-  if (type === 'router') return <Router className="w-4 h-4 text-blue-400 shrink-0" />;
-  if (type === 'server') return <Server className="w-4 h-4 text-slate-300 shrink-0" />;
-  if (type === 'iot') return <Video className="w-4 h-4 text-amber-400 shrink-0" />;
-  if (type === 'mobile') return <Smartphone className="w-4 h-4 text-slate-300 shrink-0" />;
-  return <Laptop className="w-4 h-4 text-slate-300 shrink-0" />;
+  if (type === 'router') return <Router className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />;
+  if (type === 'server') return <Server className="w-4 h-4 text-slate-600 dark:text-slate-300 shrink-0" />;
+  if (type === 'iot') return <Video className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />;
+  if (type === 'mobile') return <Smartphone className="w-4 h-4 text-slate-600 dark:text-slate-300 shrink-0" />;
+  return <Laptop className="w-4 h-4 text-slate-600 dark:text-slate-300 shrink-0" />;
 }
 
 interface AggregatedDomainFlow {
@@ -262,7 +262,7 @@ export function DevicesTopologyView({
   const renderListStatusIndicator = (status: DnsInsight['listStatus']) => {
     if (status === 'blocked') {
       return (
-        <span className="inline-flex items-center gap-1 text-red-400 font-medium whitespace-nowrap">
+        <span className="inline-flex items-center gap-1 text-red-700 dark:text-red-400 font-medium whitespace-nowrap">
           <Ban className="w-3 h-3 shrink-0" />
           <span>{t('common.blocked')}</span>
         </span>
@@ -270,14 +270,14 @@ export function DevicesTopologyView({
     }
     if (status === 'allowed') {
       return (
-        <span className="inline-flex items-center gap-1 text-emerald-400 font-medium whitespace-nowrap">
+        <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-medium whitespace-nowrap">
           <CheckCircle2 className="w-3 h-3 shrink-0" />
           <span>{t('common.allowed')}</span>
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1 text-amber-300 font-medium whitespace-nowrap">
+      <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-300 font-medium whitespace-nowrap">
         <Eye className="w-3 h-3 shrink-0" />
         <span>{t('common.monitored')}</span>
       </span>
@@ -424,16 +424,16 @@ export function DevicesTopologyView({
     <div className="space-y-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-50 text-balance">
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-50 text-balance">
             {t('devices.title')}
           </h1>
-          <p className="mt-1 text-sm text-slate-400 max-w-2xl">{t('devices.subtitle')}</p>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-2xl">{t('devices.subtitle')}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
           {/* View Mode Switcher: Topology vs Network Flow */}
           <div
-            className="inline-flex items-center gap-1 p-1 rounded-lg bg-[#131C31] border border-slate-800"
+            className="inline-flex items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-[#131C31] border border-slate-200 dark:border-slate-800"
             role="tablist"
             aria-label={t('devices.viewModeAria')}
           >
@@ -444,8 +444,8 @@ export function DevicesTopologyView({
               onClick={() => setViewMode('topology')}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                 viewMode === 'topology'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-emerald-600 text-white'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800/60'
               }`}
             >
               <Network className="w-3.5 h-3.5" />
@@ -458,8 +458,8 @@ export function DevicesTopologyView({
               onClick={() => setViewMode('flow')}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                 viewMode === 'flow'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-emerald-600 text-white'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800/60'
               }`}
             >
               <GitBranch className="w-3.5 h-3.5" />
@@ -467,12 +467,14 @@ export function DevicesTopologyView({
             </button>
           </div>
 
-          <div className="inline-flex flex-wrap items-center gap-1 p-1 rounded-lg bg-[#131C31] border border-slate-800">
+          <div className="inline-flex flex-wrap items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-[#131C31] border border-slate-200 dark:border-slate-800">
             <button
               type="button"
               onClick={() => setSegmentFilter('all')}
               className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                effectiveSegmentFilter === 'all' ? 'bg-slate-800 text-slate-100' : 'text-slate-400 hover:text-slate-200'
+                effectiveSegmentFilter === 'all'
+                  ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-800 dark:text-slate-100 dark:shadow-none'
+                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
               }`}
             >
               {t('common.all')}
@@ -483,7 +485,9 @@ export function DevicesTopologyView({
                 type="button"
                 onClick={() => setSegmentFilter(seg)}
                 className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                  effectiveSegmentFilter === seg ? 'bg-slate-800 text-slate-100' : 'text-slate-400 hover:text-slate-200'
+                  effectiveSegmentFilter === seg
+                    ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-800 dark:text-slate-100 dark:shadow-none'
+                    : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
                 }`}
               >
                 {translateSegment(seg)}
@@ -498,9 +502,9 @@ export function DevicesTopologyView({
                 setShowOpenWrtMapper((prev) => !prev);
                 setShowAddForm(false);
               }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border border-slate-700 bg-[#131C31] text-slate-200 hover:border-slate-600 hover:text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#131C31] text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:border-slate-600 dark:hover:text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
-              <Terminal className="w-3.5 h-3.5 text-blue-400" />
+              <Terminal className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>{t('devices.mapOpenwrtBtn')}</span>
             </button>
           )}
@@ -512,7 +516,7 @@ export function DevicesTopologyView({
               setShowAddForm((prev) => !prev);
               setShowOpenWrtMapper(false);
             }}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>{showAddForm ? t('devices.closeForm') : t('devices.addDevice')}</span>
@@ -530,22 +534,22 @@ export function DevicesTopologyView({
             setOpenWrtRawOutput('');
             setShowOpenWrtMapper(false);
           }}
-          className="rounded-xl border border-slate-700 bg-[#131C31] p-5 space-y-4"
+          className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#131C31] shadow-xs dark:shadow-none p-5 space-y-4"
         >
-          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-800 pb-3">
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
             <div>
-              <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
-                <Terminal className="w-4 h-4 text-blue-400" />
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <Terminal className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 <span>{t('devices.mapOpenwrtTitle')}</span>
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5 max-w-3xl">
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5 max-w-3xl">
                 {t('devices.mapOpenwrtSubtitle')}
               </p>
             </div>
             <button
               type="button"
               onClick={() => setShowOpenWrtMapper(false)}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 cursor-pointer"
+              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800 cursor-pointer"
               aria-label={t('common.close')}
             >
               <X className="w-4 h-4" />
@@ -554,7 +558,7 @@ export function DevicesTopologyView({
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-300 font-medium">{t('devices.commandLabel')}</span>
+              <span className="text-slate-700 dark:text-slate-300 font-medium">{t('devices.commandLabel')}</span>
               <button
                 type="button"
                 onClick={async () => {
@@ -566,35 +570,35 @@ export function DevicesTopologyView({
                     // Clipboard restricted
                   }
                 }}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 text-[11px] font-medium cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 text-[11px] font-medium cursor-pointer"
               >
                 {copiedCmd ? (
                   <>
-                    <Check className="w-3 h-3 text-emerald-400" />
-                    <span className="text-emerald-300">{t('devices.copiedCommand')}</span>
+                    <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                    <span className="text-emerald-700 dark:text-emerald-300">{t('devices.copiedCommand')}</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="w-3 h-3 text-slate-400" />
+                    <Copy className="w-3 h-3 text-slate-500 dark:text-slate-400" />
                     <span>{t('devices.copyCommand')}</span>
                   </>
                 )}
               </button>
             </div>
-            <pre className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-[11px] font-mono text-slate-300 overflow-x-auto leading-relaxed">
+            <pre className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-3 text-[11px] font-mono text-slate-800 dark:text-slate-300 overflow-x-auto leading-relaxed">
               {OPENWRT_MAP_COMMAND}
             </pre>
           </div>
 
           <label className="block space-y-1.5 text-xs">
-            <span className="text-slate-300 font-medium">{t('devices.pasteOutputLabel')}</span>
+            <span className="text-slate-700 dark:text-slate-300 font-medium">{t('devices.pasteOutputLabel')}</span>
             <textarea
               rows={5}
               required
               value={openWrtRawOutput}
               onChange={(e) => setOpenWrtRawOutput(e.target.value)}
               placeholder={t('devices.pasteOutputPlaceholder')}
-              className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 font-mono text-xs focus:outline-none focus:border-emerald-500"
             />
           </label>
 
@@ -602,14 +606,14 @@ export function DevicesTopologyView({
             <button
               type="button"
               onClick={() => setShowOpenWrtMapper(false)}
-              className="px-4 py-2 text-xs font-medium rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 cursor-pointer"
+              className="px-4 py-2 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-transparent text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
             >
               {t('common.cancel')}
             </button>
             <button
               type="submit"
               disabled={busyKey === 'import-openwrt-map' || !openWrtRawOutput.trim()}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 cursor-pointer disabled:opacity-50"
             >
               <Network className="w-3.5 h-3.5" />
               <span>{t('devices.applyMapping')}</span>
@@ -622,55 +626,55 @@ export function DevicesTopologyView({
       {showAddForm && (
         <form
           onSubmit={handleCreateDevice}
-          className="rounded-xl border border-slate-700 bg-[#131C31] p-5 space-y-4"
+          className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#131C31] shadow-xs dark:shadow-none p-5 space-y-4"
         >
-          <div className="border-b border-slate-800 pb-3">
-            <h2 className="text-sm font-semibold text-slate-100">{t('devices.newDeviceTitle')}</h2>
-            <p className="text-xs text-slate-400 mt-0.5">{t('devices.newDeviceSubtitle')}</p>
+          <div className="border-b border-slate-200 dark:border-slate-800 pb-3">
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{t('devices.newDeviceTitle')}</h2>
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">{t('devices.newDeviceSubtitle')}</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3.5">
             <label className="block space-y-1 text-xs">
-              <span className="text-slate-300 font-medium">{t('devices.hostname')}</span>
+              <span className="text-slate-700 dark:text-slate-300 font-medium">{t('devices.hostname')}</span>
               <input
                 type="text"
                 required
                 placeholder={t('devices.hostnamePlaceholder')}
                 value={hostname}
                 onChange={(e) => setHostname(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 text-xs focus:outline-none focus:border-emerald-500"
               />
             </label>
 
             <label className="block space-y-1 text-xs">
-              <span className="text-slate-300 font-medium">{t('devices.ipAddress')}</span>
+              <span className="text-slate-700 dark:text-slate-300 font-medium">{t('devices.ipAddress')}</span>
               <input
                 type="text"
                 required
                 placeholder={t('devices.ipPlaceholder')}
                 value={ip}
                 onChange={(e) => setIp(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 font-mono text-xs focus:outline-none focus:border-emerald-500"
               />
             </label>
 
             <label className="block space-y-1 text-xs">
-              <span className="text-slate-300 font-medium">{t('devices.macOptional')}</span>
+              <span className="text-slate-700 dark:text-slate-300 font-medium">{t('devices.macOptional')}</span>
               <input
                 type="text"
                 placeholder={t('devices.macPlaceholder')}
                 value={mac}
                 onChange={(e) => setMac(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 font-mono text-xs focus:outline-none focus:border-emerald-500"
               />
             </label>
 
             <label className="block space-y-1 text-xs">
-              <span className="text-slate-300 font-medium">{t('devices.type')}</span>
+              <span className="text-slate-700 dark:text-slate-300 font-medium">{t('devices.type')}</span>
               <select
                 value={deviceType}
                 onChange={(e) => setDeviceType(e.target.value as NetworkDevice['deviceType'])}
-                className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
               >
                 <option value="router">{t('devices.typeRouter')}</option>
                 <option value="server">{t('devices.typeServer')}</option>
@@ -681,23 +685,23 @@ export function DevicesTopologyView({
             </label>
 
             <label className="block space-y-1 text-xs">
-              <span className="text-slate-300 font-medium">{t('devices.segment')}</span>
+              <span className="text-slate-700 dark:text-slate-300 font-medium">{t('devices.segment')}</span>
               <input
                 type="text"
                 required
                 list="openshield-segment-options"
                 value={segment}
                 onChange={(e) => setSegment(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
               />
             </label>
 
             <label className="block space-y-1 text-xs">
-              <span className="text-slate-300 font-medium">{t('devices.networkSite')}</span>
+              <span className="text-slate-700 dark:text-slate-300 font-medium">{t('devices.networkSite')}</span>
               <select
                 value={siteId}
                 onChange={(e) => setSiteId(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
               >
                 {state.context.sites.map((site) => (
                   <option key={site.id} value={site.id}>
@@ -708,23 +712,23 @@ export function DevicesTopologyView({
             </label>
 
             <label className="block space-y-1 text-xs">
-              <span className="text-slate-300 font-medium">{t('devices.openwrtInterface')}</span>
+              <span className="text-slate-700 dark:text-slate-300 font-medium">{t('devices.openwrtInterface')}</span>
               <input
                 type="text"
                 value={interfaceName}
                 onChange={(e) => setInterfaceName(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs focus:outline-none focus:border-emerald-500"
               />
             </label>
 
             <label className="block space-y-1 text-xs">
-              <span className="text-slate-300 font-medium">{t('devices.vendorOptional')}</span>
+              <span className="text-slate-700 dark:text-slate-300 font-medium">{t('devices.vendorOptional')}</span>
               <input
                 type="text"
                 placeholder={t('devices.vendorPlaceholder')}
                 value={vendor}
                 onChange={(e) => setVendor(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 text-xs focus:outline-none focus:border-emerald-500"
               />
             </label>
           </div>
@@ -733,14 +737,14 @@ export function DevicesTopologyView({
             <button
               type="button"
               onClick={() => setShowAddForm(false)}
-              className="px-4 py-2 text-xs font-medium rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 cursor-pointer"
+              className="px-4 py-2 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-transparent text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
             >
               {t('common.cancel')}
             </button>
             <button
               type="submit"
               disabled={busyKey === 'add-device'}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 cursor-pointer disabled:opacity-50"
             >
               <Save className="w-3.5 h-3.5" />
               <span>{t('devices.saveDevice')}</span>
@@ -751,12 +755,12 @@ export function DevicesTopologyView({
 
       {/* Topology OR Network Flow Visualization */}
       {viewMode === 'topology' ? (
-        <section className="rounded-xl border border-slate-800 bg-[#131C31] p-5 space-y-5">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-            <h2 className="text-sm font-semibold text-slate-100">
+        <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31] shadow-xs dark:shadow-none p-5 space-y-5">
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
               {t('devices.logicalMapTitle')}
             </h2>
-            <span className="text-xs text-slate-400 tabular-nums">
+            <span className="text-xs text-slate-600 dark:text-slate-400 tabular-nums">
               {t('devices.visibleDevicesCount', { count: scopedDevices.length })}
             </span>
           </div>
@@ -772,7 +776,7 @@ export function DevicesTopologyView({
           />
 
           <div className="space-y-3 pt-1">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
               {t('devices.logicalCardsTitle')}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -781,11 +785,11 @@ export function DevicesTopologyView({
               return (
                 <div
                   key={seg}
-                  className="rounded-lg border border-slate-800/90 bg-slate-950/60 p-4 space-y-3"
+                  className="rounded-lg border border-slate-200 dark:border-slate-800/90 bg-slate-50 dark:bg-slate-950/60 p-4 space-y-3"
                 >
-                  <div className="flex items-center justify-between text-xs border-b border-slate-800 pb-2">
-                    <span className="font-semibold text-slate-200">{translateSegment(seg)}</span>
-                    <span className="text-slate-400 tabular-nums">
+                  <div className="flex items-center justify-between text-xs border-b border-slate-200 dark:border-slate-800 pb-2">
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">{translateSegment(seg)}</span>
+                    <span className="text-slate-600 dark:text-slate-400 tabular-nums">
                       {t('devices.activeCount', { count: items.length })}
                     </span>
                   </div>
@@ -800,15 +804,15 @@ export function DevicesTopologyView({
                           key={dev.id}
                           type="button"
                           onClick={() => openDrawer(dev)}
-                          className="w-full text-left flex items-center justify-between gap-2 px-2.5 py-2 rounded-md hover:bg-slate-900 transition-colors cursor-pointer"
+                          className="w-full text-left flex items-center justify-between gap-2 px-2.5 py-2 rounded-md hover:bg-white dark:hover:bg-slate-900 transition-colors cursor-pointer"
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <DeviceIcon type={dev.deviceType} />
                             <div className="truncate">
-                              <div className="text-xs font-medium text-slate-200 truncate">
+                              <div className="text-xs font-medium text-slate-800 dark:text-slate-200 truncate">
                                 {dev.hostname}
                               </div>
-                              <div className="text-[11px] font-mono text-slate-400 tabular-nums">
+                              <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400 tabular-nums">
                                 {dev.ip}
                               </div>
                             </div>
@@ -816,10 +820,10 @@ export function DevicesTopologyView({
                           <span
                             className={`text-xs font-mono tabular-nums whitespace-nowrap ${
                               dev.riskScore >= 70
-                                ? 'text-red-400'
+                                ? 'text-red-700 dark:text-red-400'
                                 : dev.riskScore >= 40
-                                  ? 'text-amber-400'
-                                  : 'text-emerald-400'
+                                  ? 'text-amber-700 dark:text-amber-400'
+                                  : 'text-emerald-700 dark:text-emerald-400'
                             }`}
                           >
                             {t('common.risk')} {dev.riskScore}
@@ -835,16 +839,16 @@ export function DevicesTopologyView({
           </div>
         </section>
       ) : (
-        <section className="rounded-xl border border-slate-800 bg-[#131C31] p-5 space-y-5">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
+        <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31] shadow-xs dark:shadow-none p-5 space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-4">
             <div>
-              <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
-                <GitBranch className="w-4 h-4 text-blue-400 shrink-0" />
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <GitBranch className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 <span>{t('devices.flowTitle')}</span>
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">{t('devices.flowSubtitle')}</p>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">{t('devices.flowSubtitle')}</p>
             </div>
-            <span className="text-xs text-slate-400 tabular-nums">
+            <span className="text-xs text-slate-600 dark:text-slate-400 tabular-nums">
               {t('devices.aggregatedDomainsCount', { count: state.dnsInsights.length })}
             </span>
           </div>
@@ -852,8 +856,8 @@ export function DevicesTopologyView({
           {scopedDevices.length > 0 &&
             scopedDevices.every((d) => d.dnsQueries24h === 0) &&
             state.dnsInsights.length === 0 && (
-              <div className="rounded-lg border border-blue-900/60 bg-blue-950/25 px-4 py-3 text-xs text-slate-300 leading-relaxed">
-                <strong className="text-blue-300 font-semibold">
+              <div className="rounded-lg border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/25 px-4 py-3 text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                <strong className="text-emerald-800 dark:text-emerald-300 font-semibold">
                   {t('devices.flowZeroHintTitle')}
                 </strong>{' '}
                 {t('devices.flowZeroHintBody')}
@@ -864,14 +868,14 @@ export function DevicesTopologyView({
             {/* Left: Interactive Gateway -> Segment -> Device Flow Map */}
             <div className="xl:col-span-7 space-y-4">
               {/* Gateway Root Node */}
-              <div className="rounded-lg border border-blue-900/70 bg-[#0B1120] p-3.5 flex items-center justify-between gap-3">
+              <div className="rounded-lg border border-emerald-200 dark:border-emerald-900/70 bg-emerald-50/70 dark:bg-[#0B1120] p-3.5 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
-                  <Router className="w-4 h-4 text-blue-400 shrink-0" />
+                  <Router className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <div>
-                    <div className="text-xs font-semibold text-slate-100">
+                    <div className="text-xs font-semibold text-slate-900 dark:text-slate-100">
                       {t('devices.gatewayPerimeterTitle')}
                     </div>
-                    <div className="text-[11px] text-slate-400 font-mono">
+                    <div className="text-[11px] text-slate-600 dark:text-slate-400 font-mono">
                       {t('devices.gatewayPerimeterMeta', {
                         dnsCount: state.integrations.filter((i) => i.domain === 'dns').length,
                         queries: scopedDevices
@@ -881,7 +885,7 @@ export function DevicesTopologyView({
                     </div>
                   </div>
                 </div>
-                <span className="inline-flex items-center gap-1.5 text-xs text-emerald-400 font-medium whitespace-nowrap">
+                <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400 font-medium whitespace-nowrap">
                   <Activity className="w-3.5 h-3.5" />
                   <span>
                     {state.context.gatewayForwardingActive
@@ -893,11 +897,11 @@ export function DevicesTopologyView({
 
               {/* Segments & Device Flow Nodes */}
               {scopedDevices.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-slate-800 bg-[#0B1120]/60 p-8 text-center text-xs text-slate-400">
+                <div className="rounded-lg border border-dashed border-slate-300 dark:border-slate-800 bg-slate-50 dark:bg-[#0B1120]/60 p-8 text-center text-xs text-slate-600 dark:text-slate-400">
                   {t('devices.noDevicesFlowFilter')}
                 </div>
               ) : (
-                <div className="rounded-lg border border-slate-800 bg-[#0B1120]/40 overflow-hidden">
+                <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-[#0B1120]/40 overflow-hidden">
                   <div className="space-y-3 max-h-[540px] overflow-y-auto p-3">
                     {visibleSegments.map((seg) => {
                       const allSegDevices = scopedDevices.filter((d) => d.segment === seg);
@@ -906,14 +910,14 @@ export function DevicesTopologyView({
                       return (
                         <div
                           key={seg}
-                          className="rounded-lg border border-slate-800 bg-[#0B1120]/70 p-3.5 space-y-2.5"
+                          className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B1120]/70 p-3.5 space-y-2.5"
                         >
-                          <div className="flex items-center justify-between text-xs border-b border-slate-800/80 pb-2">
-                            <span className="font-semibold text-slate-200 flex items-center gap-1.5">
-                              <ArrowRight className="w-3.5 h-3.5 text-blue-400" />
+                          <div className="flex items-center justify-between text-xs border-b border-slate-200 dark:border-slate-800/80 pb-2">
+                            <span className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                              <ArrowRight className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                               <span>{translateSegment(seg)}</span>
                             </span>
-                            <span className="text-[11px] text-slate-400 tabular-nums">
+                            <span className="text-[11px] text-slate-600 dark:text-slate-400 tabular-nums">
                               {t('devices.dnsReqsShort', {
                                 count: allSegDevices
                                   .reduce((s, d) => s + d.dnsQueries24h, 0)
@@ -933,18 +937,18 @@ export function DevicesTopologyView({
                                   onClick={() => setFlowDeviceId(dev.id)}
                                   className={`text-left rounded-lg border p-3 transition-colors cursor-pointer space-y-2 ${
                                     selected
-                                      ? 'border-blue-500 bg-blue-950/35'
-                                      : 'border-slate-800 bg-[#131C31]/60 hover:border-slate-700'
+                                      ? 'border-emerald-600 bg-emerald-50 dark:border-emerald-500 dark:bg-emerald-950/35'
+                                      : 'border-slate-200 bg-slate-50/70 hover:border-slate-300 dark:border-slate-800 dark:bg-[#131C31]/60 dark:hover:border-slate-700'
                                   }`}
                                 >
                                   <div className="flex items-start justify-between gap-2">
                                     <div className="flex items-center gap-2 min-w-0">
                                       <DeviceIcon type={dev.deviceType} />
                                       <div className="min-w-0">
-                                        <div className="text-xs font-semibold text-slate-100 truncate">
+                                        <div className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
                                           {dev.hostname}
                                         </div>
-                                        <div className="text-[11px] font-mono text-slate-400 tabular-nums">
+                                        <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400 tabular-nums">
                                           {dev.ip} · {dev.interfaceName}
                                         </div>
                                       </div>
@@ -952,24 +956,24 @@ export function DevicesTopologyView({
                                     <span
                                       className={`text-[11px] font-mono tabular-nums shrink-0 ${
                                         dev.riskScore >= 70
-                                          ? 'text-red-400'
+                                          ? 'text-red-700 dark:text-red-400'
                                           : dev.riskScore >= 40
-                                            ? 'text-amber-400'
-                                            : 'text-emerald-400'
+                                            ? 'text-amber-700 dark:text-amber-400'
+                                            : 'text-emerald-700 dark:text-emerald-400'
                                       }`}
                                     >
                                       {t('common.risk')} {dev.riskScore}
                                     </span>
                                   </div>
 
-                                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800/70 tabular-nums">
+                                  <div className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400 pt-1 border-t border-slate-200 dark:border-slate-800/70 tabular-nums">
                                     <span>
                                       {t('devices.queriesBlockedShort', {
                                         queries: dev.dnsQueries24h.toLocaleString(locale),
                                         blocked: dev.blockedQueries24h.toLocaleString(locale),
                                       })}
                                     </span>
-                                    <span className="text-blue-300 font-medium">
+                                    <span className="text-emerald-700 dark:text-emerald-300 font-medium">
                                       {t('devices.domainsCount', { count: domainCount })}
                                     </span>
                                   </div>
@@ -996,27 +1000,27 @@ export function DevicesTopologyView({
 
             {/* Right: Top 5 Domains Inspector for Clicked Device */}
             <div className="xl:col-span-5">
-              <div className="rounded-lg border border-slate-800 bg-[#0B1120] p-4 space-y-4 h-full">
+              <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B1120] p-4 space-y-4 h-full">
                 {!activeFlowDevice ? (
                   <div className="py-12 text-center space-y-2">
-                    <Globe className="w-7 h-7 text-slate-600 mx-auto" />
-                    <div className="text-xs font-semibold text-slate-200">
+                    <Globe className="w-7 h-7 text-slate-400 dark:text-slate-600 mx-auto" />
+                    <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">
                       {t('devices.selectFlowPromptTitle')}
                     </div>
-                    <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
+                    <p className="text-[11px] text-slate-600 dark:text-slate-400 max-w-xs mx-auto">
                       {t('devices.selectFlowPromptBody')}
                     </p>
                   </div>
                 ) : (
                   <>
-                    <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-3">
+                    <div className="flex items-start justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
                       <div className="flex items-start gap-2.5 min-w-0">
                         <DeviceIcon type={activeFlowDevice.deviceType} />
                         <div className="min-w-0">
-                          <div className="text-sm font-semibold text-slate-100 truncate">
+                          <div className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
                             {activeFlowDevice.hostname}
                           </div>
-                          <div className="text-[11px] font-mono text-slate-400 tabular-nums">
+                          <div className="text-[11px] font-mono text-slate-600 dark:text-slate-400 tabular-nums">
                             {activeFlowDevice.ip} → {activeFlowDevice.interfaceName} (
                             {translateSegment(activeFlowDevice.segment)})
                           </div>
@@ -1026,40 +1030,40 @@ export function DevicesTopologyView({
                       <button
                         type="button"
                         onClick={() => openDrawer(activeFlowDevice)}
-                        className="text-xs text-blue-400 hover:text-blue-300 font-medium whitespace-nowrap shrink-0 cursor-pointer"
+                        className="text-xs text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 font-medium whitespace-nowrap shrink-0 cursor-pointer"
                       >
                         {t('devices.editEvents')}
                       </button>
                     </div>
 
                     <div className="grid grid-cols-3 gap-2 text-center">
-                      <div className="rounded-lg border border-slate-800 bg-[#131C31]/70 p-2.5">
-                        <div className="text-[10px] uppercase tracking-wider text-slate-400">
+                      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31]/70 p-2.5">
+                        <div className="text-[10px] uppercase tracking-wider text-slate-600 dark:text-slate-400">
                           {t('devices.queries24h')}
                         </div>
-                        <div className="text-sm font-bold text-slate-100 font-mono tabular-nums mt-0.5">
+                        <div className="text-sm font-bold text-slate-900 dark:text-slate-100 font-mono tabular-nums mt-0.5">
                           {activeFlowDevice.dnsQueries24h.toLocaleString(locale)}
                         </div>
                       </div>
-                      <div className="rounded-lg border border-slate-800 bg-[#131C31]/70 p-2.5">
-                        <div className="text-[10px] uppercase tracking-wider text-slate-400">
+                      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31]/70 p-2.5">
+                        <div className="text-[10px] uppercase tracking-wider text-slate-600 dark:text-slate-400">
                           {t('devices.blocks')}
                         </div>
-                        <div className="text-sm font-bold text-amber-300 font-mono tabular-nums mt-0.5">
+                        <div className="text-sm font-bold text-amber-700 dark:text-amber-300 font-mono tabular-nums mt-0.5">
                           {activeFlowDevice.blockedQueries24h.toLocaleString(locale)}
                         </div>
                       </div>
-                      <div className="rounded-lg border border-slate-800 bg-[#131C31]/70 p-2.5">
-                        <div className="text-[10px] uppercase tracking-wider text-slate-400">
+                      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31]/70 p-2.5">
+                        <div className="text-[10px] uppercase tracking-wider text-slate-600 dark:text-slate-400">
                           {t('devices.riskScore')}
                         </div>
                         <div
                           className={`text-sm font-bold font-mono tabular-nums mt-0.5 ${
                             activeFlowDevice.riskScore >= 70
-                              ? 'text-red-400'
+                              ? 'text-red-700 dark:text-red-400'
                               : activeFlowDevice.riskScore >= 40
-                                ? 'text-amber-400'
-                                : 'text-emerald-400'
+                                ? 'text-amber-700 dark:text-amber-400'
+                                : 'text-emerald-700 dark:text-emerald-400'
                           }`}
                         >
                           {activeFlowDevice.riskScore}/100
@@ -1069,17 +1073,17 @@ export function DevicesTopologyView({
 
                     <div className="space-y-3">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold text-slate-100 flex items-center gap-1.5">
-                          <Globe className="w-3.5 h-3.5 text-blue-400" />
+                        <span className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                          <Globe className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                           <span>{t('devices.top5Title')}</span>
                         </span>
-                        <span className="text-[11px] text-slate-400">
+                        <span className="text-[11px] text-slate-600 dark:text-slate-400">
                           {t('devices.stateAggregatedNote')}
                         </span>
                       </div>
 
                       {flowTopDomains.length === 0 ? (
-                        <div className="rounded-lg border border-dashed border-slate-800 p-5 text-center text-xs text-slate-400 space-y-1">
+                        <div className="rounded-lg border border-dashed border-slate-300 dark:border-slate-800 p-5 text-center text-xs text-slate-600 dark:text-slate-400 space-y-1">
                           <div>{t('devices.noDomainsDevice')}</div>
                           <p className="text-[11px] text-slate-500">
                             {t('devices.noDomainsDeviceHint')}
@@ -1096,40 +1100,40 @@ export function DevicesTopologyView({
                             return (
                               <div
                                 key={dom.domain}
-                                className="rounded-lg border border-slate-800/90 bg-[#131C31]/60 p-3 space-y-2"
+                                className="rounded-lg border border-slate-200 dark:border-slate-800/90 bg-white dark:bg-[#131C31]/60 p-3 space-y-2"
                               >
                                 <div className="flex items-start justify-between gap-2 text-xs">
                                   <div className="flex items-center gap-2 min-w-0">
                                     <span className="font-mono text-[11px] text-slate-500 tabular-nums shrink-0">
                                       #{idx + 1}
                                     </span>
-                                    <span className="font-mono font-medium text-slate-100 truncate">
+                                    <span className="font-mono font-medium text-slate-900 dark:text-slate-100 truncate">
                                       {dom.domain}
                                     </span>
                                   </div>
-                                  <span className="font-mono text-xs font-semibold text-slate-200 tabular-nums whitespace-nowrap shrink-0">
+                                  <span className="font-mono text-xs font-semibold text-slate-800 dark:text-slate-200 tabular-nums whitespace-nowrap shrink-0">
                                     {t('devices.reqsCount', { count: dom.queriesCount.toLocaleString(locale) })}
                                   </span>
                                 </div>
 
-                                <div className="h-1.5 w-full rounded-full bg-slate-900 overflow-hidden">
+                                <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-900 overflow-hidden">
                                   <div
                                     className={`h-full rounded-full ${
                                       dom.listStatus === 'blocked'
                                         ? 'bg-red-500'
                                         : dom.classification === 'suspicious'
                                           ? 'bg-amber-400'
-                                          : 'bg-blue-500'
+                                          : 'bg-emerald-600 dark:bg-emerald-500'
                                     }`}
                                     style={{ width: `${pct}%` }}
                                   />
                                 </div>
 
-                                <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+                                <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600 dark:text-slate-400">
                                   <span>{translateDomainCategory(dom.category)}</span>
                                   <div className="flex items-center gap-3 tabular-nums">
                                     {dom.blockedCount > 0 && (
-                                      <span className="font-mono text-red-300">
+                                      <span className="font-mono text-red-700 dark:text-red-300">
                                         {t('devices.blockedShortCount', { count: dom.blockedCount.toLocaleString(locale) })}
                                       </span>
                                     )}
@@ -1151,11 +1155,11 @@ export function DevicesTopologyView({
       )}
 
       {/* High-density Device Inventory Table */}
-      <section className="rounded-xl border border-slate-800 bg-[#131C31] overflow-hidden">
-        <div className="m-4 rounded-lg border border-slate-800 bg-[#0B1120]/40 max-h-[520px] overflow-auto">
+      <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31] shadow-xs dark:shadow-none overflow-hidden">
+        <div className="m-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/40 dark:bg-[#0B1120]/40 max-h-[520px] overflow-auto">
           <table className="w-full text-left border-collapse">
-            <thead className="sticky top-0 z-10 bg-[#0B1120] shadow-[0_1px_0_0_rgb(30,41,59)]">
-              <tr className="text-xs font-medium text-slate-400">
+            <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-[#0B1120] shadow-[0_1px_0_0_rgb(226,232,240)] dark:shadow-[0_1px_0_0_rgb(30,41,59)]">
+              <tr className="text-xs font-medium text-slate-600 dark:text-slate-400">
                 <th className="py-3 px-4">{t('devices.colDevice')}</th>
                 <th className="py-3 px-4">{t('devices.colIpInterface')}</th>
                 <th className="py-3 px-4">{t('devices.colSegment')}</th>
@@ -1165,15 +1169,15 @@ export function DevicesTopologyView({
                 <th className="py-3 px-4 text-right">{t('devices.colActions')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/80 text-xs">
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800/80 text-xs">
               {scopedDevices.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-10 text-center text-slate-400 space-y-2">
+                  <td colSpan={7} className="py-10 text-center text-slate-600 dark:text-slate-400 space-y-2">
                     <div>{t('devices.emptyTable')}</div>
                     <button
                       type="button"
                       onClick={() => setShowAddForm(true)}
-                      className="text-blue-400 hover:text-blue-300 font-medium cursor-pointer"
+                      className="text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 font-medium cursor-pointer"
                     >
                       {t('devices.addFirstDevice')}
                     </button>
@@ -1183,35 +1187,35 @@ export function DevicesTopologyView({
                 deviceTablePagination.pagedItems.map((dev) => (
                   <tr
                     key={dev.id}
-                    className="h-[44px] hover:bg-slate-900/40 transition-colors"
+                    className="h-[44px] hover:bg-slate-100/70 dark:hover:bg-slate-900/40 transition-colors"
                   >
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-2.5">
                         <DeviceIcon type={dev.deviceType} />
                         <div>
-                          <div className="font-medium text-slate-100">{dev.hostname}</div>
-                          <div className="text-[11px] text-slate-400">{dev.vendor}</div>
+                          <div className="font-medium text-slate-900 dark:text-slate-100">{dev.hostname}</div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400">{dev.vendor}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-2 font-mono text-slate-300 tabular-nums">
+                    <td className="px-4 py-2 font-mono text-slate-700 dark:text-slate-300 tabular-nums">
                       {dev.ip} · {dev.interfaceName}
                     </td>
-                    <td className="px-4 py-2 text-slate-300">{translateSegment(dev.segment)}</td>
-                    <td className="px-4 py-2 text-right font-mono text-slate-300 tabular-nums">
+                    <td className="px-4 py-2 text-slate-700 dark:text-slate-300">{translateSegment(dev.segment)}</td>
+                    <td className="px-4 py-2 text-right font-mono text-slate-700 dark:text-slate-300 tabular-nums">
                       {dev.dnsQueries24h.toLocaleString(locale)}
                     </td>
-                    <td className="px-4 py-2 text-right font-mono text-slate-300 tabular-nums">
+                    <td className="px-4 py-2 text-right font-mono text-slate-700 dark:text-slate-300 tabular-nums">
                       {dev.blockedQueries24h.toLocaleString(locale)}
                     </td>
                     <td className="px-4 py-2 text-right font-mono tabular-nums">
                       <span
                         className={
                           dev.riskScore >= 70
-                            ? 'text-red-400 font-semibold'
+                            ? 'text-red-700 dark:text-red-400 font-semibold'
                             : dev.riskScore >= 40
-                              ? 'text-amber-400 font-semibold'
-                              : 'text-emerald-400'
+                              ? 'text-amber-700 dark:text-amber-400 font-semibold'
+                              : 'text-emerald-700 dark:text-emerald-400'
                         }
                       >
                         {dev.riskScore}/100
@@ -1225,14 +1229,14 @@ export function DevicesTopologyView({
                             setFlowDeviceId(dev.id);
                             setViewMode('flow');
                           }}
-                          className="text-slate-300 hover:text-blue-300 font-medium whitespace-nowrap cursor-pointer"
+                          className="text-slate-700 hover:text-emerald-700 dark:text-slate-300 dark:hover:text-emerald-300 font-medium whitespace-nowrap cursor-pointer"
                         >
                           {t('devices.viewFlow')}
                         </button>
                         <button
                           type="button"
                           onClick={() => openDrawer(dev)}
-                          className="text-blue-400 hover:text-blue-300 font-medium whitespace-nowrap cursor-pointer"
+                          className="text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 font-medium whitespace-nowrap cursor-pointer"
                         >
                           {t('devices.editInspect')}
                         </button>
@@ -1240,7 +1244,7 @@ export function DevicesTopologyView({
                           type="button"
                           disabled={busyKey === `rm-dev-${dev.id}`}
                           onClick={() => onRemoveDevice(dev.id, dev.hostname)}
-                          className="text-red-400 hover:text-red-300 font-medium whitespace-nowrap cursor-pointer disabled:opacity-50"
+                          className="text-red-700 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 font-medium whitespace-nowrap cursor-pointer disabled:opacity-50"
                         >
                           {t('common.remove')}
                         </button>
@@ -1265,19 +1269,19 @@ export function DevicesTopologyView({
       {/* Progressive Disclosure & Edit Drawer */}
       {selectedDevice && (
         <div
-          className="fixed inset-0 z-50 flex justify-end bg-black/60"
+          className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 dark:bg-black/60"
           onClick={() => setSelectedDeviceId(null)}
         >
           <aside
-            className="w-full max-w-lg bg-[#0F172A] border-l border-slate-800 h-full overflow-y-auto p-6 space-y-6"
+            className="w-full max-w-lg bg-white dark:bg-[#0F172A] border-l border-slate-200 dark:border-slate-800 h-full overflow-y-auto p-6 space-y-6 shadow-xl dark:shadow-none"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start justify-between gap-4 border-b border-slate-800 pb-4">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
               <div>
-                <div className="text-xs text-slate-400 font-mono">
+                <div className="text-xs text-slate-500 dark:text-slate-400 font-mono">
                   {selectedDevice.id} · {selectedDevice.mac}
                 </div>
-                <h2 className="text-lg font-semibold text-slate-100 mt-1">
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mt-1">
                   {selectedDevice.hostname}
                 </h2>
               </div>
@@ -1285,7 +1289,7 @@ export function DevicesTopologyView({
                 type="button"
                 aria-label={t('devices.closeDrawerAria')}
                 onClick={() => setSelectedDeviceId(null)}
-                className="p-2 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 cursor-pointer"
+                className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1295,7 +1299,7 @@ export function DevicesTopologyView({
               <form onSubmit={handleSaveDeviceEdit} className="space-y-3 text-xs">
                 <div className="grid grid-cols-2 gap-3">
                   <label className="block space-y-1">
-                    <span className="text-slate-400">{t('devices.hostname')}</span>
+                    <span className="text-slate-600 dark:text-slate-400">{t('devices.hostname')}</span>
                     <input
                       type="text"
                       required
@@ -1303,11 +1307,11 @@ export function DevicesTopologyView({
                       onChange={(e) =>
                         setEditingDevice({ ...editingDevice, hostname: e.target.value })
                       }
-                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-950 text-slate-100"
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-emerald-500"
                     />
                   </label>
                   <label className="block space-y-1">
-                    <span className="text-slate-400">{t('devices.ipAddress')}</span>
+                    <span className="text-slate-600 dark:text-slate-400">{t('devices.ipAddress')}</span>
                     <input
                       type="text"
                       required
@@ -1315,33 +1319,33 @@ export function DevicesTopologyView({
                       onChange={(e) =>
                         setEditingDevice({ ...editingDevice, ip: e.target.value })
                       }
-                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono"
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-emerald-500"
                     />
                   </label>
                   <label className="block space-y-1">
-                    <span className="text-slate-400">MAC</span>
+                    <span className="text-slate-600 dark:text-slate-400">MAC</span>
                     <input
                       type="text"
                       value={editingDevice.mac}
                       onChange={(e) =>
                         setEditingDevice({ ...editingDevice, mac: e.target.value })
                       }
-                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono"
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-emerald-500"
                     />
                   </label>
                   <label className="block space-y-1">
-                    <span className="text-slate-400">{t('devices.drawerInterface')}</span>
+                    <span className="text-slate-600 dark:text-slate-400">{t('devices.drawerInterface')}</span>
                     <input
                       type="text"
                       value={editingDevice.interfaceName}
                       onChange={(e) =>
                         setEditingDevice({ ...editingDevice, interfaceName: e.target.value })
                       }
-                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono"
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-emerald-500"
                     />
                   </label>
                   <label className="block space-y-1">
-                    <span className="text-slate-400">{t('devices.segment')}</span>
+                    <span className="text-slate-600 dark:text-slate-400">{t('devices.segment')}</span>
                     <input
                       type="text"
                       required
@@ -1353,11 +1357,11 @@ export function DevicesTopologyView({
                           segment: e.target.value,
                         })
                       }
-                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-950 text-slate-100"
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-emerald-500"
                     />
                   </label>
                   <label className="block space-y-1">
-                    <span className="text-slate-400">{t('devices.type')}</span>
+                    <span className="text-slate-600 dark:text-slate-400">{t('devices.type')}</span>
                     <select
                       value={editingDevice.deviceType}
                       onChange={(e) =>
@@ -1366,7 +1370,7 @@ export function DevicesTopologyView({
                           deviceType: e.target.value as NetworkDevice['deviceType'],
                         })
                       }
-                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-950 text-slate-100"
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-emerald-500"
                     >
                       <option value="router">{t('devices.drawerTypeRouter')}</option>
                       <option value="server">{t('devices.drawerTypeServer')}</option>
@@ -1378,14 +1382,14 @@ export function DevicesTopologyView({
                 </div>
 
                 <label className="block space-y-1">
-                  <span className="text-slate-400">{t('devices.vendorNote')}</span>
+                  <span className="text-slate-600 dark:text-slate-400">{t('devices.vendorNote')}</span>
                   <input
                     type="text"
                     value={editingDevice.vendor}
                     onChange={(e) =>
                       setEditingDevice({ ...editingDevice, vendor: e.target.value })
                     }
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-950 text-slate-100"
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-emerald-500"
                   />
                 </label>
 
@@ -1397,7 +1401,7 @@ export function DevicesTopologyView({
                       await onRemoveDevice(selectedDevice.id, selectedDevice.hostname);
                       setSelectedDeviceId(null);
                     }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-900/60 text-red-300 hover:bg-red-950/50 cursor-pointer disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-300 dark:border-red-900/60 bg-white dark:bg-transparent text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/50 cursor-pointer disabled:opacity-50"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>{t('devices.removeDevice')}</span>
@@ -1406,7 +1410,7 @@ export function DevicesTopologyView({
                   <button
                     type="submit"
                     disabled={busyKey === `upd-dev-${selectedDevice.id}`}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 cursor-pointer disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 cursor-pointer disabled:opacity-50"
                   >
                     <Save className="w-3.5 h-3.5" />
                     <span>{t('common.saveChanges')}</span>
@@ -1415,28 +1419,28 @@ export function DevicesTopologyView({
               </form>
             )}
 
-            <div className="space-y-3 border-t border-slate-800 pt-4">
-              <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
-                <Globe className="w-4 h-4 text-blue-400" />
+            <div className="space-y-3 border-t border-slate-200 dark:border-slate-800 pt-4">
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <Globe className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 <span>{t('devices.top5Title')}</span>
               </h3>
               {selectedDrawerTopDomains.length === 0 ? (
-                <p className="text-xs text-slate-400">{t('devices.drawerNoDomains')}</p>
+                <p className="text-xs text-slate-600 dark:text-slate-400">{t('devices.drawerNoDomains')}</p>
               ) : (
                 <div className="space-y-2">
                   {selectedDrawerTopDomains.map((dom, idx) => (
                     <div
                       key={dom.domain}
-                      className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 flex items-center justify-between gap-2 text-xs"
+                      className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 px-3 py-2 flex items-center justify-between gap-2 text-xs"
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="font-mono text-[11px] text-slate-500 tabular-nums">
                           #{idx + 1}
                         </span>
-                        <span className="font-mono text-slate-100 truncate">{dom.domain}</span>
+                        <span className="font-mono text-slate-900 dark:text-slate-100 truncate">{dom.domain}</span>
                       </div>
                       <div className="flex items-center gap-3 shrink-0 tabular-nums">
-                        <span className="font-mono text-slate-300">
+                        <span className="font-mono text-slate-700 dark:text-slate-300">
                           {t('devices.reqsCount', { count: dom.queriesCount.toLocaleString(locale) })}
                         </span>
                         {renderListStatusIndicator(dom.listStatus)}
@@ -1447,28 +1451,28 @@ export function DevicesTopologyView({
               )}
             </div>
 
-            <div className="space-y-3 border-t border-slate-800 pt-4">
-              <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
-                <ShieldAlert className="w-4 h-4 text-blue-400" />
+            <div className="space-y-3 border-t border-slate-200 dark:border-slate-800 pt-4">
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 <span>{t('devices.correlatedEvents')}</span>
               </h3>
               {relatedEvents.length === 0 ? (
-                <p className="text-xs text-slate-400">{t('devices.noRelatedEvents')}</p>
+                <p className="text-xs text-slate-600 dark:text-slate-400">{t('devices.noRelatedEvents')}</p>
               ) : (
                 <div className="space-y-3">
                   {relatedEvents.map((ev) => (
                     <div
                       key={ev.eventId}
-                      className="rounded-lg border border-slate-800 bg-slate-900/60 p-3 space-y-2 text-xs"
+                      className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-3 space-y-2 text-xs"
                     >
-                      <div className="flex items-center justify-between text-slate-400 font-mono">
+                      <div className="flex items-center justify-between text-slate-600 dark:text-slate-400 font-mono">
                         <span>{ev.eventType}</span>
                         <span>
                           {t('devices.sourceLabel')} {ev.sourceIntegrationId}
                         </span>
                       </div>
-                      <p className="text-slate-200">{ev.summary}</p>
-                      <pre className="text-[11px] font-mono text-slate-400 bg-slate-950 p-2.5 rounded overflow-x-auto">
+                      <p className="text-slate-800 dark:text-slate-200">{ev.summary}</p>
+                      <pre className="text-[11px] font-mono text-slate-700 dark:text-slate-400 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-2.5 rounded overflow-x-auto">
                         {JSON.stringify(ev.payload, null, 2)}
                       </pre>
                     </div>

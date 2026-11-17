@@ -16,6 +16,7 @@ import {
   type ThreatAxisId,
   type ThreatLandscapeAxis,
 } from '../lib/telemetryAnalytics';
+import { useTheme } from '../lib/theme';
 import type { WorkspaceState } from '../types/openshield';
 import type { NavTab } from './OverviewView';
 
@@ -50,15 +51,15 @@ function getLevelColors(level: ThreatLandscapeAxis['level']): {
   barClass: string;
 } {
   if (level === 'critical') {
-    return { textClass: 'text-red-400', barClass: 'bg-red-500' };
+    return { textClass: 'text-red-700 dark:text-red-400', barClass: 'bg-red-500' };
   }
   if (level === 'high') {
-    return { textClass: 'text-orange-400', barClass: 'bg-orange-500' };
+    return { textClass: 'text-orange-700 dark:text-orange-400', barClass: 'bg-orange-500' };
   }
   if (level === 'elevated') {
-    return { textClass: 'text-amber-400', barClass: 'bg-amber-500' };
+    return { textClass: 'text-amber-700 dark:text-amber-400', barClass: 'bg-amber-500' };
   }
-  return { textClass: 'text-emerald-400', barClass: 'bg-emerald-500' };
+  return { textClass: 'text-emerald-700 dark:text-emerald-400', barClass: 'bg-emerald-500' };
 }
 
 function ThreatRadarTooltip({ active, payload }: RadarTooltipProps) {
@@ -71,29 +72,29 @@ function ThreatRadarTooltip({ active, payload }: RadarTooltipProps) {
   const colors = getLevelColors(point.level);
 
   return (
-    <div className="rounded-lg border border-slate-700 bg-[#0B1120]/95 backdrop-blur-sm px-3.5 py-2.5 shadow-xl text-xs space-y-2 min-w-[235px] max-w-[290px]">
-      <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-1.5">
-        <span className="font-semibold text-slate-100">{point.axisLabel}</span>
+    <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-[#0B1120]/95 backdrop-blur-sm px-3.5 py-2.5 shadow-xl text-xs space-y-2 min-w-[235px] max-w-[290px]">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-1.5">
+        <span className="font-semibold text-slate-900 dark:text-slate-100">{point.axisLabel}</span>
         <span className={`font-medium ${colors.textClass}`}>{point.levelLabel}</span>
       </div>
 
       <div className="space-y-1 tabular-nums">
         <div className="flex items-center justify-between gap-4">
-          <span className="text-slate-400">{t('threatRadar.activeRiskSeries')}</span>
-          <span className="font-mono font-semibold text-red-400">{point.score} / 100</span>
+          <span className="text-slate-600 dark:text-slate-400">{t('threatRadar.activeRiskSeries')}</span>
+          <span className="font-mono font-semibold text-red-600 dark:text-red-400">{point.score} / 100</span>
         </div>
         <div className="flex items-center justify-between gap-4">
-          <span className="text-slate-400">{t('threatRadar.mitigatedSeries')}</span>
-          <span className="font-mono font-semibold text-emerald-400">
+          <span className="text-slate-600 dark:text-slate-400">{t('threatRadar.mitigatedSeries')}</span>
+          <span className="font-mono font-semibold text-emerald-700 dark:text-emerald-400">
             {point.mitigatedScore} / 100
           </span>
         </div>
       </div>
 
-      <div className="border-t border-slate-800 pt-1.5 space-y-1 text-[11px] tabular-nums">
-        <div className="flex items-center justify-between gap-4 text-slate-400">
+      <div className="border-t border-slate-200 dark:border-slate-800 pt-1.5 space-y-1 text-[11px] tabular-nums">
+        <div className="flex items-center justify-between gap-4 text-slate-600 dark:text-slate-400">
           <span>{t('threatRadar.tooltipSignals')}</span>
-          <span className="font-mono text-slate-200">
+          <span className="font-mono text-slate-800 dark:text-slate-200">
             {t('threatRadar.signalsCompact', {
               active: point.activeSignals.toLocaleString(locale),
               mitigated: point.mitigatedSignals.toLocaleString(locale),
@@ -101,7 +102,7 @@ function ThreatRadarTooltip({ active, payload }: RadarTooltipProps) {
           </span>
         </div>
         {point.topEvidence && (
-          <div className="text-slate-400 leading-snug line-clamp-2 pt-0.5">
+          <div className="text-slate-600 dark:text-slate-400 leading-snug line-clamp-2 pt-0.5">
             {point.topEvidence}
           </div>
         )}
@@ -118,7 +119,14 @@ export function OverviewThreatRadarCard({
   onToggleLivePaused,
 }: OverviewThreatRadarCardProps) {
   const { t, i18n } = useTranslation();
+  const { isDark } = useTheme();
   const locale = getIntlLocale(i18n.language);
+
+  const polarGridStroke = isDark ? '#1e293b' : '#cbd5e1';
+  const angleTickColor = isDark ? '#cbd5e1' : '#334155';
+  const radiusTickColor = isDark ? '#64748b' : '#475569';
+  const dotStroke = isDark ? '#0B1120' : '#ffffff';
+  const mitigatedStroke = isDark ? '#34d399' : '#059669';
 
   const landscape = useMemo(() => buildThreatLandscape(state), [state]);
 
@@ -148,20 +156,20 @@ export function OverviewThreatRadarCard({
   return (
     <section
       aria-label={t('threatRadar.ariaLabel')}
-      className="rounded-xl border border-slate-800 bg-[#131C31] overflow-hidden"
+      className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31] overflow-hidden shadow-xs dark:shadow-none"
     >
       {/* Header */}
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between px-5 py-4 border-b border-slate-800">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <h2 className="text-base font-semibold text-slate-100">{t('threatRadar.title')}</h2>
-          <p className="text-xs text-slate-400 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">{t('threatRadar.title')}</h2>
+          <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
             <span>{t('threatRadar.subtitle')}</span>
             {livePaused && (
               <>
-                <span aria-hidden="true" className="text-slate-600">
+                <span aria-hidden="true" className="text-slate-400 dark:text-slate-600">
                   ·
                 </span>
-                <span className="text-amber-300 font-medium tabular-nums">
+                <span className="text-amber-700 dark:text-amber-300 font-medium tabular-nums">
                   {pausedTimeLabel
                     ? t('telemetryDashboard.pausedAt', { time: pausedTimeLabel })
                     : t('telemetryDashboard.pausedLabel')}
@@ -170,7 +178,7 @@ export function OverviewThreatRadarCard({
                   <button
                     type="button"
                     onClick={onToggleLivePaused}
-                    className="text-blue-400 hover:text-blue-300 font-medium underline underline-offset-2 cursor-pointer"
+                    className="text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 font-medium underline underline-offset-2 cursor-pointer"
                   >
                     {t('telemetryDashboard.resumeInline')}
                   </button>
@@ -183,12 +191,12 @@ export function OverviewThreatRadarCard({
         <div className="flex flex-wrap items-center gap-4 shrink-0">
           <div className="flex items-center gap-2 text-xs tabular-nums">
             {landscape.overallScore >= 50 ? (
-              <ShieldAlert className="w-4 h-4 text-red-400 shrink-0" />
+              <ShieldAlert className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
             ) : (
-              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+              <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
             )}
-            <span className="text-slate-400">{t('threatRadar.compositeIndex')}</span>
-            <span className="font-mono font-semibold text-slate-100">
+            <span className="text-slate-600 dark:text-slate-400">{t('threatRadar.compositeIndex')}</span>
+            <span className="font-mono font-semibold text-slate-900 dark:text-slate-100">
               {landscape.overallScore} / 100
             </span>
           </div>
@@ -196,7 +204,7 @@ export function OverviewThreatRadarCard({
           <button
             type="button"
             onClick={() => onNavigate('incidents')}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-400 hover:text-blue-300 whitespace-nowrap shrink-0 cursor-pointer"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 whitespace-nowrap shrink-0 cursor-pointer"
           >
             <span>{t('threatRadar.incidentsLink')}</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -206,16 +214,16 @@ export function OverviewThreatRadarCard({
 
       <div className="p-5">
         {!landscape.hasSignals ? (
-          <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-6 text-center space-y-2.5">
-            <p className="text-sm font-medium text-slate-200">{t('threatRadar.emptyTitle')}</p>
-            <p className="text-xs text-slate-400 max-w-lg mx-auto">
+          <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 p-6 text-center space-y-2.5">
+            <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{t('threatRadar.emptyTitle')}</p>
+            <p className="text-xs text-slate-600 dark:text-slate-400 max-w-lg mx-auto">
               {t('threatRadar.emptyHint')}
             </p>
             <div className="pt-1">
               <button
                 type="button"
                 onClick={() => onNavigate('settings')}
-                className="px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors cursor-pointer"
+                className="px-4 py-2 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 transition-colors cursor-pointer"
               >
                 {t('overview.configureServices')}
               </button>
@@ -224,13 +232,13 @@ export function OverviewThreatRadarCard({
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
             {/* Left: Recharts Radar Chart */}
-            <div className="lg:col-span-5 rounded-lg border border-slate-800 bg-slate-900/50 p-4 space-y-2">
+            <div className="lg:col-span-5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-4 space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                <span className="font-medium text-slate-200">
+                <span className="font-medium text-slate-800 dark:text-slate-200">
                   {t('threatRadar.chartHeading')}
                 </span>
                 {highestAxisLabel && (
-                  <span className="text-[11px] text-slate-400 tabular-nums">
+                  <span className="text-[11px] text-slate-600 dark:text-slate-400 tabular-nums">
                     {t('threatRadar.topVector', { axis: highestAxisLabel })}
                   </span>
                 )}
@@ -239,117 +247,117 @@ export function OverviewThreatRadarCard({
               <div className="w-full min-w-0 h-[290px]">
                 <ResponsiveContainer width="100%" height={290}>
                   <RadarChart cx="50%" cy="50%" outerRadius="72%" data={radarData}>
-                    <PolarGrid stroke="#1e293b" />
+                    <PolarGrid stroke={polarGridStroke} />
                     <PolarAngleAxis
                       dataKey="axisLabel"
-                      tick={{ fill: '#cbd5e1', fontSize: 11 }}
+                      tick={{ fill: angleTickColor, fontSize: 11 }}
                     />
                     <PolarRadiusAxis
                       angle={90}
                       domain={[0, 100]}
                       tickCount={5}
-                      tick={{ fill: '#64748b', fontSize: 10 }}
+                      tick={{ fill: radiusTickColor, fontSize: 10 }}
                       axisLine={false}
                     />
                     <Tooltip trigger="hover" content={<ThreatRadarTooltip />} />
                     <Radar
                       name={t('threatRadar.activeRiskSeries')}
                       dataKey="score"
-                      stroke="#f87171"
+                      stroke="#ef4444"
                       strokeWidth={2}
                       fill="#ef4444"
-                      fillOpacity={0.28}
-                      dot={{ r: 3, fill: '#f87171' }}
-                      activeDot={{ r: 5, strokeWidth: 1.5, stroke: '#0B1120', fill: '#f87171' }}
+                      fillOpacity={0.25}
+                      dot={{ r: 3, fill: '#ef4444' }}
+                      activeDot={{ r: 5, strokeWidth: 1.5, stroke: dotStroke, fill: '#ef4444' }}
                       isAnimationActive={false}
                     />
                     <Radar
                       name={t('threatRadar.mitigatedSeries')}
                       dataKey="mitigatedScore"
-                      stroke="#34d399"
+                      stroke={mitigatedStroke}
                       strokeWidth={1.75}
                       strokeDasharray="4 3"
                       fill="#10b981"
-                      fillOpacity={0.14}
-                      activeDot={{ r: 4, strokeWidth: 1.5, stroke: '#0B1120', fill: '#34d399' }}
+                      fillOpacity={0.16}
+                      activeDot={{ r: 4, strokeWidth: 1.5, stroke: dotStroke, fill: mitigatedStroke }}
                       isAnimationActive={false}
                     />
                   </RadarChart>
                 </ResponsiveContainer>
               </div>
 
-              <div className="flex flex-wrap items-center justify-center gap-5 pt-1 text-[11px] text-slate-300 border-t border-slate-800/80">
+              <div className="flex flex-wrap items-center justify-center gap-5 pt-1 text-[11px] text-slate-700 dark:text-slate-300 border-t border-slate-200 dark:border-slate-800/80">
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-sm bg-red-400" aria-hidden="true" />
+                  <span className="w-2.5 h-2.5 rounded-sm bg-red-500 dark:bg-red-400" aria-hidden="true" />
                   <span>{t('threatRadar.activeRiskLegend')}</span>
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-sm bg-emerald-400" aria-hidden="true" />
+                  <span className="w-2.5 h-2.5 rounded-sm bg-emerald-600 dark:bg-emerald-400" aria-hidden="true" />
                   <span>{t('threatRadar.mitigatedLegend')}</span>
                 </span>
               </div>
             </div>
 
             {/* Right: 5-Vector Breakdown List */}
-            <div className="lg:col-span-7 rounded-lg border border-slate-800 bg-slate-900/50 overflow-hidden">
-              <div className="px-4 py-3 border-b border-slate-800/80 flex items-center justify-between text-xs">
-                <span className="font-medium text-slate-200">
+            <div className="lg:col-span-7 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800/80 flex items-center justify-between text-xs">
+                <span className="font-medium text-slate-800 dark:text-slate-200">
                   {t('threatRadar.breakdownTitle')}
                 </span>
-                <span className="text-slate-400 tabular-nums">
+                <span className="text-slate-600 dark:text-slate-400 tabular-nums">
                   {t('threatRadar.totalSignalsCount', {
                     count: landscape.totalSignals.toLocaleString(locale),
                   })}
                 </span>
               </div>
 
-              <div className="divide-y divide-slate-800/70">
+              <div className="divide-y divide-slate-200 dark:divide-slate-800/70">
                 {radarData.map((axis) => {
                   const colors = getLevelColors(axis.level);
                   const targetTab = AXIS_TARGET_TAB[axis.id];
                   return (
                     <div
                       key={axis.id}
-                      className="px-4 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between hover:bg-slate-900/60 transition-colors"
+                      className="px-4 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between hover:bg-slate-100/70 dark:hover:bg-slate-900/60 transition-colors"
                     >
                       <div className="min-w-0 space-y-1 flex-1">
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
-                          <span className="font-medium text-slate-100">{axis.axisLabel}</span>
-                          <span aria-hidden="true" className="text-slate-600">
+                          <span className="font-medium text-slate-900 dark:text-slate-100">{axis.axisLabel}</span>
+                          <span aria-hidden="true" className="text-slate-400 dark:text-slate-600">
                             ·
                           </span>
                           <span className={`font-medium ${colors.textClass}`}>
                             {axis.levelLabel}
                           </span>
-                          <span aria-hidden="true" className="text-slate-600">
+                          <span aria-hidden="true" className="text-slate-400 dark:text-slate-600">
                             ·
                           </span>
-                          <span className="text-slate-400 tabular-nums">
+                          <span className="text-slate-600 dark:text-slate-400 tabular-nums">
                             {t('threatRadar.signalsCompact', {
                               active: axis.activeSignals.toLocaleString(locale),
                               mitigated: axis.mitigatedSignals.toLocaleString(locale),
                             })}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-400 truncate">
+                        <p className="text-[11px] text-slate-600 dark:text-slate-400 truncate">
                           {axis.topEvidence || t('threatRadar.noActiveVectorEvidence')}
                         </p>
                       </div>
 
                       <div className="flex items-center gap-3 shrink-0">
-                        <div className="w-24 h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                        <div className="w-24 h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
                           <div
                             className={`h-full rounded-full ${colors.barClass}`}
                             style={{ width: `${Math.max(axis.score > 0 ? 6 : 0, axis.score)}%` }}
                           />
                         </div>
-                        <span className="font-mono text-xs font-semibold text-slate-100 tabular-nums w-14 text-right">
+                        <span className="font-mono text-xs font-semibold text-slate-900 dark:text-slate-100 tabular-nums w-14 text-right">
                           {axis.score} / 100
                         </span>
                         <button
                           type="button"
                           onClick={() => onNavigate(targetTab)}
-                          className="text-[11px] font-medium text-blue-400 hover:text-blue-300 whitespace-nowrap cursor-pointer"
+                          className="text-[11px] font-medium text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 whitespace-nowrap cursor-pointer"
                         >
                           {t('threatRadar.inspectAxis')}
                         </button>

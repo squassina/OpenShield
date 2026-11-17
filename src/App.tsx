@@ -13,6 +13,7 @@ import {
   LogIn,
   LogOut,
   Menu,
+  Moon,
   Network,
   OctagonAlert,
   PlugZap,
@@ -21,11 +22,13 @@ import {
   Settings,
   Shield,
   ShieldAlert,
+  Sun,
   X,
 } from 'lucide-react';
 import { SUPPORTED_LANGUAGES } from './i18n';
 import { OverviewView, type NavTab } from './components/OverviewView';
 import { api } from './lib/api';
+import { useTheme } from './lib/theme';
 
 const AuditLogsView = lazy(() =>
   import('./components/AuditLogsView').then((m) => ({ default: m.AuditLogsView })),
@@ -75,6 +78,7 @@ const NAV_ITEMS: { id: NavTab; labelKey: string; icon: typeof LayoutDashboard }[
 
 export default function App() {
   const { t, i18n } = useTranslation();
+  const { isDark, toggleTheme } = useTheme();
   const [state, setState] = useState<WorkspaceState | null>(null);
   const [activeTab, setActiveTab] = useState<NavTab>('overview');
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
@@ -281,14 +285,14 @@ export default function App() {
 
   if (loadError) {
     return (
-      <div className="min-h-screen bg-[#0B1120] text-slate-100 flex items-center justify-center p-6">
-        <div className="max-w-md w-full rounded-xl border border-slate-800 bg-[#131C31] p-6 space-y-4">
-          <h1 className="text-lg font-semibold text-slate-100">{t('header.bffConnectErrorTitle')}</h1>
-          <p className="text-sm text-slate-400">{loadError}</p>
+      <div className="min-h-screen bg-slate-50 dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 flex items-center justify-center p-6">
+        <div className="max-w-md w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31] p-6 space-y-4 shadow-xs dark:shadow-none">
+          <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{t('header.bffConnectErrorTitle')}</h1>
+          <p className="text-sm text-slate-600 dark:text-slate-400">{loadError}</p>
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 cursor-pointer"
+            className="px-4 py-2 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 cursor-pointer"
           >
             {t('common.retry')}
           </button>
@@ -300,53 +304,65 @@ export default function App() {
   if (authStatus && authStatus.authRequired && !authStatus.authenticated) {
     const needsInitialSetup = !authStatus.authConfigured;
     return (
-      <div className="min-h-screen bg-[#0B1120] text-slate-100 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-slate-50 dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 flex items-center justify-center p-6">
         <form
           onSubmit={(e) => void handleLoginSubmit(e)}
-          className="max-w-md w-full rounded-xl border border-slate-800 bg-[#131C31] p-6 space-y-5"
+          className="max-w-md w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31] p-6 space-y-5 shadow-xs dark:shadow-none"
         >
-          <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-4">
+          <div className="flex items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-4">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-lg bg-blue-600/15 border border-blue-500/30 flex items-center justify-center">
-                <Lock className="w-4 h-4 text-blue-400" />
+              <div className="w-9 h-9 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
+                <Lock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div>
-                <h1 className="text-base font-bold text-slate-50 font-display">OpenShield</h1>
-                <p className="text-xs text-slate-400">
+                <h1 className="text-base font-bold text-slate-900 dark:text-slate-50 font-display">OpenShield</h1>
+                <p className="text-xs text-slate-600 dark:text-slate-400">
                   {needsInitialSetup ? t('auth.setupCardTitle') : t('auth.loginSubtitle')}
                 </p>
               </div>
             </div>
 
-            <select
-              aria-label={t('toolbar.languageLabel')}
-              value={i18n.language}
-              onChange={(e) => void i18n.changeLanguage(e.target.value)}
-              className="px-2 py-1 rounded-lg border border-slate-700 bg-slate-950 text-slate-200 text-xs cursor-pointer"
-            >
-              {SUPPORTED_LANGUAGES.map((lang) => (
-                <option key={lang.code} value={lang.code}>
-                  {lang.label}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={toggleTheme}
+                aria-label={isDark ? t('toolbar.themeSwitchToLight') : t('toolbar.themeSwitchToDark')}
+                title={isDark ? t('toolbar.themeSwitchToLight') : t('toolbar.themeSwitchToDark')}
+                className="p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                {isDark ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-emerald-700" />}
+              </button>
+
+              <select
+                aria-label={t('toolbar.languageLabel')}
+                value={i18n.language}
+                onChange={(e) => void i18n.changeLanguage(e.target.value)}
+                className="px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 text-xs cursor-pointer"
+              >
+                {SUPPORTED_LANGUAGES.map((lang) => (
+                  <option key={lang.code} value={lang.code}>
+                    {lang.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {needsInitialSetup && (
-            <div className="rounded-lg border border-blue-900/60 bg-blue-950/25 px-3.5 py-2.5 text-xs text-blue-200">
+            <div className="rounded-lg border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/25 px-3.5 py-2.5 text-xs text-emerald-900 dark:text-emerald-200">
               {t('auth.setupCardDesc')}
             </div>
           )}
 
           {loginError && (
-            <div className="rounded-lg border border-red-900/70 bg-red-950/30 px-3.5 py-2.5 text-xs text-red-200">
+            <div className="rounded-lg border border-red-200 dark:border-red-900/70 bg-red-50 dark:bg-red-950/30 px-3.5 py-2.5 text-xs text-red-800 dark:text-red-200">
               {loginError}
             </div>
           )}
 
           <div className="space-y-3.5">
             <label className="block space-y-1 text-xs">
-              <span className="text-slate-300 font-medium">{t('auth.usernameLabel')}</span>
+              <span className="text-slate-700 dark:text-slate-300 font-medium">{t('auth.usernameLabel')}</span>
               <input
                 type="text"
                 required
@@ -354,12 +370,12 @@ export default function App() {
                 autoComplete="username"
                 value={loginUsername}
                 onChange={(e) => setLoginUsername(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs focus:outline-none focus:border-emerald-500"
               />
             </label>
 
             <label className="block space-y-1 text-xs">
-              <span className="text-slate-300 font-medium">
+              <span className="text-slate-700 dark:text-slate-300 font-medium">
                 {needsInitialSetup ? t('auth.passwordMinLabel') : t('auth.passwordLabel')}
               </span>
               <input
@@ -370,7 +386,7 @@ export default function App() {
                 value={loginPassword}
                 onChange={(e) => setLoginPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs focus:outline-none focus:border-emerald-500"
               />
             </label>
           </div>
@@ -378,7 +394,7 @@ export default function App() {
           <button
             type="submit"
             disabled={loginBusy}
-            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors cursor-pointer disabled:opacity-50"
+            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 transition-colors cursor-pointer disabled:opacity-50"
           >
             <LogIn className="w-3.5 h-3.5" />
             <span>{needsInitialSetup ? t('auth.enableAuthButton') : t('auth.loginButton')}</span>
@@ -392,7 +408,7 @@ export default function App() {
 
   if (!state) {
     return (
-      <div className="min-h-screen bg-[#0B1120] text-slate-300 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-slate-50 dark:bg-[#0B1120] text-slate-700 dark:text-slate-300 flex items-center justify-center p-6">
         <div className="text-sm font-mono">{t('header.initializing')}</div>
       </div>
     );
@@ -401,17 +417,20 @@ export default function App() {
   const isBusiness = state.context.profile === 'business';
 
   return (
-    <div className="min-h-screen bg-[#0B1120] text-slate-100 flex">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 flex">
       {/* Desktop Left Sidebar */}
-      <aside className="hidden lg:flex lg:flex-col lg:w-[252px] lg:shrink-0 border-r border-slate-800 bg-[#0F172A]">
-        <div className="h-16 px-6 flex items-center border-b border-slate-800">
+      <aside className="hidden lg:flex lg:flex-col lg:w-[252px] lg:shrink-0 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0F172A]">
+        <div className="h-16 px-6 flex items-center gap-2.5 border-b border-slate-200 dark:border-slate-800">
+          <div className="w-7 h-7 rounded-lg bg-emerald-600/15 border border-emerald-600/30 flex items-center justify-center shrink-0">
+            <Shield className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          </div>
           <a
             href="#overview"
             onClick={(e) => {
               e.preventDefault();
               setActiveTab('overview');
             }}
-            className="text-lg font-bold tracking-tight text-slate-50 font-display whitespace-nowrap shrink-0"
+            className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-50 font-display whitespace-nowrap shrink-0"
           >
             OpenShield
           </a>
@@ -428,19 +447,23 @@ export default function App() {
                 onClick={() => setActiveTab(item.id)}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
                   active
-                    ? 'bg-slate-800 text-slate-50'
-                    : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900/60'
+                    ? 'bg-emerald-50 text-emerald-900 dark:bg-emerald-950/45 dark:text-slate-50'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-900/60'
                 }`}
               >
-                <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-blue-400' : 'text-slate-400'}`} />
+                <Icon
+                  className={`w-4 h-4 shrink-0 ${
+                    active ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'
+                  }`}
+                />
                 <span className="truncate">{t(item.labelKey)}</span>
               </button>
             );
           })}
         </nav>
 
-        <div className="p-4 border-t border-slate-800 text-xs text-slate-400 space-y-1">
-          <div className="font-medium text-slate-300">
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 space-y-1">
+          <div className="font-medium text-slate-800 dark:text-slate-300">
             {isBusiness ? t('toolbar.sidebarProfileBusiness') : t('toolbar.sidebarProfileResidential')}
           </div>
           <div className="font-mono text-[11px] text-slate-500">
@@ -453,22 +476,27 @@ export default function App() {
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 z-50 lg:hidden bg-black/60 flex"
+          className="fixed inset-0 z-50 lg:hidden bg-black/50 dark:bg-black/60 flex"
           onClick={() => setMobileMenuOpen(false)}
         >
           <aside
-            className="w-[252px] bg-[#0F172A] border-r border-slate-800 h-full flex flex-col"
+            className="w-[252px] bg-white dark:bg-[#0F172A] border-r border-slate-200 dark:border-slate-800 h-full flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="h-16 px-5 flex items-center justify-between border-b border-slate-800">
-              <span className="text-lg font-bold tracking-tight text-slate-50 font-display">
-                OpenShield
-              </span>
+            <div className="h-16 px-5 flex items-center justify-between border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-emerald-600/15 border border-emerald-600/30 flex items-center justify-center shrink-0">
+                  <Shield className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-50 font-display">
+                  OpenShield
+                </span>
+              </div>
               <button
                 type="button"
                 aria-label={t('nav.closeMenu')}
                 onClick={() => setMobileMenuOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-100 cursor-pointer"
+                className="p-1.5 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -486,10 +514,16 @@ export default function App() {
                       setMobileMenuOpen(false);
                     }}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium cursor-pointer ${
-                      active ? 'bg-slate-800 text-slate-50' : 'text-slate-400 hover:text-slate-100'
+                      active
+                        ? 'bg-emerald-50 text-emerald-900 dark:bg-emerald-950/45 dark:text-slate-50'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-100'
                     }`}
                   >
-                    <Icon className="w-4 h-4 shrink-0" />
+                    <Icon
+                      className={`w-4 h-4 shrink-0 ${
+                        active ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'
+                      }`}
+                    />
                     <span>{t(item.labelKey)}</span>
                   </button>
                 );
@@ -502,34 +536,34 @@ export default function App() {
       {/* Main Column */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Strict 3-zone Top Header */}
-        <header className="h-16 px-4 lg:px-8 border-b border-slate-800 bg-[#0F172A] flex items-center justify-between gap-8">
+        <header className="h-16 px-4 lg:px-8 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0F172A] flex items-center justify-between gap-8">
           {/* Zone 1: Breadcrumb */}
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
               aria-label={t('nav.openMenu')}
               onClick={() => setMobileMenuOpen(true)}
-              className="lg:hidden p-2 -ml-2 rounded-lg text-slate-300 hover:bg-slate-800 cursor-pointer"
+              className="lg:hidden p-2 -ml-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
             >
               <Menu className="w-4 h-4" />
             </button>
-            <div className="text-xs text-slate-400 whitespace-nowrap truncate">
+            <div className="text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap truncate">
               <span>OpenShield</span>
-              <span className="mx-2 text-slate-600">/</span>
-              <span className="text-slate-100 font-medium">{currentTabTitle}</span>
+              <span className="mx-2 text-slate-300 dark:text-slate-600">/</span>
+              <span className="text-slate-900 dark:text-slate-100 font-medium">{currentTabTitle}</span>
             </div>
           </div>
 
           {/* Zone 2: Quick Search */}
           <div className="hidden md:flex items-center flex-1 max-w-md">
             <div className="relative w-full">
-              <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Search className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t('header.searchPlaceholder')}
-                className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-800 bg-slate-950 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
+                className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
               />
             </div>
           </div>
@@ -543,7 +577,7 @@ export default function App() {
               className={`inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50 ${
                 state.context.killSwitchActive
                   ? 'bg-red-600 text-white hover:bg-red-500'
-                  : 'border border-red-800/70 bg-red-950/30 text-red-300 hover:bg-red-900/50'
+                  : 'border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-800/70 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-900/50'
               }`}
             >
               <OctagonAlert className="w-3.5 h-3.5" />
@@ -556,17 +590,19 @@ export default function App() {
           </div>
         </header>
 
-        {/* Workspace Context Toolbar (Profile, RBAC, Autonomy, Language, Node status) */}
-        <div className="px-4 lg:px-8 py-3 border-b border-slate-800 bg-[#0B1120] flex flex-wrap items-center justify-between gap-4 text-xs">
+        {/* Workspace Context Toolbar (Profile, RBAC, Autonomy, Language, Theme, Node status) */}
+        <div className="px-4 lg:px-8 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B1120] flex flex-wrap items-center justify-between gap-4 text-xs">
           <div className="flex flex-wrap items-center gap-3">
             {/* Profile Switcher */}
-            <div className="inline-flex items-center p-1 rounded-lg bg-[#131C31] border border-slate-800">
+            <div className="inline-flex items-center p-1 rounded-lg bg-white dark:bg-[#131C31] border border-slate-200 dark:border-slate-800">
               <button
                 type="button"
                 disabled={busyKey === 'context'}
                 onClick={() => handleProfileChange('residential')}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap cursor-pointer ${
-                  !isBusiness ? 'bg-slate-800 text-slate-100' : 'text-slate-400 hover:text-slate-200'
+                  !isBusiness
+                    ? 'bg-emerald-600 text-white'
+                    : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
                 }`}
               >
                 <Home className="w-3.5 h-3.5" />
@@ -577,7 +613,9 @@ export default function App() {
                 disabled={busyKey === 'context'}
                 onClick={() => handleProfileChange('business')}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap cursor-pointer ${
-                  isBusiness ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                  isBusiness
+                    ? 'bg-emerald-600 text-white'
+                    : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
                 }`}
               >
                 <Building2 className="w-3.5 h-3.5" />
@@ -588,12 +626,12 @@ export default function App() {
             {/* Simulated RBAC & Multi-site (Business mode) */}
             {isBusiness && (
               <>
-                <label className="inline-flex items-center gap-2 text-slate-300">
-                  <span className="text-slate-400">{t('toolbar.rbacRoleLabel')}</span>
+                <label className="inline-flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                  <span className="text-slate-500 dark:text-slate-400">{t('toolbar.rbacRoleLabel')}</span>
                   <select
                     value={state.context.simulatedRole}
                     onChange={(e) => handleRoleChange(e.target.value as SimulatedRole)}
-                    className="px-2.5 py-1.5 rounded-lg border border-slate-700 bg-[#131C31] text-slate-100 text-xs"
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#131C31] text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
                   >
                     <option value="admin">{t('toolbar.roleAdmin')}</option>
                     <option value="operator">{t('toolbar.roleOperator')}</option>
@@ -601,12 +639,12 @@ export default function App() {
                   </select>
                 </label>
 
-                <label className="inline-flex items-center gap-2 text-slate-300">
-                  <span className="text-slate-400">{t('toolbar.siteLabel')}</span>
+                <label className="inline-flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                  <span className="text-slate-500 dark:text-slate-400">{t('toolbar.siteLabel')}</span>
                   <select
                     value={state.context.activeSiteId}
                     onChange={(e) => handleSiteChange(e.target.value)}
-                    className="px-2.5 py-1.5 rounded-lg border border-slate-700 bg-[#131C31] text-slate-100 text-xs"
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#131C31] text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
                   >
                     {state.context.sites
                       .filter((s) => s.profile === 'business')
@@ -622,13 +660,13 @@ export default function App() {
           </div>
 
           <div className="flex flex-wrap items-center gap-4">
-            <label className="inline-flex items-center gap-2 text-slate-300">
-              <span className="text-slate-400">{t('toolbar.autonomyLabel')}</span>
+            <label className="inline-flex items-center gap-2 text-slate-700 dark:text-slate-300">
+              <span className="text-slate-500 dark:text-slate-400">{t('toolbar.autonomyLabel')}</span>
               <select
                 value={state.context.globalAutonomy}
                 disabled={state.context.killSwitchActive}
                 onChange={(e) => handleAutonomyChange(e.target.value as AutonomyLevel)}
-                className="px-2.5 py-1.5 rounded-lg border border-slate-700 bg-[#131C31] text-slate-100 text-xs disabled:opacity-50"
+                className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#131C31] text-slate-900 dark:text-slate-100 text-xs disabled:opacity-50 focus:outline-none focus:border-emerald-500"
               >
                 <option value="L0">{t('toolbar.autonomyL0')}</option>
                 <option value="L1">{t('toolbar.autonomyL1')}</option>
@@ -638,14 +676,14 @@ export default function App() {
             </label>
 
             {/* i18n Language Switcher */}
-            <label className="inline-flex items-center gap-1.5 text-slate-300">
-              <Languages className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <label className="inline-flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+              <Languages className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
               <span className="sr-only">{t('toolbar.languageLabel')}</span>
               <select
                 aria-label={t('toolbar.languageLabel')}
                 value={i18n.language}
                 onChange={(e) => void i18n.changeLanguage(e.target.value)}
-                className="px-2.5 py-1.5 rounded-lg border border-slate-700 bg-[#131C31] text-slate-100 text-xs cursor-pointer"
+                className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#131C31] text-slate-900 dark:text-slate-100 text-xs cursor-pointer focus:outline-none focus:border-emerald-500"
               >
                 {SUPPORTED_LANGUAGES.map((lang) => (
                   <option key={lang.code} value={lang.code}>
@@ -655,10 +693,28 @@ export default function App() {
               </select>
             </label>
 
-            <div className="flex items-center gap-1.5 text-slate-300">
+            {/* Light / Dark Theme Toggle */}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={isDark ? t('toolbar.themeSwitchToLight') : t('toolbar.themeSwitchToDark')}
+              title={isDark ? t('toolbar.themeSwitchToLight') : t('toolbar.themeSwitchToDark')}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#131C31] text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              {isDark ? (
+                <Sun className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              ) : (
+                <Moon className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+              )}
+              <span>{isDark ? t('toolbar.themeDark') : t('toolbar.themeLight')}</span>
+            </button>
+
+            <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
               <Activity
                 className={`w-3.5 h-3.5 ${
-                  state.context.nodeAvailable ? 'text-emerald-500' : 'text-amber-500'
+                  state.context.nodeAvailable
+                    ? 'text-emerald-600 dark:text-emerald-500'
+                    : 'text-amber-600 dark:text-amber-500'
                 }`}
               />
               <span>
@@ -669,16 +725,16 @@ export default function App() {
             </div>
 
             {authStatus?.authenticated && authStatus.user && (
-              <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
-                <span className="font-mono text-slate-300">
+              <div className="flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-slate-800">
+                <span className="font-mono text-slate-700 dark:text-slate-300">
                   {authStatus.user.username} ·{' '}
-                  <span className="text-blue-300">{authStatus.user.role}</span>
+                  <span className="text-emerald-700 dark:text-emerald-400">{authStatus.user.role}</span>
                 </span>
                 <button
                   type="button"
                   disabled={busyKey === 'logout'}
                   onClick={() => void handleLogout()}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-slate-700 bg-[#131C31] text-slate-200 hover:bg-slate-800 whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#131C31] text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
                 >
                   <LogOut className="w-3 h-3" />
                   <span>{t('auth.logoutButton')}</span>
@@ -690,11 +746,11 @@ export default function App() {
 
         {/* Contextual Security Boundary Banner for Business Profile */}
         {isBusiness && !authStatus?.authConfigured && (
-          <div className="mx-4 lg:mx-8 mt-5 rounded-lg border border-slate-800 bg-[#131C31] px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-300">
+          <div className="mx-4 lg:mx-8 mt-5 rounded-lg border border-amber-200 dark:border-slate-800 bg-amber-50/70 dark:bg-[#131C31] px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-700 dark:text-slate-300">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
               <div>
-                <strong className="font-semibold text-slate-100">
+                <strong className="font-semibold text-slate-900 dark:text-slate-100">
                   {t('toolbar.businessBannerTitle')}
                 </strong>{' '}
                 {t('toolbar.businessBannerBody')}
@@ -703,7 +759,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => setActiveTab('settings')}
-              className="px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-800 font-medium whitespace-nowrap shrink-0 cursor-pointer"
+              className="px-3 py-1.5 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium whitespace-nowrap shrink-0 cursor-pointer"
             >
               {t('auth.configureAuthCta')}
             </button>
@@ -714,7 +770,7 @@ export default function App() {
         <main className="flex-1 p-4 lg:p-8 max-w-[1440px] w-full mx-auto">
           <Suspense
             fallback={
-              <div className="rounded-xl border border-slate-800 bg-[#131C31] p-8 text-xs font-mono text-slate-400">
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31] p-8 text-xs font-mono text-slate-500 dark:text-slate-400">
                 {t('header.initializing')}
               </div>
             }
@@ -1154,18 +1210,18 @@ export default function App() {
 
       {/* Non-blocking feedback toast */}
       {toast && (
-        <div className="fixed bottom-5 right-5 z-50 max-w-md rounded-xl border border-slate-700 bg-[#131C31] px-4 py-3 shadow-xl flex items-start gap-3 text-xs">
+        <div className="fixed bottom-5 right-5 z-50 max-w-md rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#131C31] px-4 py-3 shadow-xl flex items-start gap-3 text-xs">
           {toast.kind === 'error' ? (
-            <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+            <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
           ) : (
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
           )}
-          <span className="text-slate-100 leading-relaxed">{toast.message}</span>
+          <span className="text-slate-900 dark:text-slate-100 leading-relaxed">{toast.message}</span>
           <button
             type="button"
             aria-label={t('header.dismissToast')}
             onClick={() => setToast(null)}
-            className="text-slate-400 hover:text-slate-200 ml-2 cursor-pointer"
+            className="text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 ml-2 cursor-pointer"
           >
             <X className="w-3.5 h-3.5" />
           </button>

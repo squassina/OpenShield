@@ -18,6 +18,7 @@ import {
   YAxis,
 } from 'recharts';
 import { getIntlLocale } from '../i18n';
+import { useTheme } from '../lib/theme';
 import type { IntegrationAdapter, LatencySample, WorkspaceState } from '../types/openshield';
 import type { NavTab } from './OverviewView';
 
@@ -58,20 +59,22 @@ function LatencyTooltip({ active, payload }: CustomTooltipProps) {
   }
 
   return (
-    <div className="rounded-lg border border-slate-700 bg-[#0B1120] px-3 py-2 shadow-lg text-xs space-y-1">
-      <div className="font-mono text-[11px] text-slate-400 tabular-nums">
+    <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0B1120] px-3 py-2 shadow-lg text-xs space-y-1">
+      <div className="font-mono text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">
         {formatExactTimestamp(point.timestamp, locale)}
       </div>
       <div className="flex items-center justify-between gap-4">
-        <span className="text-slate-300">{t('networkHealth.tooltipAvgLatency')}</span>
-        <span className="font-mono font-semibold text-sky-400 tabular-nums">
+        <span className="text-slate-700 dark:text-slate-300">
+          {t('networkHealth.tooltipAvgLatency')}
+        </span>
+        <span className="font-mono font-semibold text-emerald-700 dark:text-emerald-400 tabular-nums">
           {point.avgLatencyMs} ms
         </span>
       </div>
-      <div className="flex items-center justify-between gap-4 text-[11px] text-slate-400 tabular-nums">
+      <div className="flex items-center justify-between gap-4 text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">
         <span>
           {t('networkHealth.rangeLabel')}{' '}
-          <span className="font-mono text-slate-200">
+          <span className="font-mono text-slate-900 dark:text-slate-200">
             {point.minLatencyMs}–{point.maxLatencyMs} ms
           </span>
         </span>
@@ -104,26 +107,28 @@ export function NetworkHealthCard({
   frozenAtMs,
 }: NetworkHealthCardProps) {
   const { t, i18n } = useTranslation();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const locale = getIntlLocale(i18n.language);
 
   const getEndpointStatusMeta = (status: IntegrationAdapter['status']) => {
     if (status === 'connected') {
       return {
         label: t('common.online'),
-        textClass: 'text-emerald-400',
+        textClass: 'text-emerald-700 dark:text-emerald-400',
         Icon: CheckCircle2,
       };
     }
     if (status === 'stale') {
       return {
         label: t('common.degraded'),
-        textClass: 'text-amber-400',
+        textClass: 'text-amber-700 dark:text-amber-400',
         Icon: AlertTriangle,
       };
     }
     return {
       label: t('common.offline'),
-      textClass: 'text-red-400',
+      textClass: 'text-red-700 dark:text-red-400',
       Icon: ShieldAlert,
     };
   };
@@ -150,29 +155,29 @@ export function NetworkHealthCard({
   const isSyncing = busyKey === 'sync-all';
 
   let latencyBandLabel = t('networkHealth.bandWaiting');
-  let latencyBandColor = 'text-slate-400';
-  let latencyBarColor = 'bg-slate-600';
+  let latencyBandColor = 'text-slate-500 dark:text-slate-400';
+  let latencyBarColor = 'bg-slate-400 dark:bg-slate-600';
   let LatencyIcon = Gauge;
 
   if (!state.context.nodeAvailable) {
     latencyBandLabel = t('networkHealth.bandNodeOffline');
-    latencyBandColor = 'text-amber-400';
+    latencyBandColor = 'text-amber-700 dark:text-amber-400';
     latencyBarColor = 'bg-amber-500';
     LatencyIcon = AlertTriangle;
   } else if (avgLatencyMs !== null) {
     if (avgLatencyMs < 50) {
       latencyBandLabel = t('networkHealth.bandExcellent');
-      latencyBandColor = 'text-emerald-400';
+      latencyBandColor = 'text-emerald-700 dark:text-emerald-400';
       latencyBarColor = 'bg-emerald-500';
       LatencyIcon = CheckCircle2;
     } else if (avgLatencyMs < 150) {
       latencyBandLabel = t('networkHealth.bandNormal');
-      latencyBandColor = 'text-amber-400';
+      latencyBandColor = 'text-amber-700 dark:text-amber-400';
       latencyBarColor = 'bg-amber-500';
       LatencyIcon = Activity;
     } else {
       latencyBandLabel = t('networkHealth.bandHigh');
-      latencyBandColor = 'text-red-400';
+      latencyBandColor = 'text-red-700 dark:text-red-400';
       latencyBarColor = 'bg-red-500';
       LatencyIcon = AlertTriangle;
     }
@@ -212,16 +217,23 @@ export function NetworkHealthCard({
     };
   });
 
+  const gridStroke = isDark ? '#1e293b' : '#e2e8f0';
+  const tickColor = isDark ? '#64748b' : '#475569';
+  const cursorStroke = isDark ? '#475569' : '#94a3b8';
+  const lineColor = isDark ? '#10b981' : '#059669';
+
   return (
     <section
       aria-label={t('networkHealth.ariaLabel')}
-      className="rounded-xl border border-slate-800 bg-[#131C31] overflow-hidden"
+      className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31] shadow-xs dark:shadow-none overflow-hidden"
     >
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-5 py-4 border-b border-slate-800">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <h2 className="text-base font-semibold text-slate-100">{t('networkHealth.title')}</h2>
-          <p className="text-xs text-slate-400 mt-0.5 tabular-nums">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+            {t('networkHealth.title')}
+          </h2>
+          <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5 tabular-nums">
             {securityEndpoints.length === 0
               ? t('networkHealth.noEndpointsYet')
               : t('networkHealth.endpointsSummary', {
@@ -236,7 +248,7 @@ export function NetworkHealthCard({
             type="button"
             disabled={state.integrations.length === 0 || isSyncing}
             onClick={onSyncAllHealth}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
             <span>
@@ -246,7 +258,7 @@ export function NetworkHealthCard({
           <button
             type="button"
             onClick={() => onNavigate('integrations')}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-400 hover:text-blue-300 whitespace-nowrap shrink-0 cursor-pointer px-2 py-1.5"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 whitespace-nowrap shrink-0 cursor-pointer px-2 py-1.5"
           >
             <span>{t('networkHealth.integrationsLink')}</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -259,17 +271,17 @@ export function NetworkHealthCard({
         {isMultipleOffline && (
           <div
             role="alert"
-            className="rounded-lg border border-red-800/70 bg-red-950/25 p-3.5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+            className="rounded-lg border border-red-200 dark:border-red-800/70 bg-red-50 dark:bg-red-950/25 p-3.5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
           >
             <div className="flex items-start gap-3">
-              <ShieldAlert className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+              <ShieldAlert className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
               <div className="space-y-1">
-                <div className="text-sm font-semibold text-red-200">
+                <div className="text-sm font-semibold text-red-900 dark:text-red-200">
                   {t('networkHealth.multiOfflineTitle', { count: offlineEndpoints.length })}
                 </div>
-                <p className="text-xs text-red-200/85 leading-relaxed">
+                <p className="text-xs text-red-800 dark:text-red-200/85 leading-relaxed">
                   {t('networkHealth.multiOfflinePrefix')}{' '}
-                  <span className="font-medium text-red-100">
+                  <span className="font-medium text-red-950 dark:text-red-100">
                     {offlineEndpoints.map((ep) => ep.name).join(' + ')}
                   </span>{' '}
                   {t('networkHealth.multiOfflineSuffix')}
@@ -279,7 +291,7 @@ export function NetworkHealthCard({
             <button
               type="button"
               onClick={() => onNavigate('integrations')}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-red-700/80 bg-red-900/40 text-red-100 hover:bg-red-900/70 transition-colors whitespace-nowrap shrink-0 cursor-pointer self-start"
+              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-red-300 dark:border-red-700/80 bg-white dark:bg-red-900/40 text-red-800 dark:text-red-100 hover:bg-red-100 dark:hover:bg-red-900/70 transition-colors whitespace-nowrap shrink-0 cursor-pointer self-start"
             >
               {t('networkHealth.checkEndpoints')}
             </button>
@@ -289,12 +301,12 @@ export function NetworkHealthCard({
         {isSingleOffline && (
           <div
             role="status"
-            className="rounded-lg border border-amber-800/60 bg-amber-950/20 p-3.5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+            className="rounded-lg border border-amber-200 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-950/20 p-3.5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
           >
             <div className="flex items-start gap-3">
-              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-              <div className="text-xs text-amber-100/90 leading-relaxed">
-                <span className="font-semibold text-amber-200">
+              <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div className="text-xs text-amber-900 dark:text-amber-100/90 leading-relaxed">
+                <span className="font-semibold text-amber-950 dark:text-amber-200">
                   {t('networkHealth.singleOfflineTitle', { name: offlineEndpoints[0].name })}
                 </span>
                 <span className="mx-1.5 text-amber-500/70">·</span>
@@ -304,7 +316,7 @@ export function NetworkHealthCard({
             <button
               type="button"
               onClick={() => onNavigate('integrations')}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-amber-700/60 bg-amber-950/40 text-amber-200 hover:bg-amber-900/40 transition-colors whitespace-nowrap shrink-0 cursor-pointer self-start sm:self-auto"
+              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-amber-300 dark:border-amber-700/60 bg-white dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors whitespace-nowrap shrink-0 cursor-pointer self-start sm:self-auto"
             >
               {t('networkHealth.diagnose')}
             </button>
@@ -312,10 +324,10 @@ export function NetworkHealthCard({
         )}
 
         {securityEndpoints.length === 0 ? (
-          <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-xs text-slate-300">
+          <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-xs text-slate-700 dark:text-slate-300">
               {t('networkHealth.emptyPromptPrefix')}{' '}
-              <span className="font-medium text-slate-100">
+              <span className="font-medium text-slate-900 dark:text-slate-100">
                 {t('networkHealth.emptyPromptSettings')}
               </span>{' '}
               {t('networkHealth.emptyPromptSuffix')}
@@ -323,7 +335,7 @@ export function NetworkHealthCard({
             <button
               type="button"
               onClick={() => onNavigate('settings')}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors whitespace-nowrap shrink-0 cursor-pointer self-start sm:self-auto"
+              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 transition-colors whitespace-nowrap shrink-0 cursor-pointer self-start sm:self-auto"
             >
               {t('overview.configureServices')}
             </button>
@@ -331,15 +343,15 @@ export function NetworkHealthCard({
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Aggregated Latency Card */}
-            <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4 flex flex-col justify-between space-y-3">
-              <div className="flex items-center justify-between text-xs text-slate-400">
+            <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-4 flex flex-col justify-between space-y-3">
+              <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
                 <span>{t('networkHealth.avgLatencyTitle')}</span>
                 <LatencyIcon className={`w-4 h-4 ${latencyBandColor}`} />
               </div>
 
               <div>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-semibold font-mono text-slate-50 tabular-nums">
+                  <span className="text-2xl font-semibold font-mono text-slate-900 dark:text-slate-50 tabular-nums">
                     {avgLatencyMs !== null ? `${avgLatencyMs} ms` : '-- ms'}
                   </span>
                   <span className={`text-xs font-medium ${latencyBandColor}`}>
@@ -347,7 +359,7 @@ export function NetworkHealthCard({
                   </span>
                 </div>
 
-                <div className="mt-2.5 h-1.5 w-full rounded-full bg-slate-800 overflow-hidden">
+                <div className="mt-2.5 h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-300 ${latencyBarColor}`}
                     style={{ width: `${latencyFillPercent}%` }}
@@ -355,12 +367,12 @@ export function NetworkHealthCard({
                 </div>
               </div>
 
-              <div className="text-xs text-slate-400 tabular-nums flex flex-wrap items-center gap-x-2 gap-y-1">
+              <div className="text-xs text-slate-600 dark:text-slate-400 tabular-nums flex flex-wrap items-center gap-x-2 gap-y-1">
                 {hasMeasurements ? (
                   <>
                     <span>
                       {t('networkHealth.rangeLabel')}{' '}
-                      <span className="font-mono text-slate-200">
+                      <span className="font-mono text-slate-900 dark:text-slate-200">
                         {minLatencyMs}–{maxLatencyMs} ms
                       </span>
                     </span>
@@ -378,8 +390,8 @@ export function NetworkHealthCard({
               </div>
 
               {/* Small 24h Aggregated Latency Line Chart (Recharts) */}
-              <div className="pt-2 border-t border-slate-800/80 space-y-1.5">
-                <div className="flex items-center justify-between text-[11px] text-slate-400 tabular-nums">
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-800/80 space-y-1.5">
+                <div className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400 tabular-nums">
                   <span>{t('networkHealth.chartTitle24h')}</span>
                   <span className="font-mono text-slate-500">
                     {latencyChartSeries.length > 0
@@ -399,40 +411,40 @@ export function NetworkHealthCard({
                         data={latencyChartSeries}
                         margin={{ top: 6, right: 6, left: -12, bottom: 0 }}
                       >
-                        <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" vertical={false} />
+                        <CartesianGrid stroke={gridStroke} strokeDasharray="3 3" vertical={false} />
                         <XAxis
                           dataKey="timeLabel"
-                          tick={{ fill: '#64748b', fontSize: 10 }}
+                          tick={{ fill: tickColor, fontSize: 10 }}
                           tickLine={false}
                           axisLine={false}
                           minTickGap={24}
                         />
                         <YAxis
-                          tick={{ fill: '#64748b', fontSize: 10 }}
+                          tick={{ fill: tickColor, fontSize: 10 }}
                           tickLine={false}
                           axisLine={false}
                           width={42}
                           tickFormatter={(val) => `${val}ms`}
                         />
                         <Tooltip
-                          cursor={{ stroke: '#475569', strokeWidth: 1 }}
+                          cursor={{ stroke: cursorStroke, strokeWidth: 1 }}
                           content={<LatencyTooltip />}
                         />
                         <Line
                           type="monotone"
                           dataKey="avgLatencyMs"
                           name={t('networkHealth.chartSeriesName')}
-                          stroke="#38bdf8"
+                          stroke={lineColor}
                           strokeWidth={2}
-                          dot={latencyChartSeries.length <= 3 ? { r: 3, fill: '#38bdf8' } : false}
-                          activeDot={{ r: 4, fill: '#38bdf8' }}
+                          dot={latencyChartSeries.length <= 3 ? { r: 3, fill: lineColor } : false}
+                          activeDot={{ r: 4, fill: lineColor }}
                           isAnimationActive={false}
                         />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
                 ) : (
-                  <div className="h-[72px] rounded-md border border-dashed border-slate-800 flex items-center justify-center text-[11px] text-slate-500 text-center px-3">
+                  <div className="h-[72px] rounded-md border border-dashed border-slate-300 dark:border-slate-800 flex items-center justify-center text-[11px] text-slate-500 text-center px-3">
                     {t('networkHealth.chartEmptyHint')}
                   </div>
                 )}
@@ -440,26 +452,26 @@ export function NetworkHealthCard({
             </div>
 
             {/* Per-Endpoint Health & Latency Breakdown */}
-            <div className="lg:col-span-2 rounded-lg border border-slate-800 bg-slate-900/50 overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-slate-800/80 flex items-center justify-between text-xs">
-                <span className="font-medium text-slate-200">
+            <div className="lg:col-span-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-slate-200 dark:border-slate-800/80 flex items-center justify-between text-xs">
+                <span className="font-medium text-slate-900 dark:text-slate-200">
                   {t('networkHealth.monitoredEndpointsTitle')}
                 </span>
-                <span className="text-slate-400 tabular-nums">
+                <span className="text-slate-600 dark:text-slate-400 tabular-nums">
                   {offlineEndpoints.length === 0 ? (
-                    <span className="inline-flex items-center gap-1.5 text-emerald-400">
+                    <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       <span>{t('networkHealth.allOperational')}</span>
                     </span>
                   ) : (
-                    <span className="text-red-300 font-medium">
+                    <span className="text-red-700 dark:text-red-300 font-medium">
                       {t('networkHealth.countOffline', { count: offlineEndpoints.length })}
                     </span>
                   )}
                 </span>
               </div>
 
-              <div className="divide-y divide-slate-800/70 max-h-[280px] overflow-y-auto">
+              <div className="divide-y divide-slate-200 dark:divide-slate-800/70 max-h-[280px] overflow-y-auto">
                 {securityEndpoints.map((endpoint) => {
                   const statusMeta = getEndpointStatusMeta(endpoint.status);
                   const StatusIcon = statusMeta.Icon;
@@ -469,16 +481,21 @@ export function NetworkHealthCard({
                       className="px-4 py-2.5 flex items-center justify-between gap-3 text-xs"
                     >
                       <div className="min-w-0">
-                        <div className="font-medium text-slate-100 truncate">{endpoint.name}</div>
-                        <div className="text-[11px] text-slate-400 truncate mt-0.5">
+                        <div className="font-medium text-slate-900 dark:text-slate-100 truncate">
+                          {endpoint.name}
+                        </div>
+                        <div className="text-[11px] text-slate-600 dark:text-slate-400 truncate mt-0.5">
                           <span>{t(`networkHealth.domains.${endpoint.domain}`)}</span>
-                          <span className="mx-1.5 text-slate-600" aria-hidden="true">
+                          <span className="mx-1.5 text-slate-400 dark:text-slate-600" aria-hidden="true">
                             ·
                           </span>
                           <span className="font-mono uppercase">{endpoint.mode}</span>
                           {endpoint.liveEndpointUrl && (
                             <>
-                              <span className="mx-1.5 text-slate-600" aria-hidden="true">
+                              <span
+                                className="mx-1.5 text-slate-400 dark:text-slate-600"
+                                aria-hidden="true"
+                              >
                                 ·
                               </span>
                               <span className="font-mono text-slate-500">
@@ -490,7 +507,7 @@ export function NetworkHealthCard({
                       </div>
 
                       <div className="flex items-center gap-4 shrink-0 tabular-nums">
-                        <span className="font-mono text-slate-300 w-16 text-right">
+                        <span className="font-mono text-slate-700 dark:text-slate-300 w-16 text-right">
                           {endpoint.status === 'connected' &&
                           typeof endpoint.lastLatencyMs === 'number'
                             ? `${endpoint.lastLatencyMs} ms`

@@ -385,12 +385,12 @@ function getTemplateForAdapter(adapter: IntegrationAdapter): ServiceTemplate {
 }
 
 function ServiceIcon({ domain }: { domain: IntegrationAdapter['domain'] }) {
-  if (domain === 'gateway') return <Router className="w-4 h-4 text-blue-400 shrink-0" />;
-  if (domain === 'dns') return <GlobeLock className="w-4 h-4 text-emerald-400 shrink-0" />;
-  if (domain === 'ids') return <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />;
-  if (domain === 'ai_runtime') return <Cpu className="w-4 h-4 text-blue-300 shrink-0" />;
-  if (domain === 'threat_intel') return <Activity className="w-4 h-4 text-red-400 shrink-0" />;
-  return <Server className="w-4 h-4 text-slate-300 shrink-0" />;
+  if (domain === 'gateway') return <Router className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />;
+  if (domain === 'dns') return <GlobeLock className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />;
+  if (domain === 'ids') return <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />;
+  if (domain === 'ai_runtime') return <Cpu className="w-4 h-4 text-emerald-700 dark:text-emerald-300 shrink-0" />;
+  if (domain === 'threat_intel') return <Activity className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />;
+  return <Server className="w-4 h-4 text-slate-600 dark:text-slate-300 shrink-0" />;
 }
 
 interface SettingsViewProps {
@@ -715,10 +715,10 @@ export function SettingsView({
       {/* Header */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-50 text-balance">
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-50 text-balance">
             {t('settings.title')}
           </h1>
-          <p className="mt-1 text-sm text-slate-400 max-w-3xl">
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-3xl">
             {t('settings.subtitle')}
           </p>
         </div>
@@ -728,9 +728,9 @@ export function SettingsView({
             type="button"
             disabled={busyKey === 'workspace-demo'}
             onClick={onLoadDemo}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
           >
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <Sparkles className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
             <span>{t('settings.loadDemo')}</span>
           </button>
 
@@ -739,7 +739,7 @@ export function SettingsView({
               type="button"
               disabled={busyKey === 'workspace-reset'}
               onClick={onResetWorkspace}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border border-red-900/60 bg-slate-900 text-red-300 hover:bg-red-950/40 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border border-red-300 dark:border-red-900/60 bg-white dark:bg-slate-900 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>{t('settings.resetInventory')}</span>
@@ -749,9 +749,9 @@ export function SettingsView({
           <button
             type="button"
             onClick={onNavigateToIntegrations}
-            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
-            <PlugZap className="w-3.5 h-3.5 text-blue-400" />
+            <PlugZap className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
             <span>{t('settings.syncAndTests')}</span>
           </button>
         </div>
@@ -760,20 +760,20 @@ export function SettingsView({
       {/* Box 1: Add Service */}
       <form
         onSubmit={handleAddSubmit}
-        className="rounded-xl border border-slate-800 bg-[#131C31] p-5 space-y-5"
+        className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31] shadow-xs dark:shadow-none p-5 space-y-5"
       >
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between border-b border-slate-800 pb-3.5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between border-b border-slate-200 dark:border-slate-800 pb-3.5">
           <div>
-            <h2 className="text-base font-semibold text-slate-100 flex items-center gap-2">
-              <Plus className="w-4 h-4 text-blue-400" />
+            <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <Plus className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span>{t('settings.addServiceTitle')}</span>
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
               {t('settings.addServiceSteps')}
             </p>
           </div>
 
-          <div className="inline-flex flex-wrap items-center gap-1 p-1 rounded-lg bg-slate-950 border border-slate-800">
+          <div className="inline-flex flex-wrap items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
             {CATEGORY_TABS.map((cat) => (
               <button
                 key={cat.id}
@@ -781,8 +781,8 @@ export function SettingsView({
                 onClick={() => setCategoryFilter(cat.id)}
                 className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                   categoryFilter === cat.id
-                    ? 'bg-slate-800 text-slate-100'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? 'bg-emerald-600 text-white'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-900'
                 }`}
               >
                 {t(cat.labelKey)}
@@ -793,7 +793,7 @@ export function SettingsView({
 
         {/* Step 1: Choose service type */}
         <div className="space-y-2">
-          <div className="text-xs font-medium text-slate-300">
+          <div className="text-xs font-medium text-slate-700 dark:text-slate-300">
             {t('settings.chooseOssService')}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
@@ -806,11 +806,11 @@ export function SettingsView({
                   onClick={() => setSelectedServiceKey(tpl.key)}
                   className={`text-left rounded-lg border p-3 transition-colors cursor-pointer ${
                     selected
-                      ? 'border-blue-500 bg-blue-950/35'
-                      : 'border-slate-800 bg-slate-950/60 hover:border-slate-700'
+                      ? 'border-emerald-600 bg-emerald-50 dark:border-emerald-500 dark:bg-emerald-950/35'
+                      : 'border-slate-200 bg-slate-50/70 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-950/60 dark:hover:border-slate-700'
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-2 text-xs font-semibold text-slate-100">
+                  <div className="flex items-center justify-between gap-2 text-xs font-semibold text-slate-900 dark:text-slate-100">
                     <span className="flex items-center gap-2 min-w-0">
                       <ServiceIcon domain={tpl.domain} />
                       <span className="truncate">{catalogLabel(tpl)}</span>
@@ -819,7 +819,7 @@ export function SettingsView({
                       {tpl.kind}
                     </span>
                   </div>
-                  <p className="mt-1 text-[11px] text-slate-400 leading-snug">
+                  <p className="mt-1 text-[11px] text-slate-600 dark:text-slate-400 leading-snug">
                     {catalogDesc(tpl)}
                   </p>
                 </button>
@@ -829,46 +829,46 @@ export function SettingsView({
         </div>
 
         {/* Step 2: Dynamic fields according to chosen service */}
-        <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-4 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-2.5">
-            <div className="text-xs font-semibold text-slate-200 flex items-center gap-2">
+        <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 p-4 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800/80 pb-2.5">
+            <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
               <ServiceIcon domain={activeTemplate.domain} />
               <span>{t('settings.fieldsFor', { name: catalogLabel(activeTemplate) })}</span>
             </div>
-            <span className="text-[11px] font-mono text-slate-400">
+            <span className="text-[11px] font-mono text-slate-600 dark:text-slate-400">
               {t('settings.protocolLabel', { kind: activeTemplate.kind })}
             </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3.5">
             <label className="block space-y-1 text-xs">
-              <span className="text-slate-300 font-medium">{t('settings.serviceName')}</span>
+              <span className="text-slate-700 dark:text-slate-300 font-medium">{t('settings.serviceName')}</span>
               <input
                 type="text"
                 required
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
               />
             </label>
 
             <label className="block space-y-1 text-xs">
-              <span className="text-slate-300 font-medium">{t('settings.uniqueId')}</span>
+              <span className="text-slate-700 dark:text-slate-300 font-medium">{t('settings.uniqueId')}</span>
               <input
                 type="text"
                 required
                 value={newId}
                 onChange={(e) => setNewId(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs focus:outline-none focus:border-emerald-500"
               />
             </label>
 
             <label className="block space-y-1 text-xs">
-              <span className="text-slate-300 font-medium">{t('settings.networkSite')}</span>
+              <span className="text-slate-700 dark:text-slate-300 font-medium">{t('settings.networkSite')}</span>
               <select
                 value={newSiteId}
                 onChange={(e) => setNewSiteId(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
               >
                 {state.context.sites.map((site) => (
                   <option key={site.id} value={site.id}>
@@ -879,11 +879,11 @@ export function SettingsView({
             </label>
 
             <label className="block space-y-1 text-xs">
-              <span className="text-slate-300 font-medium">{t('settings.operationMode')}</span>
+              <span className="text-slate-700 dark:text-slate-300 font-medium">{t('settings.operationMode')}</span>
               <select
                 value={newMode}
                 onChange={(e) => setNewMode(e.target.value as ServiceProviderMode)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
               >
                 <option value="mock">{t('settings.modeMockLater')}</option>
                 <option value="live">{t('settings.modeLiveLan')}</option>
@@ -893,13 +893,13 @@ export function SettingsView({
             {activeTemplate.showsCustomDomainKind && (
               <>
                 <label className="block space-y-1 text-xs">
-                  <span className="text-slate-300 font-medium">{t('settings.domain')}</span>
+                  <span className="text-slate-700 dark:text-slate-300 font-medium">{t('settings.domain')}</span>
                   <select
                     value={customDomain}
                     onChange={(e) =>
                       setCustomDomain(e.target.value as IntegrationAdapter['domain'])
                     }
-                    className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
                   >
                     <option value="gateway">{t('settings.domains.gateway')}</option>
                     <option value="dns">{t('settings.domains.dns')}</option>
@@ -911,21 +911,21 @@ export function SettingsView({
                 </label>
 
                 <label className="block space-y-1 text-xs">
-                  <span className="text-slate-300 font-medium">{t('settings.protocolKind')}</span>
+                  <span className="text-slate-700 dark:text-slate-300 font-medium">{t('settings.protocolKind')}</span>
                   <input
                     type="text"
                     required
                     value={customKind}
                     onChange={(e) => setCustomKind(e.target.value)}
                     placeholder="ex: grafana-loki"
-                    className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs focus:outline-none focus:border-blue-500"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 font-mono text-xs focus:outline-none focus:border-emerald-500"
                   />
                 </label>
               </>
             )}
 
             <label className="block space-y-1 text-xs md:col-span-2">
-              <span className="text-slate-300 font-medium">
+              <span className="text-slate-700 dark:text-slate-300 font-medium">
                 {t('settings.endpointUrlLan')}{' '}
                 {newMode === 'mock'
                   ? t('settings.urlOptionalHint')
@@ -937,13 +937,13 @@ export function SettingsView({
                 placeholder={t('settings.urlFillLaterPh', { url: activeTemplate.urlPlaceholder })}
                 value={newUrl}
                 onChange={(e) => setNewUrl(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
               />
             </label>
 
             {activeTemplate.showsUsername && (
               <label className="block space-y-1 text-xs">
-                <span className="text-slate-300 font-medium">
+                <span className="text-slate-700 dark:text-slate-300 font-medium">
                   {catalogUsernameLabel(activeTemplate)}
                 </span>
                 <input
@@ -951,14 +951,14 @@ export function SettingsView({
                   placeholder={catalogUsernamePh(activeTemplate)}
                   value={newUsername}
                   onChange={(e) => setNewUsername(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
                 />
               </label>
             )}
 
             {activeTemplate.showsSecret && (
               <label className="block space-y-1 text-xs">
-                <span className="text-slate-300 font-medium">
+                <span className="text-slate-700 dark:text-slate-300 font-medium">
                   {catalogSecretLabel(activeTemplate)}
                 </span>
                 <input
@@ -967,20 +967,20 @@ export function SettingsView({
                   placeholder={t('settings.secretVaultPh')}
                   value={newSecret}
                   onChange={(e) => setNewSecret(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
                 />
               </label>
             )}
 
             {activeTemplate.showsModelName && (
               <label className="block space-y-1 text-xs">
-                <span className="text-slate-300 font-medium">{t('settings.ollamaModel')}</span>
+                <span className="text-slate-700 dark:text-slate-300 font-medium">{t('settings.ollamaModel')}</span>
                 <input
                   type="text"
                   placeholder="llama3.1:8b / qwen2.5:7b"
                   value={newModelName}
                   onChange={(e) => setNewModelName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
                 />
               </label>
             )}
@@ -988,7 +988,7 @@ export function SettingsView({
             {activeTemplate.showsBoardFields && (
               <>
                 <label className="block space-y-1 text-xs">
-                  <span className="text-slate-300 font-medium">
+                  <span className="text-slate-700 dark:text-slate-300 font-medium">
                     {t('settings.hardwareModelOptional')}
                   </span>
                   <input
@@ -996,12 +996,12 @@ export function SettingsView({
                     placeholder="NanoPi R4S, Protectli, Mini PC"
                     value={newBoardModel}
                     onChange={(e) => setNewBoardModel(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-xs placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
                   />
                 </label>
 
                 <label className="block space-y-1 text-xs">
-                  <span className="text-slate-300 font-medium">
+                  <span className="text-slate-700 dark:text-slate-300 font-medium">
                     {t('settings.interfacesOptional')}
                   </span>
                   <input
@@ -1009,15 +1009,15 @@ export function SettingsView({
                     placeholder="br-lan, wan, iot-vlan"
                     value={newBoardInterfaces}
                     onChange={(e) => setNewBoardInterfaces(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
                   />
                 </label>
               </>
             )}
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/80">
-            <span className="text-xs text-slate-400">
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200 dark:border-slate-800/80">
+            <span className="text-xs text-slate-600 dark:text-slate-400">
               {activeTemplate.domain === 'dns'
                 ? t('settings.dnsMultiNote')
                 : t('settings.writeOnlyNote')}
@@ -1026,7 +1026,7 @@ export function SettingsView({
             <button
               type="submit"
               disabled={busyKey === 'add-service'}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
             >
               <Save className="w-3.5 h-3.5" />
               <span>{t('settings.saveService')}</span>
@@ -1036,17 +1036,17 @@ export function SettingsView({
       </form>
 
       {/* Box 2: Configured Services & Endpoints */}
-      <section className="rounded-xl border border-slate-800 bg-[#131C31] overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
+      <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31] shadow-xs dark:shadow-none overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-base font-semibold text-slate-100">
+            <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
               {t('settings.configuredTitle', { count: state.integrations.length })}
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
               {t('settings.configuredSubtitle')}
             </p>
           </div>
-          <span className="text-xs text-slate-400 tabular-nums">
+          <span className="text-xs text-slate-600 dark:text-slate-400 tabular-nums">
             {t('settings.configuredSummary', {
               dns: state.integrations.filter((i) => i.domain === 'dns').length,
               live: state.integrations.filter((i) => i.mode === 'live').length,
@@ -1056,10 +1056,10 @@ export function SettingsView({
 
         {state.integrations.length === 0 ? (
           <div className="p-10 text-center space-y-3">
-            <p className="text-sm text-slate-300 font-medium">
+            <p className="text-sm text-slate-700 dark:text-slate-300 font-medium">
               {t('settings.noServicesYet')}
             </p>
-            <p className="text-xs text-slate-400 max-w-md mx-auto">
+            <p className="text-xs text-slate-600 dark:text-slate-400 max-w-md mx-auto">
               {t('settings.noServicesHintPrefix')}{' '}
               <strong>{t('settings.noServicesHintBold')}</strong>{' '}
               {t('settings.noServicesHintSuffix')}
@@ -1067,7 +1067,7 @@ export function SettingsView({
           </div>
         ) : (
           <>
-            <div className="divide-y divide-slate-800 max-h-[560px] overflow-y-auto">
+            <div className="divide-y divide-slate-200 dark:divide-slate-800 max-h-[560px] overflow-y-auto">
               {servicesPagination.pagedItems.map((adapter) => {
               const tpl = getTemplateForAdapter(adapter);
               const isEditing = editingId === adapter.id && editDraft !== null;
@@ -1083,39 +1083,39 @@ export function SettingsView({
                   {/* Summary Row */}
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div className="space-y-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
                         <ServiceIcon domain={adapter.domain} />
-                        <span className="text-sm font-semibold text-slate-100">{adapter.name}</span>
-                        <span className="font-mono text-slate-400">({adapter.id})</span>
+                        <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{adapter.name}</span>
+                        <span className="font-mono text-slate-500 dark:text-slate-400">({adapter.id})</span>
                         <span aria-hidden="true">·</span>
                         <span>{domainLabel(adapter.domain)}</span>
                         <span aria-hidden="true">·</span>
-                        <span className="font-mono text-slate-300">{adapter.kind}</span>
+                        <span className="font-mono text-slate-700 dark:text-slate-300">{adapter.kind}</span>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600 dark:text-slate-400">
                         <span>
                           {t('toolbar.siteLabel')}{' '}
-                          <strong className="text-slate-200 font-medium">{siteName}</strong>
+                          <strong className="text-slate-800 dark:text-slate-200 font-medium">{siteName}</strong>
                         </span>
                         <span aria-hidden="true">·</span>
                         <span
                           className={
                             adapter.mode === 'live'
-                              ? 'text-blue-400 font-medium'
-                              : 'text-slate-300 font-medium'
+                              ? 'text-emerald-700 dark:text-emerald-400 font-medium'
+                              : 'text-slate-600 dark:text-slate-300 font-medium'
                           }
                         >
                           {adapter.mode === 'live' ? t('common.liveApi') : t('common.mockSim')}
                         </span>
                         <span aria-hidden="true">·</span>
-                        <span className="font-mono text-slate-300 truncate max-w-md">
+                        <span className="font-mono text-slate-700 dark:text-slate-300 truncate max-w-md">
                           {adapter.liveEndpointUrl || t('settings.urlPendingMock')}
                         </span>
                         {adapter.modelName && (
                           <>
                             <span aria-hidden="true">·</span>
-                            <span className="font-mono text-slate-300">
+                            <span className="font-mono text-slate-700 dark:text-slate-300">
                               {t('settings.modelPrefix', { model: adapter.modelName })}
                             </span>
                           </>
@@ -1123,7 +1123,7 @@ export function SettingsView({
                         {adapter.boardInfo && (
                           <>
                             <span aria-hidden="true">·</span>
-                            <span className="text-slate-300">{adapter.boardInfo.model}</span>
+                            <span className="text-slate-700 dark:text-slate-300">{adapter.boardInfo.model}</span>
                           </>
                         )}
                       </div>
@@ -1133,7 +1133,7 @@ export function SettingsView({
                       {(tpl.showsSecret || tpl.showsUsername) && (
                         <span className="inline-flex items-center gap-1 text-xs mr-1">
                           {adapter.hasCredential ? (
-                            <span className="inline-flex items-center gap-1 text-emerald-400 font-medium">
+                            <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-medium">
                               <CheckCircle2 className="w-3.5 h-3.5" />
                               <span>{t('settings.credInVault')}</span>
                             </span>
@@ -1150,7 +1150,7 @@ export function SettingsView({
                         type="button"
                         disabled={isBusy}
                         onClick={() => startEditing(adapter)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
                       >
                         {isEditing ? <X className="w-3.5 h-3.5" /> : <Edit3 className="w-3.5 h-3.5" />}
                         <span>{isEditing ? t('settings.closeEdit') : t('common.edit')}</span>
@@ -1160,7 +1160,7 @@ export function SettingsView({
                         type="button"
                         disabled={isBusy}
                         onClick={() => onRemoveIntegration(adapter.id, adapter.name)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-900/60 text-red-300 hover:bg-red-950/50 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-300 dark:border-red-900/60 bg-white dark:bg-transparent text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                         <span>{t('common.delete')}</span>
@@ -1170,10 +1170,10 @@ export function SettingsView({
 
                   {/* Inline Edit Form (dynamic fields by service kind) */}
                   {isEditing && editDraft && (
-                    <div className="rounded-lg border border-slate-700 bg-slate-950/70 p-4 space-y-4">
+                    <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/70 p-4 space-y-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
                         <label className="block space-y-1 text-xs">
-                          <span className="text-slate-300 font-medium">
+                          <span className="text-slate-700 dark:text-slate-300 font-medium">
                             {t('settings.serviceName')}
                           </span>
                           <input
@@ -1182,12 +1182,12 @@ export function SettingsView({
                             onChange={(e) =>
                               setEditDraft({ ...editDraft, name: e.target.value })
                             }
-                            className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
+                            className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
                           />
                         </label>
 
                         <label className="block space-y-1 text-xs">
-                          <span className="text-slate-300 font-medium">
+                          <span className="text-slate-700 dark:text-slate-300 font-medium">
                             {t('settings.networkSite')}
                           </span>
                           <select
@@ -1195,7 +1195,7 @@ export function SettingsView({
                             onChange={(e) =>
                               setEditDraft({ ...editDraft, siteId: e.target.value })
                             }
-                            className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
+                            className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
                           >
                             {state.context.sites.map((site) => (
                               <option key={site.id} value={site.id}>
@@ -1206,7 +1206,7 @@ export function SettingsView({
                         </label>
 
                         <label className="block space-y-1 text-xs">
-                          <span className="text-slate-300 font-medium">
+                          <span className="text-slate-700 dark:text-slate-300 font-medium">
                             {t('settings.modeLabel')}
                           </span>
                           <select
@@ -1217,7 +1217,7 @@ export function SettingsView({
                                 mode: e.target.value as ServiceProviderMode,
                               })
                             }
-                            className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
+                            className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
                           >
                             <option value="mock">{t('common.mockSim')}</option>
                             <option value="live">{t('common.liveApi')}</option>
@@ -1225,7 +1225,7 @@ export function SettingsView({
                         </label>
 
                         <label className="block space-y-1 text-xs">
-                          <span className="text-slate-300 font-medium">Endpoint URL</span>
+                          <span className="text-slate-700 dark:text-slate-300 font-medium">Endpoint URL</span>
                           <input
                             type="url"
                             placeholder={tpl.urlPlaceholder}
@@ -1233,13 +1233,13 @@ export function SettingsView({
                             onChange={(e) =>
                               setEditDraft({ ...editDraft, liveEndpointUrl: e.target.value })
                             }
-                            className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                            className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
                           />
                         </label>
 
                         {tpl.showsUsername && (
                           <label className="block space-y-1 text-xs">
-                            <span className="text-slate-300 font-medium">
+                            <span className="text-slate-700 dark:text-slate-300 font-medium">
                               {catalogUsernameLabel(tpl)}
                             </span>
                             <input
@@ -1248,14 +1248,14 @@ export function SettingsView({
                               onChange={(e) =>
                                 setEditDraft({ ...editDraft, username: e.target.value })
                               }
-                              className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs focus:outline-none focus:border-blue-500"
+                              className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs focus:outline-none focus:border-emerald-500"
                             />
                           </label>
                         )}
 
                         {tpl.showsSecret && (
                           <label className="block space-y-1 text-xs xl:col-span-2">
-                            <span className="text-slate-300 font-medium">
+                            <span className="text-slate-700 dark:text-slate-300 font-medium">
                               {catalogSecretLabel(tpl)}
                             </span>
                             <input
@@ -1270,14 +1270,14 @@ export function SettingsView({
                               onChange={(e) =>
                                 setEditDraft({ ...editDraft, secret: e.target.value })
                               }
-                              className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                              className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
                             />
                           </label>
                         )}
 
                         {tpl.showsModelName && (
                           <label className="block space-y-1 text-xs">
-                            <span className="text-slate-300 font-medium">
+                            <span className="text-slate-700 dark:text-slate-300 font-medium">
                               {t('settings.ollamaModel')}
                             </span>
                             <input
@@ -1286,7 +1286,7 @@ export function SettingsView({
                               onChange={(e) =>
                                 setEditDraft({ ...editDraft, modelName: e.target.value })
                               }
-                              className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs focus:outline-none focus:border-blue-500"
+                              className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs focus:outline-none focus:border-emerald-500"
                             />
                           </label>
                         )}
@@ -1294,7 +1294,7 @@ export function SettingsView({
                         {tpl.showsBoardFields && (
                           <>
                             <label className="block space-y-1 text-xs">
-                              <span className="text-slate-300 font-medium">
+                              <span className="text-slate-700 dark:text-slate-300 font-medium">
                                 {t('settings.hardwareModel')}
                               </span>
                               <input
@@ -1303,11 +1303,11 @@ export function SettingsView({
                                 onChange={(e) =>
                                   setEditDraft({ ...editDraft, boardModel: e.target.value })
                                 }
-                                className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
+                                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
                               />
                             </label>
                             <label className="block space-y-1 text-xs">
-                              <span className="text-slate-300 font-medium">
+                              <span className="text-slate-700 dark:text-slate-300 font-medium">
                                 {t('settings.interfaces')}
                               </span>
                               <input
@@ -1316,20 +1316,20 @@ export function SettingsView({
                                 onChange={(e) =>
                                   setEditDraft({ ...editDraft, boardInterfaces: e.target.value })
                                 }
-                                className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs focus:outline-none focus:border-blue-500"
+                                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs focus:outline-none focus:border-emerald-500"
                               />
                             </label>
                           </>
                         )}
                       </div>
 
-                      <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-800/80">
+                      <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800/80">
                         {adapter.hasCredential && (
                           <button
                             type="button"
                             disabled={isBusy}
                             onClick={() => onSaveConfig(adapter.id, { clearSecret: true })}
-                            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+                            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-transparent text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
                           >
                             {t('settings.clearCred')}
                           </button>
@@ -1339,7 +1339,7 @@ export function SettingsView({
                           type="button"
                           disabled={isBusy}
                           onClick={() => handleTestLiveFromEdit(adapter)}
-                          className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+                          className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
                         >
                           {t('settings.testActivateLive')}
                         </button>
@@ -1348,7 +1348,7 @@ export function SettingsView({
                           type="button"
                           disabled={isBusy}
                           onClick={() => handleSaveEdit(adapter)}
-                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
                         >
                           <Save className="w-3.5 h-3.5" />
                           <span>{t('common.saveChanges')}</span>
@@ -1395,14 +1395,14 @@ export function SettingsView({
 
       {/* Multi-Site & Sanitized Backup/Restore */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <section className="rounded-xl border border-slate-800 bg-[#131C31] p-5 space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31] shadow-xs dark:shadow-none p-5 space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
             <div>
-              <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-blue-400 shrink-0" />
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 <span>{t('settings.sitesTitle', { count: state.context.sites.length })}</span>
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
                 {t('settings.sitesSubtitle')}
               </p>
             </div>
@@ -1410,23 +1410,23 @@ export function SettingsView({
 
           <form onSubmit={handleAddSiteSubmit} className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 items-end">
             <label className="block space-y-1 text-xs sm:col-span-1">
-              <span className="text-slate-300 font-medium">{t('settings.siteName')}</span>
+              <span className="text-slate-700 dark:text-slate-300 font-medium">{t('settings.siteName')}</span>
               <input
                 type="text"
                 required
                 placeholder={t('settings.siteNamePh')}
                 value={newSiteName}
                 onChange={(e) => setNewSiteName(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 text-xs focus:outline-none focus:border-emerald-500"
               />
             </label>
 
             <label className="block space-y-1 text-xs">
-              <span className="text-slate-300 font-medium">{t('settings.profile')}</span>
+              <span className="text-slate-700 dark:text-slate-300 font-medium">{t('settings.profile')}</span>
               <select
                 value={newSiteProfile}
                 onChange={(e) => setNewSiteProfile(e.target.value as OperatingProfile)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
               >
                 <option value="residential">{t('toolbar.profileResidential')}</option>
                 <option value="business">{t('toolbar.profileBusiness')}</option>
@@ -1436,14 +1436,14 @@ export function SettingsView({
             <button
               type="submit"
               disabled={busyKey === 'site-add'}
-              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>{t('settings.addSite')}</span>
             </button>
           </form>
 
-          <div className="divide-y divide-slate-800/80 border-t border-slate-800 pt-2 max-h-[300px] overflow-y-auto">
+          <div className="divide-y divide-slate-200 dark:divide-slate-800/80 border-t border-slate-200 dark:border-slate-800 pt-2 max-h-[300px] overflow-y-auto">
             {sitesPagination.pagedItems.map((site) => {
               const isActive = state.context.activeSiteId === site.id;
               const sameProfileCount = state.context.sites.filter(
@@ -1452,8 +1452,8 @@ export function SettingsView({
               return (
                 <div key={site.id} className="py-2.5 flex items-center justify-between gap-3 text-xs">
                   <div className="min-w-0">
-                    <div className="font-medium text-slate-100 truncate">{site.name}</div>
-                    <div className="text-[11px] text-slate-400 font-mono">
+                    <div className="font-medium text-slate-900 dark:text-slate-100 truncate">{site.name}</div>
+                    <div className="text-[11px] text-slate-600 dark:text-slate-400 font-mono">
                       {site.id} ·{' '}
                       {site.profile === 'residential'
                         ? t('toolbar.profileResidential')
@@ -1465,7 +1465,7 @@ export function SettingsView({
                     type="button"
                     disabled={isActive || sameProfileCount <= 1 || busyKey === `site-rm-${site.id}`}
                     onClick={() => onRemoveSite(site.id, site.name)}
-                    className="px-2.5 py-1 text-xs rounded border border-red-900/60 text-red-300 hover:bg-red-950/50 disabled:opacity-35 whitespace-nowrap shrink-0 cursor-pointer"
+                    className="px-2.5 py-1 text-xs rounded border border-red-300 dark:border-red-900/60 bg-white dark:bg-transparent text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/50 disabled:opacity-35 whitespace-nowrap shrink-0 cursor-pointer"
                   >
                     {t('common.remove')}
                   </button>
@@ -1488,12 +1488,12 @@ export function SettingsView({
           )}
         </section>
 
-        <section className="rounded-xl border border-slate-800 bg-[#131C31] p-5 space-y-4">
-          <div className="border-b border-slate-800 pb-3">
-            <h2 className="text-sm font-semibold text-slate-100">
+        <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31] shadow-xs dark:shadow-none p-5 space-y-4">
+          <div className="border-b border-slate-200 dark:border-slate-800 pb-3">
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
               {t('settings.backupTitle')}
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
               {t('settings.backupSubtitle')}
             </p>
           </div>
@@ -1503,9 +1503,9 @@ export function SettingsView({
               type="button"
               disabled={busyKey === 'backup-export'}
               onClick={onExportBackup}
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
             >
-              <Download className="w-3.5 h-3.5 text-blue-400" />
+              <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>{t('settings.exportJsonBackup')}</span>
             </button>
 
@@ -1520,49 +1520,49 @@ export function SettingsView({
               type="button"
               disabled={busyKey === 'backup-restore'}
               onClick={() => backupFileInputRef.current?.click()}
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
             >
               <Upload className="w-3.5 h-3.5" />
               <span>{t('settings.restoreJsonBackup')}</span>
             </button>
           </div>
 
-          <p className="text-[11px] text-slate-400 leading-relaxed">
+          <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
             {t('settings.backupBusinessNotePrefix')}{' '}
-            <span className="font-mono text-slate-300">workspace.restored</span>{' '}
+            <span className="font-mono text-slate-800 dark:text-slate-300">workspace.restored</span>{' '}
             {t('settings.backupBusinessNoteSuffix')}
           </p>
         </section>
       </div>
 
       {/* Server Environment & Write-only Security Note */}
-      <details className="rounded-xl border border-slate-800 bg-[#131C31] p-5 text-xs">
-        <summary className="cursor-pointer font-semibold text-slate-200 flex items-center gap-2 select-none">
-          <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+      <details className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31] shadow-xs dark:shadow-none p-5 text-xs">
+        <summary className="cursor-pointer font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2 select-none">
+          <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
           <span>{t('settings.vaultSummary')}</span>
         </summary>
-        <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4 pt-3 border-t border-slate-800">
-          <div className="space-y-2 text-slate-400 leading-relaxed">
+        <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4 pt-3 border-t border-slate-200 dark:border-slate-800">
+          <div className="space-y-2 text-slate-600 dark:text-slate-400 leading-relaxed">
             <p>
               {t('settings.vaultP1Prefix')}
-              <span className="font-mono text-slate-300">.openshield-data</span>
+              <span className="font-mono text-slate-800 dark:text-slate-300">.openshield-data</span>
               {t('settings.vaultP1Suffix')}
             </p>
             <p>
               {t('settings.vaultP2Prefix')}{' '}
-              <span className="font-mono text-slate-300">GEMINI_API_KEY</span>{' '}
+              <span className="font-mono text-slate-800 dark:text-slate-300">GEMINI_API_KEY</span>{' '}
               {t('settings.vaultP2Suffix')}
             </p>
           </div>
-          <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-3 space-y-1.5">
-            <div className="flex items-center gap-1.5 font-medium text-slate-200 pb-1">
-              <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+          <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/70 p-3 space-y-1.5">
+            <div className="flex items-center gap-1.5 font-medium text-slate-800 dark:text-slate-200 pb-1">
+              <KeyRound className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
               <span>{t('settings.detectedServerVars')}</span>
             </div>
             {envStatus.map((item) => (
               <div key={item.key} className="flex items-center justify-between gap-2 text-[11px]">
-                <span className="font-mono text-slate-300 truncate">{item.key}</span>
-                <span className={item.configured ? 'text-emerald-400 font-medium shrink-0' : 'text-slate-500 shrink-0'}>
+                <span className="font-mono text-slate-700 dark:text-slate-300 truncate">{item.key}</span>
+                <span className={item.configured ? 'text-emerald-700 dark:text-emerald-400 font-medium shrink-0' : 'text-slate-500 shrink-0'}>
                   {item.configured ? t('settings.varConfigured') : t('settings.varOptionalMissing')}
                 </span>
               </div>

@@ -85,6 +85,11 @@ export const en = {
     nodeConnected: 'Node Connected',
     nodeOffline: 'Node Offline (Gateway Active)',
     languageLabel: 'Language:',
+    themeLabel: 'Theme:',
+    themeLight: 'Light',
+    themeDark: 'Dark',
+    themeSwitchToLight: 'Switch to light theme',
+    themeSwitchToDark: 'Switch to dark theme',
     businessBannerTitle: 'Small Office Profile Simulation (RBAC):',
     businessBannerBody:
       'Residential mode runs unauthenticated only on a trusted LAN. Before deploying Office or multi-site mode in production, enable real identity, gateway credentials, and RBAC on the OpenShield Node.',

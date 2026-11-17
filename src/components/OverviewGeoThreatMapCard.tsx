@@ -10,6 +10,7 @@ import {
   type GeoCountryThreatStat,
   type GeoMapFilterMode,
 } from '../lib/geoThreatAnalytics';
+import { useTheme } from '../lib/theme';
 import type { EventSeverity, WorkspaceState } from '../types/openshield';
 import type { NavTab } from './OverviewView';
 
@@ -45,8 +46,8 @@ const HEAT_STOPS = [
   '#ef4444', // peak
 ] as const;
 
-function getHeatFill(value: number, maxValue: number): string {
-  if (value <= 0 || maxValue <= 0) return '#182235';
+function getHeatFill(value: number, maxValue: number, isDark: boolean): string {
+  if (value <= 0 || maxValue <= 0) return isDark ? '#182235' : '#e2e8f0';
   const ratio = Math.min(1, value / maxValue);
   if (ratio >= 0.8) return HEAT_STOPS[4];
   if (ratio >= 0.55) return HEAT_STOPS[3];
@@ -56,11 +57,11 @@ function getHeatFill(value: number, maxValue: number): string {
 }
 
 function getSeverityTextClass(severity: EventSeverity): string {
-  if (severity === 'critical') return 'text-red-400';
-  if (severity === 'high') return 'text-orange-400';
-  if (severity === 'medium') return 'text-amber-400';
-  if (severity === 'low') return 'text-sky-400';
-  return 'text-slate-300';
+  if (severity === 'critical') return 'text-red-700 dark:text-red-400';
+  if (severity === 'high') return 'text-orange-700 dark:text-orange-400';
+  if (severity === 'medium') return 'text-amber-700 dark:text-amber-400';
+  if (severity === 'low') return 'text-emerald-700 dark:text-emerald-400';
+  return 'text-slate-600 dark:text-slate-300';
 }
 
 export function OverviewGeoThreatMapCard({
@@ -71,8 +72,14 @@ export function OverviewGeoThreatMapCard({
   onToggleLivePaused,
 }: OverviewGeoThreatMapCardProps) {
   const { t, i18n } = useTranslation();
+  const { isDark } = useTheme();
   const locale = getIntlLocale(i18n.language);
   const mapBoxRef = useRef<HTMLDivElement | null>(null);
+
+  const graticuleStroke = isDark ? '#1e293b' : '#cbd5e1';
+  const defaultBorderStroke = isDark ? '#263449' : '#94a3b8';
+  const selectedStroke = isDark ? '#10b981' : '#059669';
+  const hotspotRingStroke = isDark ? '#0B1120' : '#ffffff';
 
   const [filterMode, setFilterMode] = useState<GeoMapFilterMode>('blocked');
   const [selectedNumericId, setSelectedNumericId] = useState<string | null>(null);
@@ -196,23 +203,23 @@ export function OverviewGeoThreatMapCard({
   return (
     <section
       aria-label={t('geoThreatMap.ariaLabel')}
-      className="rounded-xl border border-slate-800 bg-[#131C31] overflow-hidden"
+      className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31] overflow-hidden shadow-xs dark:shadow-none"
     >
       {/* Header */}
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between px-5 py-4 border-b border-slate-800">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800">
         <div>
           <div className="flex items-center gap-2">
-            <Globe2 className="w-4 h-4 text-red-400 shrink-0" />
-            <h2 className="text-base font-semibold text-slate-100">{t('geoThreatMap.title')}</h2>
+            <Globe2 className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
+            <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">{t('geoThreatMap.title')}</h2>
           </div>
-          <p className="text-xs text-slate-400 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
             <span>{t('geoThreatMap.subtitle')}</span>
             {livePaused && (
               <>
-                <span aria-hidden="true" className="text-slate-600">
+                <span aria-hidden="true" className="text-slate-400 dark:text-slate-600">
                   ·
                 </span>
-                <span className="text-amber-300 font-medium tabular-nums">
+                <span className="text-amber-700 dark:text-amber-300 font-medium tabular-nums">
                   {pausedTimeLabel
                     ? t('telemetryDashboard.pausedAt', { time: pausedTimeLabel })
                     : t('telemetryDashboard.pausedLabel')}
@@ -221,7 +228,7 @@ export function OverviewGeoThreatMapCard({
                   <button
                     type="button"
                     onClick={onToggleLivePaused}
-                    className="text-blue-400 hover:text-blue-300 font-medium underline underline-offset-2 cursor-pointer"
+                    className="text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 font-medium underline underline-offset-2 cursor-pointer"
                   >
                     {t('telemetryDashboard.resumeInline')}
                   </button>
@@ -233,20 +240,20 @@ export function OverviewGeoThreatMapCard({
 
         <div className="flex flex-wrap items-center gap-3 shrink-0">
           {/* Summary KPI counters (unboxed tabular text) */}
-          <div className="flex flex-wrap items-center gap-3 text-xs tabular-nums text-slate-300">
+          <div className="flex flex-wrap items-center gap-3 text-xs tabular-nums text-slate-700 dark:text-slate-300">
             <span className="inline-flex items-center gap-1.5">
-              <ShieldBan className="w-3.5 h-3.5 text-red-400 shrink-0" />
-              <span className="text-slate-400">{t('geoThreatMap.blockedTotalLabel')}:</span>
-              <span className="font-mono font-semibold text-slate-100">
+              <ShieldBan className="w-3.5 h-3.5 text-red-600 dark:text-red-400 shrink-0" />
+              <span className="text-slate-600 dark:text-slate-400">{t('geoThreatMap.blockedTotalLabel')}:</span>
+              <span className="font-mono font-semibold text-slate-900 dark:text-slate-100">
                 {summary.totalBlockedAttempts.toLocaleString(locale)}
               </span>
             </span>
-            <span aria-hidden="true" className="text-slate-700">
+            <span aria-hidden="true" className="text-slate-300 dark:text-slate-700">
               ·
             </span>
             <span>
-              <span className="text-slate-400">{t('geoThreatMap.countriesLabel')}: </span>
-              <span className="font-mono font-semibold text-slate-100">
+              <span className="text-slate-600 dark:text-slate-400">{t('geoThreatMap.countriesLabel')}: </span>
+              <span className="font-mono font-semibold text-slate-900 dark:text-slate-100">
                 {summary.totalCountriesAffected.toLocaleString(locale)}
               </span>
             </span>
@@ -256,15 +263,15 @@ export function OverviewGeoThreatMapCard({
           <div
             role="group"
             aria-label={t('geoThreatMap.title')}
-            className="inline-flex items-center gap-1 p-1 rounded-lg bg-slate-950 border border-slate-800 shrink-0"
+            className="inline-flex items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shrink-0"
           >
             <button
               type="button"
               onClick={() => setFilterMode('blocked')}
               className={`px-3 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                 filterMode === 'blocked'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900'
+                  ? 'bg-emerald-600 text-white'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-900'
               }`}
             >
               {t('geoThreatMap.filterBlocked')}
@@ -274,8 +281,8 @@ export function OverviewGeoThreatMapCard({
               onClick={() => setFilterMode('all')}
               className={`px-3 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                 filterMode === 'all'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900'
+                  ? 'bg-emerald-600 text-white'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-900'
               }`}
             >
               {t('geoThreatMap.filterAll')}
@@ -285,7 +292,7 @@ export function OverviewGeoThreatMapCard({
           <button
             type="button"
             onClick={() => onNavigate('integrations')}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-400 hover:text-blue-300 whitespace-nowrap shrink-0 cursor-pointer"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 whitespace-nowrap shrink-0 cursor-pointer"
           >
             <span>{t('geoThreatMap.integrationsLink')}</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -296,10 +303,10 @@ export function OverviewGeoThreatMapCard({
       {/* Body */}
       {!summary.hasGeoData ? (
         <div className="p-8 text-center space-y-2.5">
-          <p className="text-sm font-medium text-slate-200">{t('geoThreatMap.emptyTitle')}</p>
-          <p className="text-xs text-slate-400 max-w-xl mx-auto">{t('geoThreatMap.emptyHint')}</p>
+          <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{t('geoThreatMap.emptyTitle')}</p>
+          <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xl mx-auto">{t('geoThreatMap.emptyHint')}</p>
           {summary.localPrivateBlockedCount > 0 && (
-            <p className="text-xs text-slate-400 tabular-nums pt-1">
+            <p className="text-xs text-slate-600 dark:text-slate-400 tabular-nums pt-1">
               {t('geoThreatMap.localDropsNote', {
                 count: summary.localPrivateBlockedCount.toLocaleString(locale),
               })}
@@ -309,20 +316,20 @@ export function OverviewGeoThreatMapCard({
             <button
               type="button"
               onClick={() => onNavigate('integrations')}
-              className="px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors cursor-pointer"
+              className="px-4 py-2 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 transition-colors cursor-pointer"
             >
               {t('geoThreatMap.integrationsLink')}
             </button>
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-12 divide-y xl:divide-y-0 xl:divide-x divide-slate-800">
+        <div className="grid grid-cols-1 xl:grid-cols-12 divide-y xl:divide-y-0 xl:divide-x divide-slate-200 dark:divide-slate-800">
           {/* Left: D3 Choropleth Map */}
           <div className="xl:col-span-8 p-5 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-              <span className="font-medium text-slate-200">{t('geoThreatMap.mapTitle')}</span>
+              <span className="font-medium text-slate-800 dark:text-slate-200">{t('geoThreatMap.mapTitle')}</span>
 
-              <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400 tabular-nums">
+              <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-600 dark:text-slate-400 tabular-nums">
                 {summary.localPrivateBlockedCount > 0 && (
                   <>
                     <span>
@@ -330,7 +337,7 @@ export function OverviewGeoThreatMapCard({
                         count: summary.localPrivateBlockedCount.toLocaleString(locale),
                       })}
                     </span>
-                    <span aria-hidden="true" className="text-slate-700">
+                    <span aria-hidden="true" className="text-slate-300 dark:text-slate-700">
                       ·
                     </span>
                   </>
@@ -338,7 +345,7 @@ export function OverviewGeoThreatMapCard({
                 <div className="inline-flex items-center gap-1.5">
                   <span>{t('geoThreatMap.legendLow')}</span>
                   <div className="inline-flex items-center gap-0.5" aria-hidden="true">
-                    <span className="w-3.5 h-2 rounded-xs bg-[#182235] border border-slate-700" />
+                    <span className="w-3.5 h-2 rounded-xs bg-slate-200 dark:bg-[#182235] border border-slate-300 dark:border-slate-700" />
                     {HEAT_STOPS.map((color) => (
                       <span
                         key={color}
@@ -356,7 +363,7 @@ export function OverviewGeoThreatMapCard({
 
             <div
               ref={mapBoxRef}
-              className="relative w-full rounded-lg border border-slate-800 bg-[#0B1120] overflow-hidden"
+              className="relative w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-[#0B1120] overflow-hidden"
               onMouseLeave={() => setHovered(null)}
             >
               <svg
@@ -369,8 +376,8 @@ export function OverviewGeoThreatMapCard({
                 <path
                   d={mapGeometry.graticulePath}
                   fill="none"
-                  stroke="#1e293b"
-                  strokeOpacity={0.5}
+                  stroke={graticuleStroke}
+                  strokeOpacity={0.55}
                   strokeWidth={0.6}
                 />
 
@@ -386,8 +393,8 @@ export function OverviewGeoThreatMapCard({
                     const isSelected = selectedNumericId === country.id;
                     const isHovered = hovered?.numericId === country.id;
                     const fill = stat
-                      ? getHeatFill(metricValue, summary.maxCountryAttempts)
-                      : '#182235';
+                      ? getHeatFill(metricValue, summary.maxCountryAttempts, isDark)
+                      : getHeatFill(0, 1, isDark);
 
                     return (
                       <path
@@ -396,12 +403,12 @@ export function OverviewGeoThreatMapCard({
                         fill={fill}
                         stroke={
                           isSelected
-                            ? '#38bdf8'
+                            ? selectedStroke
                             : isHovered
                               ? '#fca5a5'
                               : stat
                                 ? '#ef4444'
-                                : '#263449'
+                                : defaultBorderStroke
                         }
                         strokeWidth={isSelected ? 1.6 : isHovered ? 1.2 : stat ? 0.75 : 0.45}
                         strokeOpacity={isSelected || isHovered ? 1 : stat ? 0.8 : 0.75}
@@ -452,16 +459,16 @@ export function OverviewGeoThreatMapCard({
                           cx={cx}
                           cy={cy}
                           r={radius + 4}
-                          fill="#ef4444"
+                          fill={isSelected ? selectedStroke : '#ef4444'}
                           fillOpacity={isSelected ? 0.35 : 0.2}
                         />
                         <circle
                           cx={cx}
                           cy={cy}
                           r={radius}
-                          fill={isSelected ? '#38bdf8' : '#f87171'}
-                          fillOpacity={0.9}
-                          stroke="#0B1120"
+                          fill={isSelected ? selectedStroke : '#f87171'}
+                          fillOpacity={0.92}
+                          stroke={hotspotRingStroke}
                           strokeWidth={1.1}
                         />
                       </g>
@@ -478,44 +485,44 @@ export function OverviewGeoThreatMapCard({
                     top: `${hovered.yPct}%`,
                     transform: 'translate(-50%, -108%)',
                   }}
-                  className="pointer-events-none absolute z-20 rounded-lg border border-slate-700 bg-[#0B1120]/95 backdrop-blur-sm px-3.5 py-2.5 shadow-xl text-xs space-y-1.5 min-w-[220px] max-w-[275px]"
+                  className="pointer-events-none absolute z-20 rounded-lg border border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-[#0B1120]/95 backdrop-blur-sm px-3.5 py-2.5 shadow-xl text-xs space-y-1.5 min-w-[220px] max-w-[275px]"
                 >
-                  <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-1.5">
-                    <span className="font-semibold text-slate-100 truncate">
+                  <div className="flex items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-1.5">
+                    <span className="font-semibold text-slate-900 dark:text-slate-100 truncate">
                       {hoveredCountry
                         ? localizeCountryName(hoveredCountry.isoAlpha2, hoveredCountry.defaultName)
                         : hovered.defaultName}
                     </span>
                     {hoveredCountry && (
-                      <span className="font-mono text-[11px] text-slate-400 shrink-0">
+                      <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400 shrink-0">
                         {hoveredCountry.isoAlpha2}
                       </span>
                     )}
                   </div>
 
                   {!hoveredCountry ? (
-                    <div className="text-slate-400 text-[11px]">
+                    <div className="text-slate-600 dark:text-slate-400 text-[11px]">
                       {t('geoThreatMap.noActivityLabel')}
                     </div>
                   ) : (
                     <div className="space-y-1 tabular-nums">
                       <div className="flex items-center justify-between gap-4">
-                        <span className="text-slate-400">{t('geoThreatMap.tooltipBlocked')}</span>
-                        <span className="font-mono font-semibold text-red-400">
+                        <span className="text-slate-600 dark:text-slate-400">{t('geoThreatMap.tooltipBlocked')}</span>
+                        <span className="font-mono font-semibold text-red-600 dark:text-red-400">
                           {hoveredCountry.blockedAttempts.toLocaleString(locale)}
                         </span>
                       </div>
                       {hoveredCountry.observedAttempts > 0 && (
                         <div className="flex items-center justify-between gap-4">
-                          <span className="text-slate-400">{t('geoThreatMap.tooltipObserved')}</span>
-                          <span className="font-mono font-semibold text-amber-300">
+                          <span className="text-slate-600 dark:text-slate-400">{t('geoThreatMap.tooltipObserved')}</span>
+                          <span className="font-mono font-semibold text-amber-700 dark:text-amber-300">
                             {hoveredCountry.observedAttempts.toLocaleString(locale)}
                           </span>
                         </div>
                       )}
                       <div className="flex items-center justify-between gap-4">
-                        <span className="text-slate-400">{t('geoThreatMap.tooltipShare')}</span>
-                        <span className="font-mono text-slate-200">
+                        <span className="text-slate-600 dark:text-slate-400">{t('geoThreatMap.tooltipShare')}</span>
+                        <span className="font-mono text-slate-800 dark:text-slate-200">
                           {hoveredCountry.sharePct.toLocaleString(locale, {
                             minimumFractionDigits: 1,
                             maximumFractionDigits: 1,
@@ -524,23 +531,23 @@ export function OverviewGeoThreatMapCard({
                         </span>
                       </div>
                       <div className="flex items-center justify-between gap-4">
-                        <span className="text-slate-400">{t('geoThreatMap.tooltipSeverity')}</span>
+                        <span className="text-slate-600 dark:text-slate-400">{t('geoThreatMap.tooltipSeverity')}</span>
                         <span
                           className={`font-medium ${getSeverityTextClass(hoveredCountry.highestSeverity)}`}
                         >
                           {t(`incidents.severity.${hoveredCountry.highestSeverity}`)}
                         </span>
                       </div>
-                      <div className="border-t border-slate-800 pt-1 text-[11px] space-y-0.5">
-                        <div className="text-slate-400">
+                      <div className="border-t border-slate-200 dark:border-slate-800 pt-1 text-[11px] space-y-0.5">
+                        <div className="text-slate-600 dark:text-slate-400">
                           {t('geoThreatMap.tooltipVectors')}:{' '}
-                          <span className="font-mono text-slate-200">
+                          <span className="font-mono text-slate-800 dark:text-slate-200">
                             {hoveredCountry.services.join(', ')}
                           </span>
                         </div>
-                        <div className="text-slate-400 truncate">
+                        <div className="text-slate-600 dark:text-slate-400 truncate">
                           {t('geoThreatMap.tooltipTopIps')}:{' '}
-                          <span className="font-mono text-slate-200">
+                          <span className="font-mono text-slate-800 dark:text-slate-200">
                             {hoveredCountry.uniqueIps.slice(0, 2).join(', ')}
                           </span>
                         </div>
@@ -556,14 +563,14 @@ export function OverviewGeoThreatMapCard({
           <div className="xl:col-span-4 p-5 flex flex-col justify-between gap-4">
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-2">
-                <h3 className="text-xs font-semibold text-slate-200">
+                <h3 className="text-xs font-semibold text-slate-800 dark:text-slate-200">
                   {t('geoThreatMap.topCountriesTitle')}
                 </h3>
                 {selectedCountry && (
                   <button
                     type="button"
                     onClick={() => setSelectedNumericId(null)}
-                    className="inline-flex items-center gap-1 text-[11px] text-blue-400 hover:text-blue-300 cursor-pointer"
+                    className="inline-flex items-center gap-1 text-[11px] text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer"
                   >
                     <X className="w-3 h-3" />
                     <span>{t('geoThreatMap.clearSelection')}</span>
@@ -571,7 +578,7 @@ export function OverviewGeoThreatMapCard({
                 )}
               </div>
 
-              <div className="divide-y divide-slate-800/80 max-h-[260px] overflow-y-auto">
+              <div className="divide-y divide-slate-200 dark:divide-slate-800/80 max-h-[260px] overflow-y-auto">
                 {summary.countries.slice(0, 8).map((country) => {
                   const count =
                     filterMode === 'blocked' ? country.blockedAttempts : country.totalAttempts;
@@ -592,23 +599,25 @@ export function OverviewGeoThreatMapCard({
                         )
                       }
                       className={`w-full text-left py-2.5 px-2 transition-colors cursor-pointer space-y-1.5 ${
-                        isSelected ? 'bg-slate-800/70 rounded-md' : 'hover:bg-slate-900/50'
+                        isSelected
+                          ? 'bg-emerald-50 dark:bg-emerald-950/35 rounded-md'
+                          : 'hover:bg-slate-50 dark:hover:bg-slate-900/50'
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2 text-xs tabular-nums">
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className="font-mono text-[11px] text-slate-400 w-6 shrink-0">
+                          <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400 w-6 shrink-0">
                             {country.isoAlpha2}
                           </span>
-                          <span className="font-medium text-slate-100 truncate">
+                          <span className="font-medium text-slate-900 dark:text-slate-100 truncate">
                             {displayName}
                           </span>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="font-mono font-semibold text-red-400">
+                          <span className="font-mono font-semibold text-red-600 dark:text-red-400">
                             {count.toLocaleString(locale)}
                           </span>
-                          <span className="font-mono text-[11px] text-slate-400 w-11 text-right">
+                          <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400 w-11 text-right">
                             {country.sharePct.toLocaleString(locale, {
                               minimumFractionDigits: 1,
                               maximumFractionDigits: 1,
@@ -617,12 +626,12 @@ export function OverviewGeoThreatMapCard({
                           </span>
                         </div>
                       </div>
-                      <div className="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                      <div className="w-full h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all"
                           style={{
                             width: `${widthPct}%`,
-                            backgroundColor: getHeatFill(count, summary.maxCountryAttempts),
+                            backgroundColor: getHeatFill(count, summary.maxCountryAttempts, isDark),
                           }}
                         />
                       </div>
@@ -638,9 +647,9 @@ export function OverviewGeoThreatMapCard({
               if (!target) return null;
               const targetName = localizeCountryName(target.isoAlpha2, target.defaultName);
               return (
-                <div className="border-t border-slate-800 pt-3.5 space-y-2 text-xs">
+                <div className="border-t border-slate-200 dark:border-slate-800 pt-3.5 space-y-2 text-xs">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-medium text-slate-400">
+                    <span className="text-[11px] font-medium text-slate-600 dark:text-slate-400">
                       {t('geoThreatMap.selectedDetailTitle')}
                     </span>
                     <span
@@ -650,10 +659,10 @@ export function OverviewGeoThreatMapCard({
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-semibold text-slate-100">
+                    <span className="font-semibold text-slate-900 dark:text-slate-100">
                       {targetName} ({target.isoAlpha2})
                     </span>
-                    <span className="font-mono text-slate-300 tabular-nums">
+                    <span className="font-mono text-slate-700 dark:text-slate-300 tabular-nums">
                       {filterMode === 'blocked'
                         ? t('geoThreatMap.attemptsUnit', {
                             count: target.blockedAttempts.toLocaleString(locale),
@@ -663,12 +672,12 @@ export function OverviewGeoThreatMapCard({
                           })}
                     </span>
                   </div>
-                  <div className="text-[11px] text-slate-400 space-y-1">
-                    <div className="font-mono text-slate-300 truncate">
+                  <div className="text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
+                    <div className="font-mono text-slate-700 dark:text-slate-300 truncate">
                       {t('geoThreatMap.tooltipTopIps')}: {target.uniqueIps.slice(0, 4).join(', ')}
                     </div>
                     <div className="flex items-center justify-between gap-2 tabular-nums">
-                      <span className="font-mono text-slate-300">
+                      <span className="font-mono text-slate-700 dark:text-slate-300">
                         {t('geoThreatMap.tooltipVectors')}: {target.services.join(', ')}
                       </span>
                       <span className="text-slate-500">

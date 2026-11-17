@@ -18,6 +18,7 @@ import {
   YAxis,
 } from 'recharts';
 import { getIntlLocale } from '../i18n';
+import { useTheme } from '../lib/theme';
 import type { AiUsageRecord } from '../types/openshield';
 import { PaginationControls, usePagination } from './PaginationControls';
 
@@ -57,29 +58,33 @@ function UsageBarTooltip({ active, payload }: ChartTooltipProps) {
   if (!row) return null;
 
   return (
-    <div className="rounded-lg border border-slate-700 bg-[#0B1120] px-3 py-2.5 shadow-lg text-xs space-y-1.5 min-w-[190px]">
-      <div className="font-semibold text-slate-100">{row.name}</div>
+    <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0B1120] px-3 py-2.5 shadow-lg text-xs space-y-1.5 min-w-[190px]">
+      <div className="font-semibold text-slate-900 dark:text-slate-100">{row.name}</div>
       <div className="flex items-center justify-between gap-4 tabular-nums">
-        <span className="text-slate-400">{t('aiUsage.tooltipCalls')}</span>
-        <span className="font-mono text-slate-200">{row.calls}</span>
+        <span className="text-slate-600 dark:text-slate-400">{t('aiUsage.tooltipCalls')}</span>
+        <span className="font-mono text-slate-900 dark:text-slate-200">{row.calls}</span>
       </div>
       <div className="flex items-center justify-between gap-4 tabular-nums">
-        <span className="text-slate-400">{t('aiUsage.tooltipPrompt')}</span>
-        <span className="font-mono text-sky-400">{formatNumber(row.promptTokens, locale)}</span>
+        <span className="text-slate-600 dark:text-slate-400">{t('aiUsage.tooltipPrompt')}</span>
+        <span className="font-mono text-teal-700 dark:text-teal-400">
+          {formatNumber(row.promptTokens, locale)}
+        </span>
       </div>
       <div className="flex items-center justify-between gap-4 tabular-nums">
-        <span className="text-slate-400">{t('aiUsage.tooltipCompletion')}</span>
-        <span className="font-mono text-emerald-400">
+        <span className="text-slate-600 dark:text-slate-400">{t('aiUsage.tooltipCompletion')}</span>
+        <span className="font-mono text-emerald-700 dark:text-emerald-400">
           {formatNumber(row.completionTokens, locale)}
         </span>
       </div>
-      <div className="flex items-center justify-between gap-4 tabular-nums border-t border-slate-800 pt-1">
-        <span className="text-slate-400">{t('aiUsage.tooltipLatency')}</span>
-        <span className="font-mono text-slate-200">{row.avgLatencyMs} ms</span>
+      <div className="flex items-center justify-between gap-4 tabular-nums border-t border-slate-200 dark:border-slate-800 pt-1">
+        <span className="text-slate-600 dark:text-slate-400">{t('aiUsage.tooltipLatency')}</span>
+        <span className="font-mono text-slate-900 dark:text-slate-200">{row.avgLatencyMs} ms</span>
       </div>
       <div className="flex items-center justify-between gap-4 tabular-nums">
-        <span className="text-slate-400">{t('aiUsage.tooltipCost')}</span>
-        <span className="font-mono text-amber-300">{formatUsd(row.costUsd, i18n.language)}</span>
+        <span className="text-slate-600 dark:text-slate-400">{t('aiUsage.tooltipCost')}</span>
+        <span className="font-mono text-amber-700 dark:text-amber-300">
+          {formatUsd(row.costUsd, i18n.language)}
+        </span>
       </div>
     </div>
   );
@@ -91,8 +96,17 @@ interface AiUsageCardProps {
 
 export function AiUsageCard({ records }: AiUsageCardProps) {
   const { t, i18n } = useTranslation();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const locale = getIntlLocale(i18n.language);
   const [filter, setFilter] = useState<UsageFilter>('all');
+
+  const gridStroke = isDark ? '#1E293B' : '#E2E8F0';
+  const xTickColor = isDark ? '#94A3B8' : '#475569';
+  const yTickColor = isDark ? '#64748B' : '#475569';
+  const promptFill = isDark ? '#2DD4BF' : '#0D9488';
+  const completionFill = isDark ? '#10B981' : '#059669';
+  const cursorFill = isDark ? 'rgba(148, 163, 184, 0.08)' : 'rgba(15, 23, 42, 0.05)';
 
   const stats = useMemo(() => {
     const localRows = records.filter((r) => r.channel === 'local');
@@ -152,21 +166,21 @@ export function AiUsageCard({ records }: AiUsageCardProps) {
   return (
     <section
       aria-label={t('aiUsage.ariaLabel')}
-      className="rounded-xl border border-slate-800 bg-[#131C31] p-5 space-y-5"
+      className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31] shadow-xs dark:shadow-none p-5 space-y-5"
     >
       {/* Header + Channel Filter */}
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between border-b border-slate-800 pb-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
         <div className="space-y-1">
-          <div className="flex items-center gap-2 text-base font-semibold text-slate-100">
-            <Coins className="w-4 h-4 text-sky-400 shrink-0" />
+          <div className="flex items-center gap-2 text-base font-semibold text-slate-900 dark:text-slate-100">
+            <Coins className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <h2>{t('aiUsage.title')}</h2>
           </div>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-600 dark:text-slate-400">
             {t('aiUsage.subtitle')}
           </p>
         </div>
 
-        <div className="inline-flex items-center gap-1 p-1 rounded-lg bg-slate-950 border border-slate-800 shrink-0 self-start lg:self-auto">
+        <div className="inline-flex items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shrink-0 self-start lg:self-auto">
           {(
             [
               { id: 'all', label: t('aiUsage.filterAll', { count: stats.totalCalls }) },
@@ -182,8 +196,8 @@ export function AiUsageCard({ records }: AiUsageCardProps) {
                 onClick={() => setFilter(item.id)}
                 className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                   active
-                    ? 'bg-blue-600 text-white'
-                    : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900'
+                    ? 'bg-emerald-600 text-white'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-900'
                 }`}
               >
                 {item.label}
@@ -195,49 +209,49 @@ export function AiUsageCard({ records }: AiUsageCardProps) {
 
       {/* 4 KPI Summary Tiles */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
-        <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3.5 space-y-1">
-          <div className="flex items-center justify-between text-xs text-slate-400">
+        <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 p-3.5 space-y-1">
+          <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
             <span>{t('aiUsage.kpiTotalCalls')}</span>
-            <Activity className="w-3.5 h-3.5 text-slate-400" />
+            <Activity className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
           </div>
-          <div className="text-xl font-semibold text-slate-50 font-mono tabular-nums">
+          <div className="text-xl font-semibold text-slate-900 dark:text-slate-50 font-mono tabular-nums">
             {formatNumber(stats.totalCalls, locale)}
           </div>
-          <div className="text-[11px] text-slate-400 tabular-nums">
-            <span className="text-emerald-400">
+          <div className="text-[11px] text-slate-600 dark:text-slate-400 tabular-nums">
+            <span className="text-emerald-700 dark:text-emerald-400">
               {t('aiUsage.kpiLocalCount', { count: stats.local.calls })}
             </span>
-            <span className="mx-1.5 text-slate-600">·</span>
-            <span className="text-sky-400">
+            <span className="mx-1.5 text-slate-400 dark:text-slate-600">·</span>
+            <span className="text-teal-700 dark:text-teal-400">
               {t('aiUsage.kpiCloudCount', { count: stats.cloud.calls })}
             </span>
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3.5 space-y-1">
-          <div className="flex items-center justify-between text-xs text-slate-400">
+        <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 p-3.5 space-y-1">
+          <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
             <span>{t('aiUsage.kpiOllamaTokens')}</span>
-            <Cpu className="w-3.5 h-3.5 text-emerald-400" />
+            <Cpu className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <div className="text-xl font-semibold text-emerald-300 font-mono tabular-nums">
+          <div className="text-xl font-semibold text-emerald-700 dark:text-emerald-300 font-mono tabular-nums">
             {formatNumber(stats.local.total, locale)}
           </div>
-          <div className="text-[11px] text-slate-400 tabular-nums">
+          <div className="text-[11px] text-slate-600 dark:text-slate-400 tabular-nums">
             {stats.local.calls > 0
               ? t('aiUsage.kpiOllamaSub', { ms: stats.local.avgLatencyMs })
               : t('aiUsage.kpiOllamaEmpty')}
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3.5 space-y-1">
-          <div className="flex items-center justify-between text-xs text-slate-400">
+        <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 p-3.5 space-y-1">
+          <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
             <span>{t('aiUsage.kpiCloudTokens')}</span>
-            <Cloud className="w-3.5 h-3.5 text-sky-400" />
+            <Cloud className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
           </div>
-          <div className="text-xl font-semibold text-sky-300 font-mono tabular-nums">
+          <div className="text-xl font-semibold text-teal-700 dark:text-teal-300 font-mono tabular-nums">
             {formatNumber(stats.cloud.total, locale)}
           </div>
-          <div className="text-[11px] text-slate-400 tabular-nums">
+          <div className="text-[11px] text-slate-600 dark:text-slate-400 tabular-nums">
             {stats.cloud.calls > 0
               ? t('aiUsage.kpiCloudSub', {
                   ms: stats.cloud.avgLatencyMs,
@@ -247,30 +261,30 @@ export function AiUsageCard({ records }: AiUsageCardProps) {
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3.5 space-y-2">
-          <div className="flex items-center justify-between text-xs text-slate-400">
+        <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 p-3.5 space-y-2">
+          <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
             <span>{t('aiUsage.kpiLocalSavings')}</span>
-            <span className="font-mono font-semibold text-emerald-400 tabular-nums">
+            <span className="font-mono font-semibold text-emerald-700 dark:text-emerald-400 tabular-nums">
               {stats.localSharePct}%
             </span>
           </div>
-          <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden flex">
+          <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden flex">
             <div
               className="bg-emerald-500 h-full transition-all"
               style={{ width: `${stats.totalTokens > 0 ? stats.localSharePct : 0}%` }}
             />
             <div
-              className="bg-sky-500 h-full transition-all"
+              className="bg-teal-500 h-full transition-all"
               style={{
                 width: `${stats.totalTokens > 0 ? 100 - stats.localSharePct : 0}%`,
               }}
             />
           </div>
-          <div className="flex items-center justify-between text-[11px] text-slate-400 tabular-nums">
+          <div className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400 tabular-nums">
             <span>
               {t('aiUsage.kpiTotalTokens', { count: formatNumber(stats.totalTokens, locale) })}
             </span>
-            <span className="font-mono text-amber-300">
+            <span className="font-mono text-amber-700 dark:text-amber-300">
               {formatUsd(stats.cloud.costUsd, i18n.language)}
             </span>
           </div>
@@ -278,26 +292,32 @@ export function AiUsageCard({ records }: AiUsageCardProps) {
       </div>
 
       {records.length === 0 ? (
-        <div className="rounded-lg border border-slate-800 bg-slate-950/50 p-6 text-center text-xs text-slate-400">
+        <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 p-6 text-center text-xs text-slate-600 dark:text-slate-400">
           {t('aiUsage.emptyMessagePrefix')}{' '}
-          <strong className="text-slate-200">{t('aiUsage.emptyActionLocal')}</strong>{' '}
+          <strong className="text-slate-900 dark:text-slate-200">
+            {t('aiUsage.emptyActionLocal')}
+          </strong>{' '}
           {t('aiUsage.emptyMiddle')}{' '}
-          <strong className="text-slate-200">{t('aiUsage.emptyActionCloud')}</strong>{' '}
+          <strong className="text-slate-900 dark:text-slate-200">
+            {t('aiUsage.emptyActionCloud')}
+          </strong>{' '}
           {t('aiUsage.emptyMessageSuffix')}
         </div>
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
           {/* Comparative Bar Chart */}
-          <div className="xl:col-span-4 rounded-lg border border-slate-800 bg-slate-950/50 p-4 space-y-3">
+          <div className="xl:col-span-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 p-4 space-y-3">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-semibold text-slate-200">{t('aiUsage.chartTitle')}</span>
-              <div className="flex items-center gap-3 text-[11px] text-slate-400">
+              <span className="font-semibold text-slate-900 dark:text-slate-200">
+                {t('aiUsage.chartTitle')}
+              </span>
+              <div className="flex items-center gap-3 text-[11px] text-slate-600 dark:text-slate-400">
                 <span className="inline-flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-xs bg-sky-400 inline-block" />
+                  <span className="w-2 h-2 rounded-xs bg-teal-600 dark:bg-teal-400 inline-block" />
                   {t('aiUsage.legendPrompt')}
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-xs bg-emerald-400 inline-block" />
+                  <span className="w-2 h-2 rounded-xs bg-emerald-600 dark:bg-emerald-400 inline-block" />
                   {t('aiUsage.legendCompletion')}
                 </span>
               </div>
@@ -309,33 +329,30 @@ export function AiUsageCard({ records }: AiUsageCardProps) {
                   data={stats.chartData}
                   margin={{ top: 8, right: 8, left: -16, bottom: 0 }}
                 >
-                  <CartesianGrid stroke="#1E293B" strokeDasharray="3 3" vertical={false} />
+                  <CartesianGrid stroke={gridStroke} strokeDasharray="3 3" vertical={false} />
                   <XAxis
                     dataKey="name"
-                    tick={{ fill: '#94A3B8', fontSize: 11 }}
-                    axisLine={{ stroke: '#1E293B' }}
+                    tick={{ fill: xTickColor, fontSize: 11 }}
+                    axisLine={{ stroke: gridStroke }}
                     tickLine={false}
                   />
                   <YAxis
-                    tick={{ fill: '#64748B', fontSize: 11 }}
+                    tick={{ fill: yTickColor, fontSize: 11 }}
                     axisLine={false}
                     tickLine={false}
                   />
-                  <Tooltip
-                    cursor={{ fill: 'rgba(148, 163, 184, 0.08)' }}
-                    content={<UsageBarTooltip />}
-                  />
+                  <Tooltip cursor={{ fill: cursorFill }} content={<UsageBarTooltip />} />
                   <Bar
                     dataKey="promptTokens"
                     stackId="tokens"
-                    fill="#38BDF8"
+                    fill={promptFill}
                     radius={[0, 0, 2, 2]}
                     maxBarSize={44}
                   />
                   <Bar
                     dataKey="completionTokens"
                     stackId="tokens"
-                    fill="#10B981"
+                    fill={completionFill}
                     radius={[4, 4, 0, 0]}
                     maxBarSize={44}
                   />
@@ -348,9 +365,9 @@ export function AiUsageCard({ records }: AiUsageCardProps) {
           </div>
 
           {/* Call & Token Ledger Table */}
-          <div className="xl:col-span-8 rounded-lg border border-slate-800 bg-slate-950/50 overflow-hidden">
-            <div className="px-4 py-2.5 border-b border-slate-800 flex items-center justify-between text-xs">
-              <span className="font-semibold text-slate-200">
+          <div className="xl:col-span-8 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 overflow-hidden">
+            <div className="px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+              <span className="font-semibold text-slate-900 dark:text-slate-200">
                 {t('aiUsage.ledgerTitle', { count: filteredRecords.length })}
               </span>
               <span className="text-[11px] text-slate-500 font-mono">
@@ -360,7 +377,7 @@ export function AiUsageCard({ records }: AiUsageCardProps) {
 
             <div className="overflow-x-auto max-h-72 overflow-y-auto">
               <table className="w-full text-left border-collapse text-xs">
-                <thead className="sticky top-0 bg-slate-950 text-[11px] text-slate-400 border-b border-slate-800">
+                <thead className="sticky top-0 bg-slate-100 dark:bg-slate-950 text-[11px] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
                   <tr>
                     <th className="py-2.5 px-3 font-medium">{t('aiUsage.colTime')}</th>
                     <th className="py-2.5 px-3 font-medium">{t('aiUsage.colProvider')}</th>
@@ -380,10 +397,13 @@ export function AiUsageCard({ records }: AiUsageCardProps) {
                     <th className="py-2.5 px-3 font-medium">{t('aiUsage.colStatus')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/70">
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800/70">
                   {usagePagination.pagedItems.map((row) => (
-                    <tr key={row.id} className="hover:bg-slate-900/50 transition-colors">
-                      <td className="py-2.5 px-3 font-mono text-[11px] text-slate-400 whitespace-nowrap tabular-nums">
+                    <tr
+                      key={row.id}
+                      className="hover:bg-slate-100/80 dark:hover:bg-slate-900/50 transition-colors"
+                    >
+                      <td className="py-2.5 px-3 font-mono text-[11px] text-slate-600 dark:text-slate-400 whitespace-nowrap tabular-nums">
                         {new Date(row.timestamp).toLocaleString(locale, {
                           day: '2-digit',
                           month: '2-digit',
@@ -393,11 +413,11 @@ export function AiUsageCard({ records }: AiUsageCardProps) {
                         })}
                       </td>
                       <td className="py-2.5 px-3">
-                        <div className="flex items-center gap-1.5 font-medium text-slate-200 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5 font-medium text-slate-900 dark:text-slate-200 whitespace-nowrap">
                           {row.channel === 'cloud' ? (
-                            <Cloud className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                            <Cloud className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
                           ) : (
-                            <Cpu className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            <Cpu className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                           )}
                           <span>
                             {row.channel === 'cloud'
@@ -410,27 +430,32 @@ export function AiUsageCard({ records }: AiUsageCardProps) {
                         </div>
                       </td>
                       <td className="py-2.5 px-3">
-                        <div className="text-slate-200 truncate max-w-[190px]" title={row.incidentTitle}>
+                        <div
+                          className="text-slate-800 dark:text-slate-200 truncate max-w-[190px]"
+                          title={row.incidentTitle}
+                        >
                           {row.incidentTitle}
                         </div>
                         <div className="text-[11px] font-mono text-slate-500">
                           {row.incidentId}
                         </div>
                       </td>
-                      <td className="py-2.5 px-3 text-right font-mono text-[11px] text-slate-400 whitespace-nowrap tabular-nums">
+                      <td className="py-2.5 px-3 text-right font-mono text-[11px] text-slate-600 dark:text-slate-400 whitespace-nowrap tabular-nums">
                         {formatNumber(row.promptTokens, locale)} /{' '}
                         {formatNumber(row.completionTokens, locale)}
                       </td>
-                      <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-100 whitespace-nowrap tabular-nums">
+                      <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap tabular-nums">
                         {formatNumber(row.totalTokens, locale)}
                       </td>
-                      <td className="py-2.5 px-3 text-right font-mono text-slate-300 whitespace-nowrap tabular-nums">
+                      <td className="py-2.5 px-3 text-right font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap tabular-nums">
                         {row.durationMs} ms
                       </td>
                       <td className="py-2.5 px-3 text-right font-mono whitespace-nowrap tabular-nums">
                         <span
                           className={
-                            row.estimatedCostUsd > 0 ? 'text-amber-300' : 'text-emerald-400'
+                            row.estimatedCostUsd > 0
+                              ? 'text-amber-700 dark:text-amber-300'
+                              : 'text-emerald-700 dark:text-emerald-400'
                           }
                         >
                           {formatUsd(row.estimatedCostUsd, i18n.language)}
@@ -438,13 +463,13 @@ export function AiUsageCard({ records }: AiUsageCardProps) {
                       </td>
                       <td className="py-2.5 px-3 whitespace-nowrap">
                         {row.outcome === 'success' ? (
-                          <span className="inline-flex items-center gap-1 text-emerald-400">
+                          <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
                             <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
                             <span>{t('common.success')}</span>
                           </span>
                         ) : (
                           <span
-                            className="inline-flex items-center gap-1 text-red-400"
+                            className="inline-flex items-center gap-1 text-red-700 dark:text-red-400"
                             title={row.detail || t('aiUsage.inferenceErrorFallback')}
                           >
                             <AlertTriangle className="w-3.5 h-3.5 shrink-0" />

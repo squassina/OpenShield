@@ -6,12 +6,19 @@
     --font-display: 'Plus Jakarta Sans', system-ui, sans-serif;
     --font-sans: 'DM Sans', system-ui, sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+    --os-bg: #f8fafc;
+    --os-fg: #0f172a;
+  }
+
+  .dark {
+    --os-bg: #0b1120;
+    --os-fg: #e2e8f0;
   }
 
   body {
     font-family: var(--font-sans);
-    background-color: #0B1120;
-    color: #E2E8F0;
+    background-color: var(--os-bg);
+    color: var(--os-fg);
     letter-spacing: 0.005em;
   }
 

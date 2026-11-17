@@ -237,10 +237,10 @@ export function IntegrationsView({
     <div className="space-y-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-50 text-balance">
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-50 text-balance">
             {t('integrations.title')}
           </h1>
-          <p className="mt-1 text-sm text-slate-400 max-w-2xl">{t('integrations.subtitle')}</p>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 max-w-2xl">{t('integrations.subtitle')}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
@@ -248,10 +248,10 @@ export function IntegrationsView({
             type="button"
             disabled={state.integrations.length === 0 || busyKey === 'sync-all'}
             onClick={onSyncAll}
-            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
           >
             <RefreshCw
-              className={`w-3.5 h-3.5 text-emerald-400 ${busyKey === 'sync-all' ? 'animate-spin' : ''}`}
+              className={`w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 ${busyKey === 'sync-all' ? 'animate-spin' : ''}`}
             />
             <span>{t('integrations.syncAll', { count: state.integrations.length })}</span>
           </button>
@@ -259,16 +259,16 @@ export function IntegrationsView({
           <button
             type="button"
             onClick={onOpenSettings}
-            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
-            <Settings className="w-4 h-4 text-blue-400" />
+            <Settings className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             <span>{t('integrations.configureEndpoints')}</span>
           </button>
 
           <button
             type="button"
             onClick={() => setShowManualForm((prev) => !prev)}
-            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>
@@ -279,25 +279,25 @@ export function IntegrationsView({
       </div>
 
       {/* Periodic Auto-Sync Timer */}
-      <section className="rounded-xl border border-slate-800 bg-[#131C31] p-5 space-y-4">
+      <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31] shadow-xs dark:shadow-none p-5 space-y-4">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2.5">
               <Clock
                 className={`w-4 h-4 shrink-0 ${
-                  periodicSync.enabled ? 'text-emerald-400' : 'text-slate-400'
+                  periodicSync.enabled ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'
                 }`}
               />
-              <h2 className="text-sm font-semibold text-slate-100">
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                 {t('integrations.autoSyncTitle')}
               </h2>
               <span
                 className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium border tabular-nums ${
                   periodicSync.enabled
                     ? state.context.nodeAvailable
-                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-                      : 'border-amber-500/30 bg-amber-500/10 text-amber-300'
-                    : 'border-slate-700 bg-slate-900 text-slate-400'
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'
+                      : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300'
+                    : 'border-slate-300 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400'
                 }`}
               >
                 {periodicSync.enabled
@@ -309,12 +309,12 @@ export function IntegrationsView({
                   : t('integrations.autoSyncPaused')}
               </span>
             </div>
-            <p className="text-xs text-slate-400 max-w-2xl">{t('integrations.autoSyncSubtitle')}</p>
+            <p className="text-xs text-slate-600 dark:text-slate-400 max-w-2xl">{t('integrations.autoSyncSubtitle')}</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
             <div
-              className="inline-flex items-center p-1 rounded-lg bg-slate-950 border border-slate-800"
+              className="inline-flex items-center p-1 rounded-lg bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800"
               role="group"
               aria-label={t('integrations.autoSyncIntervalLabel')}
             >
@@ -333,8 +333,8 @@ export function IntegrationsView({
                     }
                     className={`px-2.5 py-1.5 text-xs font-medium font-mono rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50 ${
                       isSelected
-                        ? 'bg-blue-600 text-white'
-                        : 'text-slate-400 hover:text-slate-200'
+                        ? 'bg-emerald-600 text-white'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-900'
                     }`}
                   >
                     {preset.label}
@@ -354,7 +354,7 @@ export function IntegrationsView({
               }
               className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50 ${
                 periodicSync.enabled
-                  ? 'border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
+                  ? 'border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/20'
                   : 'bg-emerald-600 text-white hover:bg-emerald-500'
               }`}
             >
@@ -373,13 +373,13 @@ export function IntegrationsView({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-800/80 text-xs text-slate-400 tabular-nums">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-800/80 text-xs text-slate-600 dark:text-slate-400 tabular-nums">
           <div className="flex flex-wrap items-center gap-2">
             {periodicSync.lastRunAt ? (
               <>
                 <span>
                   {t('integrations.autoSyncLastRun')}{' '}
-                  <strong className="text-slate-200 font-medium">
+                  <strong className="text-slate-900 dark:text-slate-200 font-medium">
                     {new Date(periodicSync.lastRunAt).toLocaleTimeString(locale)}
                   </strong>
                 </span>
@@ -387,10 +387,10 @@ export function IntegrationsView({
                   <span
                     className={
                       periodicSync.lastRunStatus === 'success'
-                        ? 'text-emerald-400 font-medium'
+                        ? 'text-emerald-700 dark:text-emerald-400 font-medium'
                         : periodicSync.lastRunStatus === 'partial'
-                          ? 'text-amber-400 font-medium'
-                          : 'text-red-400 font-medium'
+                          ? 'text-amber-700 dark:text-amber-400 font-medium'
+                          : 'text-red-700 dark:text-red-400 font-medium'
                     }
                   >
                     {periodicSync.lastRunStatus === 'success'
@@ -403,7 +403,7 @@ export function IntegrationsView({
                 {periodicSync.lastRunSummary && (
                   <>
                     <span aria-hidden="true">·</span>
-                    <span className="font-mono text-slate-300">{periodicSync.lastRunSummary}</span>
+                    <span className="font-mono text-slate-700 dark:text-slate-300">{periodicSync.lastRunSummary}</span>
                   </>
                 )}
               </>
@@ -413,9 +413,9 @@ export function IntegrationsView({
           </div>
 
           {periodicSync.enabled && state.context.nodeAvailable && periodicSync.nextRunAt && (
-            <div className="flex items-center gap-1.5 text-slate-300">
-              <span className="text-slate-400">{t('integrations.autoSyncNextIn')}</span>
-              <span className="font-mono font-semibold text-emerald-400">
+            <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+              <span className="text-slate-500 dark:text-slate-400">{t('integrations.autoSyncNextIn')}</span>
+              <span className="font-mono font-semibold text-emerald-700 dark:text-emerald-400">
                 {Date.parse(periodicSync.nextRunAt) > nowMs
                   ? formatCountdown(Date.parse(periodicSync.nextRunAt) - nowMs)
                   : t('integrations.autoSyncDueNow')}
@@ -426,20 +426,20 @@ export function IntegrationsView({
       </section>
 
       {/* P0 Resilience & Real Ingestion Lab */}
-      <section className="rounded-xl border border-slate-800 bg-[#131C31] p-5 space-y-4">
+      <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31] shadow-xs dark:shadow-none p-5 space-y-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="text-sm font-semibold text-slate-100">{t('integrations.labTitle')}</h2>
-            <p className="text-xs text-slate-400 mt-0.5">{t('integrations.labSubtitle')}</p>
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{t('integrations.labTitle')}</h2>
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">{t('integrations.labSubtitle')}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2.5">
             <button
               type="button"
               disabled={busyKey === 'outage'}
               onClick={() => onToggleOutage(!state.context.nodeAvailable)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
             >
-              <ServerOff className="w-3.5 h-3.5 text-amber-400" />
+              <ServerOff className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
               <span>
                 {state.context.nodeAvailable
                   ? t('integrations.simulateOutage')
@@ -453,9 +453,9 @@ export function IntegrationsView({
               type="button"
               disabled={busyKey === 'ingest'}
               onClick={onInjectSampleEvent}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
             >
-              <RefreshCw className="w-3.5 h-3.5 text-blue-400" />
+              <RefreshCw className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>{t('integrations.injectEventV1')}</span>
             </button>
 
@@ -463,9 +463,9 @@ export function IntegrationsView({
               type="button"
               disabled={busyKey === 'ingest-live-batch'}
               onClick={onSendLiveCorrelatedBatch}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
             >
-              <Send className="w-3.5 h-3.5 text-emerald-400" />
+              <Send className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
               <span>{t('integrations.testIngestCorrelate')}</span>
             </button>
 
@@ -473,33 +473,33 @@ export function IntegrationsView({
               type="button"
               disabled={busyKey === 'bad-prov'}
               onClick={onTestBadProvenance}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
             >
-              <ShieldX className="w-3.5 h-3.5 text-red-400" />
+              <ShieldX className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
               <span>{t('integrations.testBadProvenance')}</span>
             </button>
           </div>
         </div>
 
         {/* Progressive Disclosure: LAN Ingestion Endpoint & Server Env Status */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-2 border-t border-slate-800/80 text-xs">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-2 border-t border-slate-200 dark:border-slate-800/80 text-xs">
           <details>
-            <summary className="cursor-pointer text-blue-400 hover:text-blue-300 font-medium select-none inline-flex items-center gap-1.5">
+            <summary className="cursor-pointer text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 font-medium select-none inline-flex items-center gap-1.5">
               <KeyRound className="w-3.5 h-3.5" />
               <span>{t('integrations.envSummary')}</span>
             </summary>
-            <div className="mt-3 divide-y divide-slate-800/80 rounded-lg border border-slate-800 bg-slate-950/60">
+            <div className="mt-3 divide-y divide-slate-200 dark:divide-slate-800/80 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60">
               {envStatus.map((env) => (
                 <div key={env.key} className="px-3 py-2 flex items-center justify-between gap-2">
                   <div>
-                    <div className="font-mono text-slate-200">{env.key}</div>
-                    <div className="text-[11px] text-slate-400">
+                    <div className="font-mono text-slate-900 dark:text-slate-200">{env.key}</div>
+                    <div className="text-[11px] text-slate-600 dark:text-slate-400">
                       {env.label} · {env.scope}
                     </div>
                   </div>
                   <span
                     className={
-                      env.configured ? 'text-emerald-400 font-medium' : 'text-slate-500'
+                      env.configured ? 'text-emerald-700 dark:text-emerald-400 font-medium' : 'text-slate-500'
                     }
                   >
                     {env.configured
@@ -512,11 +512,11 @@ export function IntegrationsView({
           </details>
 
           <details>
-            <summary className="cursor-pointer text-blue-400 hover:text-blue-300 font-medium select-none inline-flex items-center gap-1.5">
+            <summary className="cursor-pointer text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 font-medium select-none inline-flex items-center gap-1.5">
               <Send className="w-3.5 h-3.5" />
               <span>{t('integrations.ingestSummary')}</span>
             </summary>
-            <pre className="mt-3 p-3 rounded-lg bg-slate-950 border border-slate-800 font-mono text-[11px] text-slate-300 overflow-x-auto">
+            <pre className="mt-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 font-mono text-[11px] text-slate-800 dark:text-slate-300 overflow-x-auto">
               {sampleCurl}
             </pre>
           </details>
@@ -527,44 +527,44 @@ export function IntegrationsView({
       {showManualForm && (
         <form
           onSubmit={handleManualSubmit}
-          className="rounded-xl border border-slate-700 bg-[#131C31] p-5 space-y-4"
+          className="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#131C31] shadow-xs dark:shadow-none p-5 space-y-4"
         >
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
             <div>
-              <h3 className="text-sm font-semibold text-slate-100">
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                 {t('integrations.manualTitle')}
               </h3>
-              <p className="text-xs text-slate-400 mt-0.5">{t('integrations.manualSubtitle')}</p>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">{t('integrations.manualSubtitle')}</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <label className="block space-y-1.5 text-xs">
-              <span className="text-slate-300 font-medium">{t('integrations.manualId')}</span>
+              <span className="text-slate-700 dark:text-slate-300 font-medium">{t('integrations.manualId')}</span>
               <input
                 type="text"
                 value={manualId}
                 onChange={(e) => setManualId(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs focus:outline-none focus:border-emerald-500"
                 required
               />
             </label>
             <label className="block space-y-1.5 text-xs">
-              <span className="text-slate-300 font-medium">{t('integrations.manualName')}</span>
+              <span className="text-slate-700 dark:text-slate-300 font-medium">{t('integrations.manualName')}</span>
               <input
                 type="text"
                 value={manualName}
                 onChange={(e) => setManualName(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
                 required
               />
             </label>
             <label className="block space-y-1.5 text-xs">
-              <span className="text-slate-300 font-medium">{t('integrations.manualDomain')}</span>
+              <span className="text-slate-700 dark:text-slate-300 font-medium">{t('integrations.manualDomain')}</span>
               <select
                 value={manualDomain}
                 onChange={(e) => setManualDomain(e.target.value as IntegrationAdapter['domain'])}
-                className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
               >
                 <option value="gateway">{t('integrations.domainGateway')}</option>
                 <option value="dns">{t('integrations.domainDns')}</option>
@@ -578,44 +578,44 @@ export function IntegrationsView({
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <label className="block space-y-1.5 text-xs">
-              <span className="text-slate-300 font-medium">{t('integrations.manualKind')}</span>
+              <span className="text-slate-700 dark:text-slate-300 font-medium">{t('integrations.manualKind')}</span>
               <input
                 type="text"
                 value={manualKind}
                 onChange={(e) => setManualKind(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs focus:outline-none focus:border-emerald-500"
               />
             </label>
             <label className="block space-y-1.5 text-xs md:col-span-2">
-              <span className="text-slate-300 font-medium">{t('integrations.manualUrl')}</span>
+              <span className="text-slate-700 dark:text-slate-300 font-medium">{t('integrations.manualUrl')}</span>
               <input
                 type="url"
                 value={manualUrl}
                 onChange={(e) => setManualUrl(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs focus:outline-none focus:border-emerald-500"
               />
             </label>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
             <label className="block space-y-1.5 text-xs">
-              <span className="text-slate-400">{t('integrations.extraKey')}</span>
+              <span className="text-slate-600 dark:text-slate-400">{t('integrations.extraKey')}</span>
               <input
                 type="text"
                 placeholder={t('integrations.extraKeyPlaceholder')}
                 value={extraKey}
                 onChange={(e) => setExtraKey(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs focus:outline-none focus:border-emerald-500"
               />
             </label>
             <label className="block space-y-1.5 text-xs">
-              <span className="text-slate-400">{t('integrations.extraVal')}</span>
+              <span className="text-slate-600 dark:text-slate-400">{t('integrations.extraVal')}</span>
               <input
                 type="text"
                 placeholder={t('integrations.extraValPlaceholder')}
                 value={extraVal}
                 onChange={(e) => setExtraVal(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs focus:outline-none focus:border-emerald-500"
               />
             </label>
           </div>
@@ -624,14 +624,14 @@ export function IntegrationsView({
             <button
               type="button"
               onClick={() => setShowManualForm(false)}
-              className="px-4 py-2 text-xs font-medium rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 cursor-pointer"
+              className="px-4 py-2 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
             >
               {t('common.cancel')}
             </button>
             <button
               type="submit"
               disabled={busyKey === 'manual-reg'}
-              className="px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 cursor-pointer disabled:opacity-50"
+              className="px-4 py-2 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 cursor-pointer disabled:opacity-50"
             >
               {t('integrations.saveIntegration')}
             </button>
@@ -640,22 +640,22 @@ export function IntegrationsView({
       )}
 
       {/* Router Unauthorized Access Attempts */}
-      <section className="rounded-xl border border-slate-800 bg-[#131C31] overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-800 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+      <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31] shadow-xs dark:shadow-none overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
-              <h2 className="text-sm font-semibold text-slate-100">
+              <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                 {t('integrations.routerAccess.title', { count: scopedRouterAttempts.length })}
               </h2>
             </div>
-            <p className="text-xs text-slate-400 max-w-2xl">
+            <p className="text-xs text-slate-600 dark:text-slate-400 max-w-2xl">
               {t('integrations.routerAccess.subtitle')}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            <div className="inline-flex flex-wrap items-center gap-1 p-1 rounded-lg bg-slate-950 border border-slate-800">
+            <div className="inline-flex flex-wrap items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
               {(
                 [
                   { id: 'all', label: t('integrations.routerAccess.filterAll') },
@@ -671,8 +671,8 @@ export function IntegrationsView({
                   onClick={() => setServiceFilter(tab.id)}
                   className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                     serviceFilter === tab.id
-                      ? 'bg-slate-800 text-slate-100'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-emerald-600 text-white'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-900'
                   }`}
                 >
                   {tab.label}
@@ -681,35 +681,35 @@ export function IntegrationsView({
             </div>
 
             <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
                 type="search"
                 value={routerSearch}
                 onChange={(e) => setRouterSearch(e.target.value)}
                 placeholder={t('integrations.routerAccess.searchPlaceholder')}
-                className="pl-8 pr-3 py-1.5 w-48 rounded-lg border border-slate-800 bg-slate-950 text-slate-100 text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                className="pl-8 pr-3 py-1.5 w-48 rounded-lg border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-xs placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
               />
             </div>
           </div>
         </div>
 
         {openwrtLogWarning && (
-          <div className="mx-5 mt-4 rounded-lg border border-amber-500/30 bg-amber-950/15 px-3.5 py-2.5 flex items-start gap-2.5 text-xs text-amber-200">
-            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+          <div className="mx-5 mt-4 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-950/15 px-3.5 py-2.5 flex items-start gap-2.5 text-xs text-amber-900 dark:text-amber-200">
+            <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <div>
               <span className="font-medium">{t('integrations.routerAccess.aclHintTitle')}</span>{' '}
-              <span className="text-amber-200/90">{openwrtLogWarning}</span>
+              <span className="text-amber-800 dark:text-amber-200/90">{openwrtLogWarning}</span>
             </div>
           </div>
         )}
 
-        <div className="divide-y divide-slate-800/80 max-h-[460px] overflow-y-auto">
+        <div className="divide-y divide-slate-200 dark:divide-slate-800/80 max-h-[460px] overflow-y-auto">
           {scopedRouterAttempts.length === 0 ? (
             <div className="p-8 text-center space-y-1.5 text-xs">
-              <div className="text-slate-300 font-medium">
+              <div className="text-slate-800 dark:text-slate-300 font-medium">
                 {t('integrations.routerAccess.emptyTitle')}
               </div>
-              <p className="text-slate-400 max-w-lg mx-auto">
+              <p className="text-slate-600 dark:text-slate-400 max-w-lg mx-auto">
                 {t('integrations.routerAccess.emptySubtitle')}
               </p>
             </div>
@@ -729,15 +729,15 @@ export function IntegrationsView({
               return (
                 <div
                   key={attempt.id}
-                  className="px-5 py-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between hover:bg-slate-900/30 transition-colors"
+                  className="px-5 py-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between hover:bg-slate-50 dark:hover:bg-slate-900/30 transition-colors"
                 >
                   <div className="space-y-1.5 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400 tabular-nums">
-                      <span className="font-mono font-semibold text-slate-100">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-400 tabular-nums">
+                      <span className="font-mono font-semibold text-slate-900 dark:text-slate-100">
                         {attempt.srcIp}
                       </span>
                       <span aria-hidden="true">·</span>
-                      <span className="font-mono text-slate-300">
+                      <span className="font-mono text-slate-700 dark:text-slate-300">
                         {serviceLabel}
                         {attempt.targetPort ? ` · ${attempt.targetPort}` : ''}
                       </span>
@@ -745,10 +745,10 @@ export function IntegrationsView({
                       <span
                         className={
                           attempt.severity === 'critical' || attempt.severity === 'high'
-                            ? 'text-red-400 font-medium'
+                            ? 'text-red-700 dark:text-red-400 font-medium'
                             : attempt.severity === 'medium'
-                              ? 'text-amber-400 font-medium'
-                              : 'text-slate-300 font-medium'
+                              ? 'text-amber-700 dark:text-amber-400 font-medium'
+                              : 'text-slate-700 dark:text-slate-300 font-medium'
                         }
                       >
                         {t(`integrations.routerAccess.sev.${attempt.severity}`)}
@@ -760,17 +760,17 @@ export function IntegrationsView({
                         })}
                       </span>
                       <span aria-hidden="true">·</span>
-                      <span className="font-mono text-slate-400">
+                      <span className="font-mono text-slate-500 dark:text-slate-400">
                         {new Date(attempt.lastSeenAt).toLocaleTimeString(locale)}
                       </span>
                       <span aria-hidden="true">·</span>
                       <span
                         className={
                           attempt.status === 'blocked'
-                            ? 'text-emerald-400 font-medium'
+                            ? 'text-emerald-700 dark:text-emerald-400 font-medium'
                             : attempt.status === 'ignored'
                               ? 'text-slate-500 font-medium'
-                              : 'text-amber-300 font-medium'
+                              : 'text-amber-700 dark:text-amber-300 font-medium'
                         }
                       >
                         {attempt.status === 'blocked'
@@ -785,7 +785,7 @@ export function IntegrationsView({
                       </span>
                     </div>
 
-                    <p className="text-xs text-slate-200 leading-relaxed">{attempt.lastMessage}</p>
+                    <p className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed">{attempt.lastMessage}</p>
 
                     <div className="text-[11px] font-mono text-slate-500">
                       {t('integrations.routerAccess.sourceAdapter', {
@@ -795,7 +795,7 @@ export function IntegrationsView({
                         <>
                           {' '}
                           ·{' '}
-                          <span className="text-slate-400">
+                          <span className="text-slate-600 dark:text-slate-400">
                             {t('integrations.routerAccess.linkedExec', {
                               id: attempt.linkedExecutionId,
                             })}
@@ -805,13 +805,13 @@ export function IntegrationsView({
                     </div>
 
                     {attempt.sampleLines.length > 0 && (
-                      <details className="text-[11px] text-slate-400">
-                        <summary className="cursor-pointer text-blue-400 hover:text-blue-300 select-none">
+                      <details className="text-[11px] text-slate-600 dark:text-slate-400">
+                        <summary className="cursor-pointer text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 select-none">
                           {t('integrations.routerAccess.viewRawLines', {
                             count: attempt.sampleLines.length,
                           })}
                         </summary>
-                        <pre className="mt-1.5 p-2.5 rounded-lg border border-slate-800 bg-slate-950 font-mono text-[11px] text-slate-300 overflow-x-auto">
+                        <pre className="mt-1.5 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 font-mono text-[11px] text-slate-800 dark:text-slate-300 overflow-x-auto">
                           {attempt.sampleLines.join('\n')}
                         </pre>
                       </details>
@@ -828,7 +828,7 @@ export function IntegrationsView({
                         attempt.status === 'blocked'
                       }
                       onClick={() => onBlockRouterAccessIp(attempt.id, 900)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-800/70 bg-red-950/30 text-red-200 hover:bg-red-900/40 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-40"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-800/70 dark:bg-red-950/30 dark:text-red-200 dark:hover:bg-red-900/40 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-40"
                     >
                       <Ban className="w-3.5 h-3.5" />
                       <span>{t('integrations.routerAccess.blockIpBtn')}</span>
@@ -843,7 +843,7 @@ export function IntegrationsView({
                           attempt.status === 'ignored' ? 'observed' : 'ignored',
                         )
                       }
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-40"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-40"
                     >
                       <EyeOff className="w-3.5 h-3.5" />
                       <span>
@@ -871,26 +871,26 @@ export function IntegrationsView({
           />
         )}
 
-        <div className="px-5 py-3.5 border-t border-slate-800 bg-slate-950/40 text-xs">
+        <div className="px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 text-xs">
           <details>
-            <summary className="cursor-pointer text-blue-400 hover:text-blue-300 font-medium select-none inline-flex items-center gap-1.5">
+            <summary className="cursor-pointer text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 font-medium select-none inline-flex items-center gap-1.5">
               <Terminal className="w-3.5 h-3.5" />
               <span>{t('integrations.routerAccess.setupGuideSummary')}</span>
             </summary>
             <div className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <div className="text-[11px] font-medium text-slate-300">
+                <div className="text-[11px] font-medium text-slate-700 dark:text-slate-300">
                   {t('integrations.routerAccess.pushCmdTitle')}
                 </div>
-                <pre className="p-3 rounded-lg border border-slate-800 bg-slate-950 font-mono text-[11px] text-slate-300 overflow-x-auto">
+                <pre className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 font-mono text-[11px] text-slate-800 dark:text-slate-300 overflow-x-auto">
                   {routerPushCmd}
                 </pre>
               </div>
               <div className="space-y-1.5">
-                <div className="text-[11px] font-medium text-slate-300">
+                <div className="text-[11px] font-medium text-slate-700 dark:text-slate-300">
                   {t('integrations.routerAccess.aclJsonTitle')}
                 </div>
-                <pre className="p-3 rounded-lg border border-slate-800 bg-slate-950 font-mono text-[11px] text-slate-300 overflow-x-auto">
+                <pre className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 font-mono text-[11px] text-slate-800 dark:text-slate-300 overflow-x-auto">
                   {rpcdAclSnippet}
                 </pre>
               </div>
@@ -900,12 +900,12 @@ export function IntegrationsView({
       </section>
 
       {/* Adapters List */}
-      <section className="rounded-xl border border-slate-800 bg-[#131C31] overflow-hidden">
-        <div className="divide-y divide-slate-800 max-h-[580px] overflow-y-auto">
+      <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131C31] shadow-xs dark:shadow-none overflow-hidden">
+        <div className="divide-y divide-slate-200 dark:divide-slate-800 max-h-[580px] overflow-y-auto">
           {state.integrations.length === 0 ? (
             <div className="p-10 text-center space-y-3">
-              <p className="text-sm text-slate-300 font-medium">{t('integrations.emptyTitle')}</p>
-              <p className="text-xs text-slate-400 max-w-md mx-auto">
+              <p className="text-sm text-slate-800 dark:text-slate-300 font-medium">{t('integrations.emptyTitle')}</p>
+              <p className="text-xs text-slate-600 dark:text-slate-400 max-w-md mx-auto">
                 {t('integrations.emptyHintPrefix')}{' '}
                 <strong>{t('integrations.emptyHintBold')}</strong>{' '}
                 {t('integrations.emptyHintSuffix')}
@@ -913,7 +913,7 @@ export function IntegrationsView({
               <button
                 type="button"
                 onClick={onOpenSettings}
-                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 cursor-pointer"
               >
                 <Settings className="w-3.5 h-3.5" />
                 <span>{t('integrations.goToSettings')}</span>
@@ -931,18 +931,18 @@ export function IntegrationsView({
               <div key={adapter.id} className="p-5 space-y-4">
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                   <div className="space-y-1.5">
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400 tabular-nums">
-                      <span className="font-mono text-slate-300">{adapter.id}</span>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-400 tabular-nums">
+                      <span className="font-mono text-slate-800 dark:text-slate-300">{adapter.id}</span>
                       <span aria-hidden="true">·</span>
                       <span>{adapter.protocolVersion}</span>
                       <span aria-hidden="true">·</span>
                       <span
                         className={
                           adapter.status === 'connected'
-                            ? 'text-emerald-400 font-medium'
+                            ? 'text-emerald-700 dark:text-emerald-400 font-medium'
                             : adapter.status === 'stale'
-                              ? 'text-amber-400 font-medium'
-                              : 'text-red-400 font-medium'
+                              ? 'text-amber-700 dark:text-amber-400 font-medium'
+                              : 'text-red-700 dark:text-red-400 font-medium'
                         }
                       >
                         {adapter.status === 'connected'
@@ -954,7 +954,7 @@ export function IntegrationsView({
                       <span aria-hidden="true">·</span>
                       <span>
                         {t('integrations.modeLabel')}{' '}
-                        <strong className="text-slate-200 font-medium">
+                        <strong className="text-slate-900 dark:text-slate-200 font-medium">
                           {adapter.mode === 'mock'
                             ? t('common.mockSim')
                             : t('integrations.modeRealLive')}
@@ -973,33 +973,33 @@ export function IntegrationsView({
 
                     <div className="flex items-center gap-2">
                       {adapter.domain === 'gateway' ? (
-                        <Router className="w-4 h-4 text-blue-400 shrink-0" />
+                        <Router className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                       ) : (
-                        <SlidersHorizontal className="w-4 h-4 text-slate-400 shrink-0" />
+                        <SlidersHorizontal className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0" />
                       )}
-                      <h3 className="text-base font-semibold text-slate-100">{adapter.name}</h3>
+                      <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">{adapter.name}</h3>
                     </div>
 
-                    <p className="text-xs text-slate-400 max-w-2xl">{adapter.description}</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 max-w-2xl">{adapter.description}</p>
 
-                    <div className="text-xs text-slate-400 pt-1">
+                    <div className="text-xs text-slate-600 dark:text-slate-400 pt-1">
                       <span className="text-slate-500">
                         {t('integrations.declaredCapabilities')}{' '}
                       </span>
-                      <span className="font-mono text-slate-300">
+                      <span className="font-mono text-slate-800 dark:text-slate-300">
                         {adapter.capabilities.join(' · ')}
                       </span>
                     </div>
 
                     {adapter.boardInfo && (
-                      <div className="text-xs text-slate-400 tabular-nums">
+                      <div className="text-xs text-slate-600 dark:text-slate-400 tabular-nums">
                         <span className="text-slate-500">
                           {t('integrations.discoveredHardware')}{' '}
                         </span>
                         <span>
                           {adapter.boardInfo.model} · {adapter.boardInfo.firmware} ·{' '}
                           {t('integrations.interfacesLabel')}{' '}
-                          <span className="font-mono text-slate-300">
+                          <span className="font-mono text-slate-800 dark:text-slate-300">
                             {adapter.boardInfo.interfaces.join(', ')}
                           </span>
                         </span>
@@ -1010,15 +1010,15 @@ export function IntegrationsView({
                   {/* Per-service Mock <-> Live switch + Real Sync */}
                   <div className="flex flex-col gap-2.5 xl:w-[460px] shrink-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <div className="inline-flex items-center p-1 rounded-lg bg-slate-950 border border-slate-800">
+                      <div className="inline-flex items-center p-1 rounded-lg bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
                         <button
                           type="button"
                           disabled={isBusy}
                           onClick={() => onSwitchMode(adapter.id, 'mock', currentUrl)}
                           className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                             adapter.mode === 'mock'
-                              ? 'bg-slate-800 text-slate-100'
-                              : 'text-slate-400 hover:text-slate-200'
+                              ? 'bg-emerald-600 text-white'
+                              : 'text-slate-600 hover:text-slate-900 hover:bg-white dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-900'
                           }`}
                         >
                           {t('common.mockSim')}
@@ -1029,8 +1029,8 @@ export function IntegrationsView({
                           onClick={() => onSwitchMode(adapter.id, 'live', currentUrl)}
                           className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                             adapter.mode === 'live'
-                              ? 'bg-blue-600 text-white'
-                              : 'text-slate-400 hover:text-slate-200'
+                              ? 'bg-emerald-600 text-white'
+                              : 'text-slate-600 hover:text-slate-900 hover:bg-white dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-900'
                           }`}
                         >
                           {t('common.liveApi')}
@@ -1041,7 +1041,7 @@ export function IntegrationsView({
                         type="button"
                         disabled={isBusy}
                         onClick={() => onSyncAdapter(adapter.id)}
-                        className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
                       >
                         <RefreshCw
                           className={`w-3.5 h-3.5 ${busyKey === `sync-${adapter.id}` ? 'animate-spin' : ''}`}
@@ -1053,7 +1053,7 @@ export function IntegrationsView({
                         type="button"
                         disabled={isBusy}
                         onClick={() => onHandshake(adapter.id)}
-                        className="px-3 py-2 text-xs font-medium rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+                        className="px-3 py-2 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
                       >
                         {t('integrations.handshake')}
                       </button>
@@ -1068,24 +1068,24 @@ export function IntegrationsView({
                         onChange={(e) =>
                           setUrlDrafts((prev) => ({ ...prev, [adapter.id]: e.target.value }))
                         }
-                        className="flex-1 px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-950 text-slate-200 font-mono text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                        className="flex-1 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-200 font-mono text-xs placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
                       />
                       <button
                         type="button"
                         disabled={isBusy}
                         onClick={() => onSwitchMode(adapter.id, 'live', currentUrl)}
-                        className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-700 text-slate-200 hover:bg-slate-800 whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+                        className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
                       >
                         {t('integrations.testUrl')}
                       </button>
                     </div>
 
                     {adapter.lastLiveCheckMessage && (
-                      <div className="flex items-start gap-1.5 text-xs text-slate-400">
+                      <div className="flex items-start gap-1.5 text-xs text-slate-600 dark:text-slate-400">
                         {adapter.status === 'unavailable' ? (
-                          <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
+                          <AlertCircle className="w-3.5 h-3.5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
                         ) : (
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-500 shrink-0 mt-0.5" />
                         )}
                         <span>{adapter.lastLiveCheckMessage}</span>
                       </div>
