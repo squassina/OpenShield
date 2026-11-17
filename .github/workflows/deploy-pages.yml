@@ -36,7 +36,7 @@ jobs:
 
       - name: Re-run static validation before deployment
         run: |
-          npm run check
+          npm run lint
           npm test
 
       - name: Configure GitHub Pages
