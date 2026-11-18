@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getIntlLocale } from '../i18n';
+import { deriveDeviceHealth, type DeviceHealthInfo } from '../lib/deviceHealth';
 import { DevicesTopologySvg } from './DevicesTopologySvg';
 import { PaginationControls, usePagination } from './PaginationControls';
 import type { DnsInsight, NetworkDevice, WorkspaceState } from '../types/openshield';
@@ -79,6 +80,50 @@ function DeviceIcon({ type }: { type: NetworkDevice['deviceType'] }) {
   if (type === 'iot') return <Video className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />;
   if (type === 'mobile') return <Smartphone className="w-4 h-4 text-slate-600 dark:text-slate-300 shrink-0" />;
   return <Laptop className="w-4 h-4 text-slate-600 dark:text-slate-300 shrink-0" />;
+}
+
+function DeviceHealthBadge({ health }: { health: DeviceHealthInfo }) {
+  const { t } = useTranslation();
+
+  const meta =
+    health.status === 'offline'
+      ? {
+          label: t('common.offline'),
+          badgeClass:
+            'border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300',
+          dotClass: 'bg-red-500 dark:bg-red-400',
+        }
+      : health.status === 'high_latency'
+        ? {
+            label: t('devices.healthHighLatency'),
+            badgeClass:
+              'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/70 dark:bg-amber-950/40 dark:text-amber-300',
+            dotClass: 'bg-amber-500 dark:bg-amber-400',
+          }
+        : {
+            label: t('common.online'),
+            badgeClass:
+              'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/70 dark:bg-emerald-950/40 dark:text-emerald-300',
+            dotClass: 'bg-emerald-500 dark:bg-emerald-400',
+          };
+
+  const titleParts = [meta.label];
+  if (health.latencyMs !== null) {
+    titleParts.push(t('devices.healthLatencyMs', { ms: health.latencyMs }));
+  }
+  if (health.lastSeenMinutesAgo !== null) {
+    titleParts.push(t('devices.healthLastSeenAgo', { minutes: health.lastSeenMinutesAgo }));
+  }
+
+  return (
+    <span
+      title={titleParts.join(' · ')}
+      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[10px] font-medium leading-none whitespace-nowrap shrink-0 ${meta.badgeClass}`}
+    >
+      <span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full shrink-0 ${meta.dotClass}`} />
+      <span>{meta.label}</span>
+    </span>
+  );
 }
 
 interface AggregatedDomainFlow {
@@ -380,6 +425,15 @@ export function DevicesTopologyView({
     if (!selectedDevice) return [];
     return getTopDomainsForDevice(selectedDevice, state, 5);
   }, [selectedDevice, state]);
+
+  const deviceHealthMap = useMemo(() => {
+    const map = new Map<string, DeviceHealthInfo>();
+    const nowMs = Date.now();
+    for (const dev of state.devices) {
+      map.set(dev.id, deriveDeviceHealth(dev, state, nowMs));
+    }
+    return map;
+  }, [state]);
 
   const handleCreateDevice = async (e: FormEvent) => {
     e.preventDefault();
@@ -799,37 +853,47 @@ export function DevicesTopologyView({
                     </p>
                   ) : (
                     <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-                      {items.map((dev) => (
-                        <button
-                          key={dev.id}
-                          type="button"
-                          onClick={() => openDrawer(dev)}
-                          className="w-full text-left flex items-center justify-between gap-2 px-2.5 py-2 rounded-md hover:bg-white dark:hover:bg-slate-900 transition-colors cursor-pointer"
-                        >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <DeviceIcon type={dev.deviceType} />
-                            <div className="truncate">
-                              <div className="text-xs font-medium text-slate-800 dark:text-slate-200 truncate">
-                                {dev.hostname}
-                              </div>
-                              <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400 tabular-nums">
-                                {dev.ip}
+                      {items.map((dev) => {
+                        const health = deviceHealthMap.get(dev.id) ?? {
+                          status: 'online' as const,
+                          latencyMs: null,
+                          lastSeenMinutesAgo: null,
+                        };
+                        return (
+                          <button
+                            key={dev.id}
+                            type="button"
+                            onClick={() => openDrawer(dev)}
+                            className="w-full text-left flex items-center justify-between gap-2 px-2.5 py-2 rounded-md hover:bg-white dark:hover:bg-slate-900 transition-colors cursor-pointer"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <DeviceIcon type={dev.deviceType} />
+                              <div className="min-w-0">
+                                <div className="text-xs font-medium text-slate-800 dark:text-slate-200 truncate">
+                                  {dev.hostname}
+                                </div>
+                                <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400 tabular-nums">
+                                  {dev.ip}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                          <span
-                            className={`text-xs font-mono tabular-nums whitespace-nowrap ${
-                              dev.riskScore >= 70
-                                ? 'text-red-700 dark:text-red-400'
-                                : dev.riskScore >= 40
-                                  ? 'text-amber-700 dark:text-amber-400'
-                                  : 'text-emerald-700 dark:text-emerald-400'
-                            }`}
-                          >
-                            {t('common.risk')} {dev.riskScore}
-                          </span>
-                        </button>
-                      ))}
+                            <div className="flex items-center gap-2 shrink-0">
+                              <DeviceHealthBadge health={health} />
+                              <span
+                                className={`text-xs font-mono tabular-nums whitespace-nowrap ${
+                                  dev.riskScore >= 70
+                                    ? 'text-red-700 dark:text-red-400'
+                                    : dev.riskScore >= 40
+                                      ? 'text-amber-700 dark:text-amber-400'
+                                      : 'text-emerald-700 dark:text-emerald-400'
+                                }`}
+                              >
+                                {t('common.risk')} {dev.riskScore}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -930,6 +994,11 @@ export function DevicesTopologyView({
                             {segDevices.map((dev) => {
                               const selected = activeFlowDevice?.id === dev.id;
                               const domainCount = getTopDomainsForDevice(dev, state, 50).length;
+                              const health = deviceHealthMap.get(dev.id) ?? {
+                                status: 'online' as const,
+                                latencyMs: null,
+                                lastSeenMinutesAgo: null,
+                              };
                               return (
                                 <button
                                   key={dev.id}
@@ -953,17 +1022,20 @@ export function DevicesTopologyView({
                                         </div>
                                       </div>
                                     </div>
-                                    <span
-                                      className={`text-[11px] font-mono tabular-nums shrink-0 ${
-                                        dev.riskScore >= 70
-                                          ? 'text-red-700 dark:text-red-400'
-                                          : dev.riskScore >= 40
-                                            ? 'text-amber-700 dark:text-amber-400'
-                                            : 'text-emerald-700 dark:text-emerald-400'
-                                      }`}
-                                    >
-                                      {t('common.risk')} {dev.riskScore}
-                                    </span>
+                                    <div className="flex flex-col items-end gap-1 shrink-0">
+                                      <DeviceHealthBadge health={health} />
+                                      <span
+                                        className={`text-[11px] font-mono tabular-nums ${
+                                          dev.riskScore >= 70
+                                            ? 'text-red-700 dark:text-red-400'
+                                            : dev.riskScore >= 40
+                                              ? 'text-amber-700 dark:text-amber-400'
+                                              : 'text-emerald-700 dark:text-emerald-400'
+                                        }`}
+                                      >
+                                        {t('common.risk')} {dev.riskScore}
+                                      </span>
+                                    </div>
                                   </div>
 
                                   <div className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400 pt-1 border-t border-slate-200 dark:border-slate-800/70 tabular-nums">
@@ -1281,9 +1353,20 @@ export function DevicesTopologyView({
                 <div className="text-xs text-slate-500 dark:text-slate-400 font-mono">
                   {selectedDevice.id} · {selectedDevice.mac}
                 </div>
-                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mt-1">
-                  {selectedDevice.hostname}
-                </h2>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                    {selectedDevice.hostname}
+                  </h2>
+                  <DeviceHealthBadge
+                    health={
+                      deviceHealthMap.get(selectedDevice.id) ?? {
+                        status: 'online',
+                        latencyMs: null,
+                        lastSeenMinutesAgo: null,
+                      }
+                    }
+                  />
+                </div>
               </div>
               <button
                 type="button"

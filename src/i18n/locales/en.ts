@@ -736,6 +736,9 @@ export const en = {
     correlatedEvents: 'Correlated Events (openshield.event.v1)',
     noRelatedEvents: 'No recent events directly associated with this asset.',
     sourceLabel: 'source:',
+    healthHighLatency: 'High Latency',
+    healthLatencyMs: '{{ms}} ms',
+    healthLastSeenAgo: 'seen {{minutes}}m ago',
     segments: {
       'LAN Confiável': 'Trusted LAN',
       'IoT / Convidados': 'IoT / Guests',

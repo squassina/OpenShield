@@ -736,6 +736,9 @@ export const ptBR = {
     correlatedEvents: 'Eventos Correlacionados (openshield.event.v1)',
     noRelatedEvents: 'Nenhum evento recente associado diretamente a este ativo.',
     sourceLabel: 'fonte:',
+    healthHighLatency: 'Latência Alta',
+    healthLatencyMs: '{{ms}} ms',
+    healthLastSeenAgo: 'visto há {{minutes}} min',
     segments: {
       'LAN Confiável': 'LAN Confiável',
       'IoT / Convidados': 'IoT / Convidados',
